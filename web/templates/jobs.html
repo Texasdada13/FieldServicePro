@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs - FieldServicePro{% endblock %}
+
+{% block content %}
+<!-- Jobber-style Header -->
+<div class="page-header" style="margin-bottom: 1rem;">
+    <div>
+        <h1 style="margin-bottom: 0.15rem;">Jobs</h1>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">{{ "{:,}".format(jobs|length) }} result{{ 's' if jobs|length != 1 else '' }}</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <a href="#" style="color: var(--primary); font-size: 0.85rem; font-weight: 500; text-decoration: none;">+ More Actions</a>
+        <button class="btn btn-primary" style="background: var(--success); border-color: var(--success);" onclick="document.getElementById('newJobModal').classList.add('show')">
+            <i class="bi bi-plus-lg"></i> New Job
+        </button>
+    </div>
+</div>
+
+<!-- KPI Cards Row -->
+<div class="kpi-grid" style="grid-template-columns: 1.4fr 1fr 1fr; margin-bottom: 1.5rem;">
+    <!-- Overview Card -->
+    <div class="kpi-card accent-blue" style="padding: 1.25rem;">
+        <div class="kpi-label" style="margin-bottom: 0.75rem; font-weight: 600;">Overview</div>
+        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.45rem;">
+            <li style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                <span style="color: var(--text-secondary);">Ending within 30 days</span>
+                <strong style="color: var(--text-primary);">{{ jobs_ending_soon }}</strong>
+            </li>
+            <li style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                <span style="color: var(--danger);">Late</span>
+                <strong style="color: var(--danger);">{{ jobs_late }}</strong>
+            </li>
+            <li style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                <span style="color: var(--text-secondary);">Requires Invoicing</span>
+                <strong style="color: var(--text-primary);">{{ jobs_requires_invoicing }}</strong>
+            </li>
+            <li style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                <span style="color: var(--accent);">Action Required</span>
+                <strong style="color: var(--accent);">{{ jobs_action_required }}</strong>
+            </li>
+            <li style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                <span style="color: var(--text-secondary);">Unscheduled</span>
+                <strong style="color: var(--text-primary);">{{ jobs_unscheduled }}</strong>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Recent Visits Card -->
+    <div class="kpi-card accent-green" style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: center;">
+        <div class="kpi-label" style="margin-bottom: 0.5rem;">Recent Visits <span style="text-transform: none; letter-spacing: 0;">(past 30 days)</span></div>
+        <div class="kpi-value">{{ recent_visits_count }}</div>
+        <div class="kpi-sub">
+            {% if recent_visits_count > 0 %}
+            <span style="color: var(--success);">
+                <i class="bi bi-arrow-up-short"></i> completed recently
+            </span>
+            {% else %}
+            <span>No recent completions</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Visits Scheduled Card -->
+    <div class="kpi-card accent-orange" style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: center;">
+        <div class="kpi-label" style="margin-bottom: 0.5rem;">Visits Scheduled</div>
+        <div class="kpi-value">{{ visits_scheduled_count }}</div>
+        <div class="kpi-sub">
+            {% if visits_scheduled_count > 0 %}
+            <span style="color: var(--primary);">
+                <i class="bi bi-calendar-check"></i> upcoming
+            </span>
+            {% else %}
+            <span>No upcoming visits</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Filter Pills + Search -->
+<div class="filter-bar" style="justify-content: space-between;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <!-- Status Filter -->
+        <select id="statusFilter" onchange="window.location.href='{{ url_for('jobs_page') }}?status=' + this.value + '{% if active_division %}&division={{ active_division }}{% endif %}'">
+            <option value="">All Statuses</option>
+            {% for status in statuses %}
+            <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status | replace('_', ' ') | title }}</option>
+            {% endfor %}
+        </select>
+
+        <!-- Job Type Filter (client-side) -->
+        <select id="jobTypeFilter" onchange="filterTable()">
+            <option value="">All Job Types</option>
+            <option value="service_call">Service Call</option>
+            <option value="repair">Repair</option>
+            <option value="installation">Installation</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="inspection">Inspection</option>
+            <option value="emergency">Emergency</option>
+        </select>
+    </div>
+    <div style="position: relative;">
+        <i class="bi bi-search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.85rem;"></i>
+        <input type="text" id="jobSearch" placeholder="Search jobs..." oninput="filterTable()" style="padding-left: 2rem; min-width: 220px;">
+    </div>
+</div>
+
+<!-- Total Value Bar -->
+<div style="display: flex; justify-content: flex-end; margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">
+    Total value: <strong style="margin-left: 0.35rem; color: var(--text-primary);">${{ "{:,.2f}".format(total_jobs_value) }}</strong>
+</div>
+
+<!-- Jobs Table -->
+<div class="card">
+    <div class="card-body" style="padding: 0;">
+        {% if jobs %}
+        <table class="data-table" id="jobsTable">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th>Job</th>
+                    <th>Property</th>
+                    <th>Schedule</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr data-job-type="{{ job.job_type }}" data-searchable="{{ job.client_name|lower }} {{ job.job_number|lower }} {{ job.title|lower }} {{ (job.property_address or '')|lower }} {{ job.status|lower }}" onclick="window.location.href='/jobs/{{ job.id }}'" style="cursor: pointer;">
+                    <td>
+                        <div style="font-weight: 500;">{{ job.client_name }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                            <span class="division-badge" style="background: {{ job.division_color }}; font-size: 0.65rem; padding: 0.1rem 0.4rem;">{{ job.division_name }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: var(--primary);">{{ job.job_number }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-primary);">{{ job.title }}</div>
+                        {% if job.job_type %}<div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: capitalize;">{{ job.job_type | replace('_', ' ') }}</div>{% endif %}
+                    </td>
+                    <td style="font-size: 0.8rem; max-width: 180px;">{{ job.property_address or '—' }}</td>
+                    <td style="font-size: 0.8rem; white-space: nowrap;">
+                        {% if job.scheduled_date %}
+                            {{ job.scheduled_date[:10] }}
+                        {% else %}
+                            <span style="color: var(--text-secondary); font-style: italic;">Unscheduled</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span></td>
+                    <td style="text-align: right; font-weight: 600; white-space: nowrap;">${{ "{:,.2f}".format(job.estimated_amount or 0) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-clipboard-plus"></i>
+            <h3>No jobs found</h3>
+            <p>Create your first job to get started tracking work</p>
+            <button class="btn btn-primary" onclick="document.getElementById('newJobModal').classList.add('show')">
+                <i class="bi bi-plus-lg"></i> Create First Job
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- New Job Modal -->
+<div class="modal-overlay" id="newJobModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>New Job</h2>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('show')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="newJobForm" onsubmit="createJob(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Division</label>
+                        <select name="division_id" required id="jobDivision">
+                            {% for div in divisions %}
+                            <option value="{{ div.id }}">{{ div.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Job Type</label>
+                        <select name="job_type">
+                            <option value="service_call">Service Call</option>
+                            <option value="repair">Repair</option>
+                            <option value="installation">Installation</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="inspection">Inspection</option>
+                            <option value="emergency">Emergency</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" name="title" placeholder="e.g. Hot water tank replacement" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" placeholder="Job details..."></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Client</label>
+                        <select name="client_id" required id="jobClient" onchange="loadProperties(this.value, 'jobProperty')">
+                            <option value="">Select client...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Property</label>
+                        <select name="property_id" id="jobProperty">
+                            <option value="">Select property...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Scheduled Date</label>
+                        <input type="datetime-local" name="scheduled_date">
+                    </div>
+                    <div class="form-group">
+                        <label>Estimated Amount ($)</label>
+                        <input type="number" name="estimated_amount" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select name="priority">
+                            <option value="normal">Normal</option>
+                            <option value="low">Low</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Assign Technician</label>
+                        <select name="technician_id" id="jobTechnician">
+                            <option value="">Unassigned</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').classList.remove('show')">Cancel</button>
+            <button class="btn btn-primary" onclick="document.getElementById('newJobForm').requestSubmit()">Create Job</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load clients for the dropdown
+fetch('/api/lookup/clients').then(r => r.json()).then(clients => {
+    const sel = document.getElementById('jobClient');
+    clients.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.display_name;
+        sel.appendChild(opt);
+    });
+});
+
+// Load technicians
+fetch('/api/lookup/technicians').then(r => r.json()).then(techs => {
+    const sel = document.getElementById('jobTechnician');
+    techs.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.full_name;
+        sel.appendChild(opt);
+    });
+});
+
+function loadProperties(clientId, selectId) {
+    const sel = document.getElementById(selectId);
+    sel.innerHTML = '<option value="">Select property...</option>';
+    if (!clientId) return;
+    fetch('/api/lookup/properties/' + clientId).then(r => r.json()).then(props => {
+        props.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.display_address;
+            sel.appendChild(opt);
+        });
+    });
+}
+
+function createJob(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+        division_id: form.division_id.value,
+        client_id: form.client_id.value,
+        property_id: form.property_id.value || null,
+        title: form.title.value,
+        description: form.description.value,
+        job_type: form.job_type.value,
+        scheduled_date: form.scheduled_date.value || null,
+        estimated_amount: form.estimated_amount.value || 0,
+        priority: form.priority.value,
+        technician_id: form.technician_id.value || null,
+        status: form.scheduled_date.value ? 'scheduled' : 'draft',
+    };
+
+    fetch('/api/jobs', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data),
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            window.location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    });
+}
+
+// Client-side search and job type filtering
+function filterTable() {
+    const searchTerm = (document.getElementById('jobSearch').value || '').toLowerCase();
+    const jobType = document.getElementById('jobTypeFilter').value;
+    const table = document.getElementById('jobsTable');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tbody tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const searchable = row.getAttribute('data-searchable') || '';
+        const rowJobType = row.getAttribute('data-job-type') || '';
+
+        const matchesSearch = !searchTerm || searchable.includes(searchTerm);
+        const matchesType = !jobType || rowJobType === jobType;
+
+        if (matchesSearch && matchesType) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}

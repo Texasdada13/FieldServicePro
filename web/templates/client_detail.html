@@ -1,0 +1,711 @@
+{% extends "base.html" %}
+
+{% block title %}{{ client.display_name }} - FieldServicePro{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb & Header -->
+<div style="margin-bottom: 0.5rem;">
+    <a href="/clients" style="color: var(--primary); text-decoration: none; font-size: 0.85rem;">
+        <i class="bi bi-arrow-left"></i> Back to Clients
+    </a>
+</div>
+
+<div class="page-header">
+    <div>
+        <h1>{{ client.display_name }}</h1>
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.25rem;">
+            <span class="badge {% if client.client_type == 'commercial' %}badge-scheduled{% else %}badge-draft{% endif %}">
+                {{ client.client_type }}
+            </span>
+            {% if client.billing_city %}
+            <span style="color: var(--text-secondary); font-size: 0.85rem;">
+                <i class="bi bi-geo-alt"></i> {{ client.billing_city }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Division Filter Pills -->
+{% if client_divisions|length > 0 %}
+<div class="filter-bar" style="margin-bottom: 1rem;">
+    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Line of Business:</span>
+    <a href="/clients/{{ client.id }}" class="division-filter-pill {% if not active_division %}active{% endif %}">
+        All
+    </a>
+    {% for div in client_divisions %}
+    <a href="/clients/{{ client.id }}?division={{ div.id }}"
+       class="division-filter-pill {% if active_division == div.id %}active{% endif %}"
+       style="{% if active_division == div.id %}background: {{ div.color }}; color: white; border-color: {{ div.color }};{% endif %}">
+        <i class="{{ div.icon }}"></i> {{ div.name }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- KPI Summary -->
+<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));">
+    <div class="kpi-card accent-blue">
+        <div class="kpi-label">Active Jobs</div>
+        <div class="kpi-value">{{ active_jobs|length }}</div>
+        <div class="kpi-sub">Scheduled / In Progress</div>
+    </div>
+    <div class="kpi-card accent-orange">
+        <div class="kpi-label">Needs Attention</div>
+        <div class="kpi-value">{{ needs_attention_jobs|length }}</div>
+        <div class="kpi-sub">Draft / On Hold</div>
+    </div>
+    <div class="kpi-card accent-green">
+        <div class="kpi-label">Total Invoiced</div>
+        <div class="kpi-value money">${{ "{:,.2f}".format(total_invoiced) }}</div>
+    </div>
+    <div class="kpi-card accent-red">
+        <div class="kpi-label">Outstanding</div>
+        <div class="kpi-value money {% if total_outstanding > 0 %}money-red{% endif %}">${{ "{:,.2f}".format(total_outstanding) }}</div>
+    </div>
+</div>
+
+<!-- Main Layout: Two columns -->
+<div class="client-detail-layout">
+    <!-- Left: Overview with Tabs -->
+    <div class="client-main-col">
+        <div class="card">
+            <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+                <span>Overview</span>
+            </div>
+            <!-- Tab Navigation -->
+            <div class="detail-tabs">
+                <button class="detail-tab active" data-tab="active-work">
+                    Active Work <span class="tab-count">{{ active_jobs|length }}</span>
+                </button>
+                <button class="detail-tab" data-tab="needs-attention">
+                    Needs Attention <span class="tab-count">{{ needs_attention_jobs|length }}</span>
+                </button>
+                <button class="detail-tab" data-tab="all-jobs">
+                    All Jobs <span class="tab-count">{{ all_jobs|length }}</span>
+                </button>
+                <button class="detail-tab" data-tab="quotes">
+                    Quotes <span class="tab-count">{{ quotes|length }}</span>
+                </button>
+                <button class="detail-tab" data-tab="invoices">
+                    Invoices <span class="tab-count">{{ invoices|length }}</span>
+                </button>
+                <button class="detail-tab" data-tab="communications">
+                    Communications <span class="tab-count">{{ comm_total }}</span>
+                </button>
+            </div>
+
+            <!-- Tab: Active Work -->
+            <div class="detail-tab-content active" id="tab-active-work">
+                {% if active_jobs %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Division</th>
+                            <th>Scheduled</th>
+                            <th>Property</th>
+                            <th>Technician</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in active_jobs %}
+                        <tr>
+                            <td>
+                                <div style="font-weight: 500;">{{ job.job_number }} - {{ job.title }}</div>
+                                <span class="badge badge-{{ job.status }}">{{ job.status }}</span>
+                                {% if job.priority != 'normal' %}
+                                <span class="priority-dot priority-{{ job.priority }}"></span>
+                                <span style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary);">{{ job.priority }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="division-badge" style="background: {{ job.division_color }};">{{ job.division_name }}</span>
+                            </td>
+                            <td style="font-size: 0.85rem; white-space: nowrap;">
+                                {% if job.scheduled_date %}
+                                    {{ job.scheduled_date[:10] }}
+                                {% else %}
+                                    <span style="color: var(--text-secondary);">Not Scheduled</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size: 0.85rem;">{{ job.property_address or '—' }}</td>
+                            <td style="font-size: 0.85rem;">{{ job.technician_name }}</td>
+                            <td class="money">${{ "{:,.2f}".format(job.estimated_amount or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state" style="padding: 2rem;">
+                    <i class="bi bi-check-circle"></i>
+                    <h3>No active work</h3>
+                    <p>No jobs are currently scheduled or in progress for this client.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Tab: Needs Attention -->
+            <div class="detail-tab-content" id="tab-needs-attention">
+                {% if needs_attention_jobs %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Division</th>
+                            <th>Status</th>
+                            <th>Property</th>
+                            <th>Created</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in needs_attention_jobs %}
+                        <tr>
+                            <td>
+                                <div style="font-weight: 500;">{{ job.job_number }} - {{ job.title }}</div>
+                                {% if job.priority != 'normal' %}
+                                <span class="priority-dot priority-{{ job.priority }}"></span>
+                                <span style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary);">{{ job.priority }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="division-badge" style="background: {{ job.division_color }};">{{ job.division_name }}</span>
+                            </td>
+                            <td><span class="badge badge-{{ job.status }}">{{ job.status }}</span></td>
+                            <td style="font-size: 0.85rem;">{{ job.property_address or '—' }}</td>
+                            <td style="font-size: 0.85rem; white-space: nowrap;">{{ job.created_at[:10] if job.created_at else '—' }}</td>
+                            <td class="money">${{ "{:,.2f}".format(job.estimated_amount or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state" style="padding: 2rem;">
+                    <i class="bi bi-check-circle"></i>
+                    <h3>Nothing needs attention</h3>
+                    <p>No draft or on-hold jobs for this client.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Tab: All Jobs -->
+            <div class="detail-tab-content" id="tab-all-jobs">
+                {% if all_jobs %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Division</th>
+                            <th>Status</th>
+                            <th>Scheduled</th>
+                            <th>Property</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in all_jobs %}
+                        <tr>
+                            <td>
+                                <div style="font-weight: 500;">{{ job.job_number }} - {{ job.title }}</div>
+                                <span style="font-size: 0.75rem; color: var(--text-secondary);">{{ job.technician_name }}</span>
+                            </td>
+                            <td>
+                                <span class="division-badge" style="background: {{ job.division_color }};">{{ job.division_name }}</span>
+                            </td>
+                            <td><span class="badge badge-{{ job.status }}">{{ job.status }}</span></td>
+                            <td style="font-size: 0.85rem; white-space: nowrap;">
+                                {% if job.scheduled_date %}{{ job.scheduled_date[:10] }}{% else %}—{% endif %}
+                            </td>
+                            <td style="font-size: 0.85rem;">{{ job.property_address or '—' }}</td>
+                            <td class="money">${{ "{:,.2f}".format(job.estimated_amount or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state" style="padding: 2rem;">
+                    <i class="bi bi-briefcase"></i>
+                    <h3>No jobs yet</h3>
+                    <p>No jobs have been created for this client.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Tab: Quotes -->
+            <div class="detail-tab-content" id="tab-quotes">
+                {% if quotes %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Quote</th>
+                            <th>Division</th>
+                            <th>Status</th>
+                            <th>Total</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for q in quotes %}
+                        <tr>
+                            <td>
+                                <div style="font-weight: 500;">{{ q.quote_number }} - {{ q.title }}</div>
+                            </td>
+                            <td>
+                                <span class="division-badge" style="background: {{ q.division_color }};">{{ q.division_name }}</span>
+                            </td>
+                            <td><span class="badge badge-{{ q.status }}">{{ q.status }}</span></td>
+                            <td class="money">${{ "{:,.2f}".format(q.total or 0) }}</td>
+                            <td style="font-size: 0.85rem; white-space: nowrap;">{{ q.created_at[:10] if q.created_at else '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state" style="padding: 2rem;">
+                    <i class="bi bi-file-text"></i>
+                    <h3>No quotes</h3>
+                    <p>No quotes have been created for this client.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Tab: Invoices -->
+            <div class="detail-tab-content" id="tab-invoices">
+                {% if invoices %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Invoice</th>
+                            <th>Status</th>
+                            <th>Total</th>
+                            <th>Balance Due</th>
+                            <th>Issued</th>
+                            <th>Due</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in invoices %}
+                        <tr>
+                            <td style="font-weight: 500;">{{ inv.invoice_number }}</td>
+                            <td><span class="badge badge-{{ inv.status }}">{{ inv.status }}</span></td>
+                            <td class="money">${{ "{:,.2f}".format(inv.total or 0) }}</td>
+                            <td class="money {% if inv.balance_due > 0 %}money-red{% endif %}">${{ "{:,.2f}".format(inv.balance_due or 0) }}</td>
+                            <td style="font-size: 0.85rem; white-space: nowrap;">{{ inv.issued_date[:10] if inv.issued_date else '—' }}</td>
+                            <td style="font-size: 0.85rem; white-space: nowrap;">{{ inv.due_date[:10] if inv.due_date else '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state" style="padding: 2rem;">
+                    <i class="bi bi-receipt"></i>
+                    <h3>No invoices</h3>
+                    <p>No invoices have been created for this client.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Tab: Communications -->
+            <div class="detail-tab-content" id="tab-communications">
+                <!-- Communication Stats -->
+                <div style="display: flex; gap: 1.5rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                    <div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">{{ comm_total }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Total</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">{{ comm_sent }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Sent</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">{{ comm_opened }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Opened</div>
+                    </div>
+                </div>
+
+                <!-- Log Communication Form -->
+                <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); background: #f8fafc;">
+                    <form id="logCommForm" onsubmit="logCommunication(event)" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: end;">
+                        <div style="flex: 0 0 auto;">
+                            <select name="comm_type" style="padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem;">
+                                <option value="email">Email</option>
+                                <option value="phone">Phone</option>
+                                <option value="text">Text</option>
+                                <option value="in_person">In Person</option>
+                            </select>
+                        </div>
+                        <div style="flex: 0 0 auto;">
+                            <select name="direction" style="padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem;">
+                                <option value="outbound">Outbound</option>
+                                <option value="inbound">Inbound</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <input type="text" name="subject" placeholder="Subject or summary..." required
+                                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem;">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">Log</button>
+                    </form>
+                </div>
+
+                {% if communications %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Subject</th>
+                            <th>Status</th>
+                            <th>By</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for comm in communications %}
+                        <tr>
+                            <td>
+                                <span style="font-size: 0.8rem;">
+                                    {% if comm.comm_type == 'email' %}<i class="bi bi-envelope"></i>
+                                    {% elif comm.comm_type == 'phone' %}<i class="bi bi-telephone"></i>
+                                    {% elif comm.comm_type == 'text' %}<i class="bi bi-chat-dots"></i>
+                                    {% else %}<i class="bi bi-person"></i>{% endif %}
+                                    {{ comm.comm_type }}
+                                </span>
+                                <span class="badge {% if comm.direction == 'outbound' %}badge-scheduled{% else %}badge-approved{% endif %}" style="margin-left: 4px;">
+                                    {{ comm.direction }}
+                                </span>
+                            </td>
+                            <td style="font-weight: 500; font-size: 0.85rem;">{{ comm.subject or '—' }}</td>
+                            <td><span class="badge badge-{{ comm.status }}">{{ comm.status }}</span></td>
+                            <td style="font-size: 0.85rem;">{{ comm.author_name }}</td>
+                            <td style="font-size: 0.85rem; white-space: nowrap;">{{ comm.created_at[:10] if comm.created_at else '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state" style="padding: 2rem;">
+                    <i class="bi bi-chat-square-text"></i>
+                    <h3>No communications</h3>
+                    <p>Log your first email, phone call, or text with this client.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Completed Work Section -->
+        {% if completed_jobs %}
+        <div class="card" style="margin-top: 1.5rem;">
+            <div class="card-header">
+                <i class="bi bi-check-circle" style="color: var(--success); margin-right: 0.5rem;"></i>
+                Completed Work ({{ completed_jobs|length }})
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Division</th>
+                            <th>Completed</th>
+                            <th>Property</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in completed_jobs %}
+                        <tr>
+                            <td>
+                                <div style="font-weight: 500;">{{ job.job_number }} - {{ job.title }}</div>
+                                <span style="font-size: 0.75rem; color: var(--text-secondary);">{{ job.technician_name }}</span>
+                            </td>
+                            <td>
+                                <span class="division-badge" style="background: {{ job.division_color }};">{{ job.division_name }}</span>
+                            </td>
+                            <td style="font-size: 0.85rem; white-space: nowrap;">{{ job.completed_at[:10] if job.completed_at else '—' }}</td>
+                            <td style="font-size: 0.85rem;">{{ job.property_address or '—' }}</td>
+                            <td class="money">${{ "{:,.2f}".format(job.estimated_amount or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Client Notes Section -->
+        <div class="card" style="margin-top: 1.5rem;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="bi bi-sticky" style="margin-right: 0.5rem;"></i> Notes ({{ client_notes|length }})</span>
+                <button class="btn btn-primary btn-sm" onclick="document.getElementById('noteFormArea').style.display = document.getElementById('noteFormArea').style.display === 'none' ? 'block' : 'none'">
+                    <i class="bi bi-plus-lg"></i> Add Note
+                </button>
+            </div>
+
+            <!-- Add Note Form -->
+            <div id="noteFormArea" style="display: none; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); background: #f8fafc;">
+                <form id="addNoteForm" onsubmit="createNote(event)">
+                    <textarea name="content" placeholder="Add a note... (key codes, important info, instructions)" required
+                              style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; min-height: 80px; resize: vertical;"></textarea>
+                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('noteFormArea').style.display='none'">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Save Note</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Notes List -->
+            <div id="notesList">
+                {% if client_notes %}
+                    {% for note in client_notes %}
+                    <div class="client-note" id="note-{{ note.id }}">
+                        <div class="note-header">
+                            <div class="note-avatar">{{ note.author_initials }}</div>
+                            <div class="note-meta">
+                                <span class="note-author">{{ note.author_name }}</span>
+                                <span class="note-date">{{ note.created_at[:10] if note.created_at else '' }}</span>
+                            </div>
+                            <div class="note-actions">
+                                <button class="note-star-btn {% if note.is_starred %}starred{% endif %}"
+                                        onclick="toggleStar({{ client.id }}, {{ note.id }}, this)"
+                                        title="{% if note.is_starred %}Unstar{% else %}Star{% endif %}">
+                                    <i class="bi bi-star{% if note.is_starred %}-fill{% endif %}"></i>
+                                </button>
+                                <button class="note-delete-btn" onclick="deleteNote({{ client.id }}, {{ note.id }})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="note-content">{{ note.content }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state" style="padding: 2rem;" id="notesEmpty">
+                    <i class="bi bi-sticky"></i>
+                    <h3>No notes yet</h3>
+                    <p>Add notes for key codes, building access info, special instructions, and more.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar: Client Info -->
+    <div class="client-sidebar-col">
+        <!-- Contact Info -->
+        <div class="card">
+            <div class="card-header">Contact Details</div>
+            <div class="card-body">
+                <div class="client-info-row">
+                    <span class="client-info-label">Email</span>
+                    <span>{% if client.email %}<a href="mailto:{{ client.email }}" style="color: var(--primary); text-decoration: none;">{{ client.email }}</a>{% else %}—{% endif %}</span>
+                </div>
+                <div class="client-info-row">
+                    <span class="client-info-label">Phone</span>
+                    <span>{{ client.phone or '—' }}</span>
+                </div>
+                {% if client.client_type == 'commercial' and client.first_name %}
+                <div class="client-info-row">
+                    <span class="client-info-label">Contact</span>
+                    <span>{{ client.first_name }} {{ client.last_name or '' }}</span>
+                </div>
+                {% endif %}
+                <div class="client-info-row">
+                    <span class="client-info-label">Type</span>
+                    <span class="badge {% if client.client_type == 'commercial' %}badge-scheduled{% else %}badge-draft{% endif %}">{{ client.client_type }}</span>
+                </div>
+                {% if client.billing_city %}
+                <div class="client-info-row" style="border-bottom: none;">
+                    <span class="client-info-label">Address</span>
+                    <span style="font-size: 0.85rem;">{{ client.billing_city }}{% if client_obj.billing_province %}, {{ client_obj.billing_province }}{% endif %} {{ client_obj.billing_postal_code or '' }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Properties -->
+        <div class="card" style="margin-top: 1rem;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Properties ({{ properties|length }})</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                {% if properties %}
+                    {% for prop in properties %}
+                    <div class="client-property-item">
+                        <div style="font-weight: 500; font-size: 0.85rem;">
+                            {{ prop.address }}
+                            {% if prop.unit_number %}<span style="color: var(--text-secondary);"> Unit {{ prop.unit_number }}</span>{% endif %}
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                            {{ prop.city or '' }}{% if prop.province %}, {{ prop.province }}{% endif %} {{ prop.postal_code or '' }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div style="padding: 1.25rem; color: var(--text-secondary); font-size: 0.85rem;">No properties on file.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Contacts -->
+        {% if contacts %}
+        <div class="card" style="margin-top: 1rem;">
+            <div class="card-header">Contacts ({{ contacts|length }})</div>
+            <div class="card-body" style="padding: 0;">
+                {% for contact in contacts %}
+                <div class="client-property-item">
+                    <div style="font-weight: 500; font-size: 0.85rem;">
+                        {{ contact.first_name }} {{ contact.last_name or '' }}
+                        {% if contact.is_primary %}<span class="badge badge-scheduled" style="margin-left: 4px;">Primary</span>{% endif %}
+                    </div>
+                    {% if contact.title %}
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ contact.title }}</div>
+                    {% endif %}
+                    <div style="font-size: 0.8rem; margin-top: 0.25rem;">
+                        {% if contact.phone %}<i class="bi bi-telephone" style="font-size: 0.7rem;"></i> {{ contact.phone }}{% endif %}
+                        {% if contact.email %}<br><i class="bi bi-envelope" style="font-size: 0.7rem;"></i> {{ contact.email }}{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Billing History -->
+        <div class="card" style="margin-top: 1rem;">
+            <div class="card-header">Billing History</div>
+            <div class="card-body" style="padding: 0;">
+                {% if billing_history %}
+                    {% for inv in billing_history %}
+                    <div class="billing-history-item">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ inv.created_at[:10] if inv.created_at else '—' }}</div>
+                                <div style="font-weight: 500; font-size: 0.85rem;">{{ inv.invoice_number }}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div class="money" style="font-weight: 600; font-size: 0.85rem;">${{ "{:,.2f}".format(inv.total or 0) }}</div>
+                                <span class="badge badge-{{ inv.status }}" style="font-size: 0.6rem;">{{ inv.status }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div style="padding: 1.25rem; color: var(--text-secondary); font-size: 0.85rem;">No invoices yet.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Billing Summary -->
+        <div class="card" style="margin-top: 1rem;">
+            <div class="card-header">Billing Summary</div>
+            <div class="card-body">
+                <div class="client-info-row">
+                    <span class="client-info-label">Total Invoiced</span>
+                    <span class="money" style="font-weight: 600;">${{ "{:,.2f}".format(total_invoiced) }}</span>
+                </div>
+                <div class="client-info-row" style="border-bottom: none;">
+                    <span class="client-info-label">Outstanding</span>
+                    <span class="money {% if total_outstanding > 0 %}money-red{% endif %}" style="font-weight: 600;">${{ "{:,.2f}".format(total_outstanding) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CLIENT_ID = {{ client.id }};
+
+// Tab switching
+document.querySelectorAll('.detail-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.detail-tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+});
+
+// ========== Notes ==========
+function createNote(e) {
+    e.preventDefault();
+    const form = e.target;
+    const content = form.content.value.trim();
+    if (!content) return;
+
+    fetch(`/api/clients/${CLIENT_ID}/notes`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ content }),
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            window.location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    });
+}
+
+function toggleStar(clientId, noteId, btn) {
+    fetch(`/api/clients/${clientId}/notes/${noteId}/star`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            const icon = btn.querySelector('i');
+            if (result.is_starred) {
+                btn.classList.add('starred');
+                icon.className = 'bi bi-star-fill';
+            } else {
+                btn.classList.remove('starred');
+                icon.className = 'bi bi-star';
+            }
+        }
+    });
+}
+
+function deleteNote(clientId, noteId) {
+    if (!confirm('Delete this note?')) return;
+    fetch(`/api/clients/${clientId}/notes/${noteId}`, { method: 'DELETE' })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            const el = document.getElementById('note-' + noteId);
+            if (el) el.remove();
+        }
+    });
+}
+
+// ========== Communications ==========
+function logCommunication(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+        comm_type: form.comm_type.value,
+        direction: form.direction.value,
+        subject: form.subject.value,
+        status: 'sent',
+    };
+
+    fetch(`/api/clients/${CLIENT_ID}/communications`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data),
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            window.location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    });
+}
+</script>
+{% endblock %}

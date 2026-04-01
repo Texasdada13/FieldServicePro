@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Quotes - FieldServicePro{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Quotes</h1>
+        <p>{{ quotes|length }} quote{{ 's' if quotes|length != 1 else '' }}</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('newQuoteModal').classList.add('show')">
+        <i class="bi bi-plus-lg"></i> New Quote
+    </button>
+</div>
+
+<!-- Quotes Table -->
+<div class="card">
+    <div class="card-body" style="padding: 0;">
+        {% if quotes %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Quote #</th>
+                    <th>Division</th>
+                    <th>Title</th>
+                    <th>Client</th>
+                    <th>Template</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Issued</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for q in quotes %}
+                <tr>
+                    <td><strong>{{ q.quote_number }}</strong></td>
+                    <td><span class="division-badge" style="background: {{ q.division_color }}">{{ q.division_name }}</span></td>
+                    <td>{{ q.title }}</td>
+                    <td>{{ q.client_name }}</td>
+                    <td>{{ q.template_name or '—' }}</td>
+                    <td><span class="badge badge-{{ q.status }}">{{ q.status }}</span></td>
+                    <td class="money">${{ "{:,.2f}".format(q.total or 0) }}</td>
+                    <td style="font-size: 0.8rem;">{{ q.issued_date[:10] if q.issued_date else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-file-earmark-text"></i>
+            <h3>No quotes yet</h3>
+            <p>Create your first quote to start estimating work</p>
+            <button class="btn btn-primary" onclick="document.getElementById('newQuoteModal').classList.add('show')">
+                <i class="bi bi-plus-lg"></i> Create First Quote
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- New Quote Modal -->
+<div class="modal-overlay" id="newQuoteModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>New Quote</h2>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('show')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="newQuoteForm" onsubmit="createQuote(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Division</label>
+                        <select name="division_id" required>
+                            {% for div in divisions %}
+                            <option value="{{ div.id }}">{{ div.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Template</label>
+                        <select name="template_name">
+                            <option value="">None (Custom)</option>
+                            <option value="BFP">Backflow Prevention (BFP)</option>
+                            <option value="Curb Stop Assessment">Curb Stop Assessment</option>
+                            <option value="Water Softener">Water Softener</option>
+                            <option value="Drinking Fountain">Drinking Fountain</option>
+                            <option value="Hot Water Tank">Hot Water Tank</option>
+                            <option value="Hydronic Heating">Hydronic Heating</option>
+                            <option value="Boiler Service">Boiler Service</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" name="title" placeholder="e.g. Backflow preventer installation" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Client</label>
+                    <select name="client_id" required id="quoteClient">
+                        <option value="">Select client...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" placeholder="Quote details..."></textarea>
+                </div>
+
+                <!-- Line Items -->
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 600;">Line Items</label>
+                    <div id="lineItems">
+                        <div class="form-row" style="margin-bottom: 0.5rem;">
+                            <div class="form-group" style="flex: 3;">
+                                <input type="text" placeholder="Description" class="item-desc">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <input type="number" placeholder="Qty" value="1" min="1" class="item-qty">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <input type="number" placeholder="Price" step="0.01" class="item-price">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addLineItem()">
+                        <i class="bi bi-plus"></i> Add Item
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').classList.remove('show')">Cancel</button>
+            <button class="btn btn-primary" onclick="document.getElementById('newQuoteForm').requestSubmit()">Create Quote</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/lookup/clients').then(r => r.json()).then(clients => {
+    const sel = document.getElementById('quoteClient');
+    clients.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.display_name;
+        sel.appendChild(opt);
+    });
+});
+
+function addLineItem() {
+    const container = document.getElementById('lineItems');
+    const row = document.createElement('div');
+    row.className = 'form-row';
+    row.style.marginBottom = '0.5rem';
+    row.innerHTML = `
+        <div class="form-group" style="flex: 3;"><input type="text" placeholder="Description" class="item-desc"></div>
+        <div class="form-group" style="flex: 1;"><input type="number" placeholder="Qty" value="1" min="1" class="item-qty"></div>
+        <div class="form-group" style="flex: 1;"><input type="number" placeholder="Price" step="0.01" class="item-price"></div>
+    `;
+    container.appendChild(row);
+}
+
+function createQuote(e) {
+    e.preventDefault();
+    const form = e.target;
+    const items = [];
+    document.querySelectorAll('#lineItems .form-row').forEach(row => {
+        const desc = row.querySelector('.item-desc').value;
+        const qty = row.querySelector('.item-qty').value;
+        const price = row.querySelector('.item-price').value;
+        if (desc && price) {
+            items.push({ description: desc, quantity: parseFloat(qty) || 1, unit_price: parseFloat(price) || 0 });
+        }
+    });
+
+    const data = {
+        division_id: form.division_id.value,
+        client_id: form.client_id.value,
+        title: form.title.value,
+        description: form.description.value,
+        template_name: form.template_name.value || null,
+        items: items,
+    };
+
+    fetch('/api/quotes', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data),
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) window.location.reload();
+        else alert('Error: ' + result.error);
+    });
+}
+</script>
+{% endblock %}

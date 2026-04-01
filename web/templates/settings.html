@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - FieldServicePro{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Settings</h1>
+        <p>Manage your company, divisions, and team</p>
+    </div>
+</div>
+
+<!-- Company Info -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header"><i class="bi bi-building"></i> Company Information</div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Company Name</label>
+                <input type="text" value="{{ organization.name }}" disabled>
+            </div>
+            <div class="form-group">
+                <label>Phone</label>
+                <input type="text" value="{{ organization.phone or '' }}" disabled>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>City</label>
+                <input type="text" value="{{ organization.city or '' }}" disabled>
+            </div>
+            <div class="form-group">
+                <label>Province</label>
+                <input type="text" value="{{ organization.province or '' }}" disabled>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Divisions -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header"><i class="bi bi-grid"></i> Divisions</div>
+    <div class="card-body" style="padding: 0;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Division</th>
+                    <th>Code</th>
+                    <th>Color</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for div in all_divisions %}
+                <tr>
+                    <td>
+                        <i class="bi {{ div.icon }}" style="color: {{ div.color }}; margin-right: 0.5rem;"></i>
+                        <strong>{{ div.name }}</strong>
+                    </td>
+                    <td>{{ div.code }}</td>
+                    <td>
+                        <span style="display: inline-block; width: 20px; height: 20px; border-radius: 4px; background: {{ div.color }}; vertical-align: middle;"></span>
+                        {{ div.color }}
+                    </td>
+                    <td>
+                        <span class="badge {% if div.is_active %}badge-completed{% else %}badge-draft{% endif %}">
+                            {{ 'Active' if div.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Technicians -->
+<div class="card">
+    <div class="card-header"><i class="bi bi-people"></i> Technicians</div>
+    <div class="card-body" style="padding: 0;">
+        {% if technicians %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Division</th>
+                    <th>Rate</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tech in technicians %}
+                <tr>
+                    <td><strong>{{ tech.full_name }}</strong></td>
+                    <td style="font-size: 0.85rem;">{{ tech.email or '—' }}</td>
+                    <td style="font-size: 0.85rem;">{{ tech.phone or '—' }}</td>
+                    <td>{{ tech.division_id }}</td>
+                    <td>{{ '$' + tech.hourly_rate|string + '/hr' if tech.hourly_rate else '—' }}</td>
+                    <td>
+                        <span class="badge {% if tech.is_active %}badge-completed{% else %}badge-draft{% endif %}">
+                            {{ 'Active' if tech.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-person-plus"></i>
+            <h3>No technicians yet</h3>
+            <p>Add technicians to start assigning jobs</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

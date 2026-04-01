@@ -1,0 +1,614 @@
+{% extends "base.html" %}
+
+{% block title %}New Quote - FieldServicePro{% endblock %}
+
+{% block head %}
+<style>
+/* ── Quote Form Specific Styles ── */
+.quote-form-container { max-width: 960px; margin: 0 auto; padding-bottom: 2rem; }
+
+.quote-header-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;
+}
+.quote-header-bar h1 { margin: 0; font-size: 1.5rem; }
+.quote-number-badge {
+    background: #f1f5f9; border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.35rem 0.75rem; font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;
+}
+
+/* Section tabs */
+.section-tabs {
+    display: flex; align-items: center; gap: 0.5rem;
+    border-bottom: 2px solid var(--border); margin-bottom: 0; padding: 0 1.25rem;
+}
+.section-tab {
+    padding: 0.6rem 1rem; font-size: 0.85rem; font-weight: 500;
+    border: none; background: none; cursor: pointer; color: var(--text-secondary);
+    border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s;
+}
+.section-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.section-tab:hover { color: var(--text-primary); }
+.section-tab-add { color: var(--primary); font-weight: 600; }
+
+/* Line items table */
+.line-items-table {
+    width: 100%; border-collapse: collapse; font-size: 0.875rem;
+}
+.line-items-table th {
+    text-align: left; padding: 0.6rem 0.75rem; font-weight: 600; font-size: 0.8rem;
+    color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em;
+    border-bottom: 1px solid var(--border); background: #f8fafc;
+}
+.line-items-table td {
+    padding: 0.5rem 0.75rem; border-bottom: 1px solid #f1f5f9; vertical-align: top;
+}
+.line-items-table td input,
+.line-items-table td textarea {
+    width: 100%; border: 1px solid transparent; background: transparent;
+    padding: 0.4rem 0.5rem; border-radius: 4px; font-size: 0.875rem;
+    font-family: inherit; transition: border-color 0.15s;
+}
+.line-items-table td input:hover,
+.line-items-table td textarea:hover,
+.line-items-table td input:focus,
+.line-items-table td textarea:focus {
+    border-color: var(--border); background: #fff; outline: none;
+}
+.line-items-table td input:focus,
+.line-items-table td textarea:focus { border-color: var(--primary); }
+.line-items-table td textarea { resize: vertical; min-height: 36px; }
+.line-items-table .col-name { width: 40%; }
+.line-items-table .col-qty { width: 10%; text-align: right; }
+.line-items-table .col-price { width: 18%; text-align: right; }
+.line-items-table .col-total { width: 18%; text-align: right; }
+.line-items-table .col-actions { width: 14%; text-align: center; }
+.line-items-table td.text-right input { text-align: right; }
+.line-total-value { padding: 0.4rem 0.5rem; font-weight: 500; text-align: right; white-space: nowrap; }
+.line-item-desc {
+    font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;
+}
+.line-item-desc textarea {
+    font-size: 0.8rem; color: var(--text-secondary);
+}
+
+/* Line item buttons row */
+.line-item-actions {
+    display: flex; gap: 0.5rem; padding: 0.75rem 0.75rem; border-bottom: 1px solid var(--border);
+}
+.line-item-actions button {
+    background: none; border: 1px dashed var(--border); border-radius: 6px;
+    padding: 0.4rem 0.75rem; font-size: 0.8rem; color: var(--primary);
+    cursor: pointer; font-weight: 500; transition: all 0.15s;
+}
+.line-item-actions button:hover { background: #eff6ff; border-color: var(--primary); }
+
+/* Remove row button */
+.btn-remove-row {
+    background: none; border: none; color: #94a3b8; cursor: pointer;
+    padding: 0.25rem; border-radius: 4px; font-size: 1rem; line-height: 1;
+}
+.btn-remove-row:hover { color: #ef4444; background: #fef2f2; }
+
+/* Optional checkbox */
+.optional-check {
+    display: flex; align-items: center; gap: 0.35rem;
+    font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap;
+}
+
+/* Totals panel */
+.totals-panel {
+    display: flex; justify-content: flex-end; padding: 1.25rem;
+}
+.totals-table { min-width: 280px; }
+.totals-row {
+    display: flex; justify-content: space-between; padding: 0.4rem 0;
+    font-size: 0.9rem; color: var(--text-secondary);
+}
+.totals-row.total-final {
+    border-top: 2px solid var(--border); margin-top: 0.5rem; padding-top: 0.75rem;
+    font-size: 1.1rem; font-weight: 700; color: var(--text-primary);
+}
+.totals-row .label { min-width: 120px; }
+.totals-row .value { text-align: right; font-weight: 500; min-width: 100px; }
+
+.discount-link {
+    color: var(--primary); font-size: 0.8rem; cursor: pointer;
+    border: none; background: none; text-decoration: underline; padding: 0;
+}
+.discount-link:hover { color: #1d4ed8; }
+.discount-input-wrap {
+    display: none; align-items: center; gap: 0.5rem;
+}
+.discount-input-wrap.show { display: flex; }
+.discount-input-wrap input {
+    width: 80px; text-align: right; border: 1px solid var(--border);
+    border-radius: 4px; padding: 0.3rem 0.5rem; font-size: 0.85rem;
+}
+
+/* Save button group */
+.save-btn-group { position: relative; display: inline-flex; }
+.save-btn-group .btn-success { border-radius: 6px 0 0 6px; }
+.save-btn-group .save-dropdown-toggle {
+    background: #059669; color: #fff; border: none; border-left: 1px solid rgba(255,255,255,0.3);
+    padding: 0.55rem 0.5rem; border-radius: 0 6px 6px 0; cursor: pointer; font-size: 0.9rem;
+}
+.save-btn-group .save-dropdown-toggle:hover { background: #047857; }
+.save-dropdown {
+    display: none; position: absolute; right: 0; top: 100%; margin-top: 4px;
+    background: #fff; border: 1px solid var(--border); border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 180px; z-index: 10;
+}
+.save-dropdown.show { display: block; }
+.save-dropdown button {
+    display: block; width: 100%; text-align: left; padding: 0.6rem 1rem;
+    border: none; background: none; cursor: pointer; font-size: 0.85rem;
+}
+.save-dropdown button:hover { background: #f8fafc; }
+
+/* Client search */
+.client-search-wrap { position: relative; }
+.client-search-results {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: #fff; border: 1px solid var(--border); border-radius: 0 0 6px 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 20;
+}
+.client-search-results.show { display: block; }
+.client-search-item {
+    padding: 0.6rem 0.75rem; cursor: pointer; font-size: 0.85rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+.client-search-item:hover { background: #eff6ff; }
+.client-search-item .sub { font-size: 0.75rem; color: var(--text-secondary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="quote-form-container">
+
+    <!-- Header -->
+    <div class="quote-header-bar">
+        <h1>New Quote</h1>
+        <span class="quote-number-badge">Quote # {{ next_quote_number }}</span>
+    </div>
+
+    <!-- ── Top Fields ── -->
+    <div class="form-section">
+        <div class="form-section-header">Quote details</div>
+        <div class="form-section-body">
+            <div class="form-group">
+                <label for="quoteTitle">Title</label>
+                <input type="text" id="quoteTitle" placeholder="e.g. BFP Installation - 123 Main St">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group client-search-wrap">
+                    <label for="clientSearch">Client</label>
+                    <input type="text" id="clientSearch" placeholder="Search for a client..." autocomplete="off">
+                    <input type="hidden" id="clientId">
+                    <div class="client-search-results" id="clientResults"></div>
+                </div>
+                <div class="form-group">
+                    <label for="divisionId">Division</label>
+                    <select id="divisionId">
+                        <option value="">Select division</option>
+                        {% for d in divisions %}
+                        <option value="{{ d.id }}">{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="templateName">Template</label>
+                    <select id="templateName">
+                        <option value="">None</option>
+                        <option value="BFP">BFP</option>
+                        <option value="Curb Stop Assessment">Curb Stop Assessment</option>
+                        <option value="Water Softener">Water Softener</option>
+                        <option value="Custom">Custom</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="validUntil">Valid until</label>
+                    <input type="date" id="validUntil">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Additional Fields (collapsible) ── -->
+    <div class="form-section">
+        <div class="form-section-header">
+            Additional fields
+            <button type="button" class="collapse-toggle" onclick="toggleSection(this)" aria-label="Toggle section">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="form-section-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="salesperson">Salesperson</label>
+                    <input type="text" id="salesperson" placeholder="Tag a salesperson">
+                </div>
+                <div class="form-group">
+                    <label for="propertyManager">Property Manager</label>
+                    <input type="text" id="propertyManager" placeholder="Property manager name">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="billingDeptContact">Billing Dept Contact</label>
+                    <input type="text" id="billingDeptContact" placeholder="Contact name or email">
+                </div>
+                <div class="form-group">
+                    <label for="siteSuper">Site Super</label>
+                    <input type="text" id="siteSuper" placeholder="Site supervisor">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="buzzerCode">Buzzer Code</label>
+                    <input type="text" id="buzzerCode" placeholder="e.g. #1234">
+                </div>
+                <div class="form-group">
+                    <label for="propertyOwner">Property Owner</label>
+                    <input type="text" id="propertyOwner" placeholder="Owner name">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="tenants">Tenants</label>
+                    <input type="text" id="tenants" placeholder="Tenant names">
+                </div>
+                <div class="form-group"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Line Items Section ── -->
+    <div class="form-section" style="padding: 0; overflow: hidden;">
+        <!-- Section tabs -->
+        <div class="section-tabs">
+            <button type="button" class="section-tab active">Introduction</button>
+            <button type="button" class="section-tab section-tab-add" onclick="addSectionTab(this)">+ Add section</button>
+        </div>
+
+        <!-- Description / intro text -->
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="quoteDescription">Introduction / Scope of Work</label>
+                <textarea id="quoteDescription" rows="3" placeholder="Describe the scope of work for this quote..."></textarea>
+            </div>
+        </div>
+
+        <!-- Product/Service table -->
+        <table class="line-items-table" id="lineItemsTable">
+            <thead>
+                <tr>
+                    <th class="col-name">Product / Service</th>
+                    <th class="col-qty">Qty</th>
+                    <th class="col-price">Unit Price</th>
+                    <th class="col-total">Total</th>
+                    <th class="col-actions"></th>
+                </tr>
+            </thead>
+            <tbody id="lineItemsBody">
+                <!-- JS will populate -->
+            </tbody>
+        </table>
+
+        <!-- Add buttons -->
+        <div class="line-item-actions">
+            <button type="button" onclick="addLineItem()"><i class="bi bi-plus-lg"></i> Add Line Item</button>
+            <button type="button" onclick="addTextRow()"><i class="bi bi-fonts"></i> Add Text</button>
+        </div>
+
+        <!-- Totals -->
+        <div class="totals-panel">
+            <div class="totals-table">
+                <div class="totals-row">
+                    <span class="label">Subtotal</span>
+                    <span class="value" id="displaySubtotal">$0.00</span>
+                </div>
+                <div class="totals-row">
+                    <span class="label">
+                        Discount
+                        <button class="discount-link" id="addDiscountBtn" onclick="showDiscount()">Add Discount</button>
+                    </span>
+                    <span class="value" id="displayDiscount">&mdash;</span>
+                </div>
+                <div class="totals-row" id="discountInputRow" style="display:none;">
+                    <span class="label" style="font-size:0.8rem;">Discount amount</span>
+                    <div class="discount-input-wrap show">
+                        <input type="number" id="discountAmount" value="0" min="0" step="0.01" onchange="recalculate()" oninput="recalculate()">
+                    </div>
+                </div>
+                <div class="totals-row">
+                    <span class="label">Tax (HST ON 13%)</span>
+                    <span class="value" id="displayTax">$0.00</span>
+                </div>
+                <div class="totals-row total-final">
+                    <span class="label">Total</span>
+                    <span class="value" id="displayTotal">$0.00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Notes ── -->
+    <div class="form-section">
+        <div class="form-section-header">Internal notes</div>
+        <div class="form-section-body">
+            <div class="form-group" style="margin-bottom: 0;">
+                <textarea id="quoteNotes" rows="3" placeholder="Notes visible only to your team..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Actions ── -->
+    <div class="form-actions">
+        <a href="{{ url_for('quotes_page') }}" class="btn btn-outline">Cancel</a>
+        <div class="save-btn-group">
+            <button type="button" class="btn btn-success" onclick="saveQuote('draft')">
+                <i class="bi bi-check-lg"></i> Save Quote
+            </button>
+            <button type="button" class="save-dropdown-toggle" onclick="toggleSaveDropdown()">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="save-dropdown" id="saveDropdown">
+                <button onclick="saveQuote('draft')">Save as Draft</button>
+                <button onclick="saveQuote('sent')">Save &amp; Send</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Globals ── */
+let lineItemCounter = 0;
+const TAX_RATE = 13.0;
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', function() {
+    addLineItem(); // start with one empty row
+
+    // Set default valid_until to 30 days from now
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    document.getElementById('validUntil').value = d.toISOString().split('T')[0];
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.save-btn-group')) {
+            document.getElementById('saveDropdown').classList.remove('show');
+        }
+        if (!e.target.closest('.client-search-wrap')) {
+            document.getElementById('clientResults').classList.remove('show');
+        }
+    });
+
+    // Client search
+    const searchInput = document.getElementById('clientSearch');
+    let searchTimeout;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const q = this.value.trim();
+        if (q.length < 2) {
+            document.getElementById('clientResults').classList.remove('show');
+            return;
+        }
+        searchTimeout = setTimeout(() => searchClients(q), 250);
+    });
+});
+
+/* ── Client Search ── */
+function searchClients(query) {
+    fetch('/api/clients/search?q=' + encodeURIComponent(query))
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('clientResults');
+            container.innerHTML = '';
+            if (data.clients && data.clients.length > 0) {
+                data.clients.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'client-search-item';
+                    div.innerHTML = '<div>' + escapeHtml(c.display_name) + '</div>' +
+                        (c.company_name ? '<div class="sub">' + escapeHtml(c.company_name) + '</div>' : '');
+                    div.onclick = function() {
+                        document.getElementById('clientSearch').value = c.display_name;
+                        document.getElementById('clientId').value = c.id;
+                        container.classList.remove('show');
+                    };
+                    container.appendChild(div);
+                });
+                container.classList.add('show');
+            } else {
+                container.classList.remove('show');
+            }
+        })
+        .catch(() => {});
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+/* ── Line Items ── */
+function addLineItem() {
+    lineItemCounter++;
+    const id = lineItemCounter;
+    const row = document.createElement('tr');
+    row.id = 'line-' + id;
+    row.dataset.type = 'item';
+    row.innerHTML =
+        '<td class="col-name">' +
+            '<input type="text" placeholder="Item name" data-field="name" onchange="recalculate()">' +
+            '<div class="line-item-desc"><textarea rows="1" placeholder="Description (optional)" data-field="desc"></textarea></div>' +
+            '<label class="optional-check"><input type="checkbox" data-field="optional"> Mark as optional</label>' +
+        '</td>' +
+        '<td class="col-qty text-right"><input type="number" value="1" min="0" step="1" data-field="qty" oninput="recalculate()"></td>' +
+        '<td class="col-price text-right"><input type="number" value="0.00" min="0" step="0.01" data-field="price" oninput="recalculate()"></td>' +
+        '<td class="col-total"><div class="line-total-value" data-field="total">$0.00</div></td>' +
+        '<td class="col-actions"><button type="button" class="btn-remove-row" onclick="removeRow(' + id + ')" title="Remove"><i class="bi bi-x-lg"></i></button></td>';
+    document.getElementById('lineItemsBody').appendChild(row);
+}
+
+function addTextRow() {
+    lineItemCounter++;
+    const id = lineItemCounter;
+    const row = document.createElement('tr');
+    row.id = 'line-' + id;
+    row.dataset.type = 'text';
+    row.innerHTML =
+        '<td colspan="4"><textarea rows="2" placeholder="Enter text note..." style="width:100%; border:1px solid var(--border); border-radius:4px; padding:0.5rem; font-size:0.85rem; font-family:inherit;"></textarea></td>' +
+        '<td class="col-actions"><button type="button" class="btn-remove-row" onclick="removeRow(' + id + ')" title="Remove"><i class="bi bi-x-lg"></i></button></td>';
+    document.getElementById('lineItemsBody').appendChild(row);
+}
+
+function removeRow(id) {
+    const row = document.getElementById('line-' + id);
+    if (row) { row.remove(); recalculate(); }
+}
+
+/* ── Calculations ── */
+function recalculate() {
+    let subtotal = 0;
+    document.querySelectorAll('#lineItemsBody tr[data-type="item"]').forEach(row => {
+        const qty = parseFloat(row.querySelector('[data-field="qty"]').value) || 0;
+        const price = parseFloat(row.querySelector('[data-field="price"]').value) || 0;
+        const isOptional = row.querySelector('[data-field="optional"]').checked;
+        const lineTotal = qty * price;
+        row.querySelector('[data-field="total"]').textContent = '$' + lineTotal.toFixed(2);
+        if (!isOptional) subtotal += lineTotal;
+    });
+
+    const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
+    const afterDiscount = Math.max(0, subtotal - discount);
+    const tax = afterDiscount * (TAX_RATE / 100);
+    const total = afterDiscount + tax;
+
+    document.getElementById('displaySubtotal').textContent = '$' + subtotal.toFixed(2);
+    document.getElementById('displayDiscount').textContent = discount > 0 ? '-$' + discount.toFixed(2) : '\u2014';
+    document.getElementById('displayTax').textContent = '$' + tax.toFixed(2);
+    document.getElementById('displayTotal').textContent = '$' + total.toFixed(2);
+}
+
+/* ── Discount ── */
+function showDiscount() {
+    document.getElementById('discountInputRow').style.display = 'flex';
+    document.getElementById('addDiscountBtn').style.display = 'none';
+    document.getElementById('discountAmount').focus();
+}
+
+/* ── Section tabs ── */
+function addSectionTab(btn) {
+    const name = prompt('Section name:');
+    if (!name) return;
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'section-tab';
+    tab.textContent = name;
+    btn.parentElement.insertBefore(tab, btn);
+}
+
+/* ── Toggle helpers ── */
+function toggleSection(btn) {
+    const body = btn.closest('.form-section').querySelector('.form-section-body');
+    const icon = btn.querySelector('i');
+    body.classList.toggle('collapsed');
+    icon.className = body.classList.contains('collapsed') ? 'bi bi-chevron-right' : 'bi bi-chevron-down';
+}
+
+function toggleSaveDropdown() {
+    document.getElementById('saveDropdown').classList.toggle('show');
+}
+
+/* ── Save ── */
+function saveQuote(status) {
+    const title = document.getElementById('quoteTitle').value.trim();
+    const clientId = document.getElementById('clientId').value;
+    const divisionId = document.getElementById('divisionId').value;
+
+    if (!title) { alert('Please enter a quote title.'); return; }
+    if (!clientId) { alert('Please select a client.'); return; }
+    if (!divisionId) { alert('Please select a division.'); return; }
+
+    // Gather line items
+    const items = [];
+    document.querySelectorAll('#lineItemsBody tr[data-type="item"]').forEach((row, i) => {
+        const name = row.querySelector('[data-field="name"]').value.trim();
+        const desc = row.querySelector('[data-field="desc"]').value.trim();
+        const qty = parseFloat(row.querySelector('[data-field="qty"]').value) || 1;
+        const price = parseFloat(row.querySelector('[data-field="price"]').value) || 0;
+        if (name) {
+            items.push({
+                description: desc ? name + ' - ' + desc : name,
+                quantity: qty,
+                unit_price: price,
+                sort_order: i
+            });
+        }
+    });
+
+    // Also capture text rows as items with zero price
+    document.querySelectorAll('#lineItemsBody tr[data-type="text"]').forEach((row, i) => {
+        const text = row.querySelector('textarea').value.trim();
+        if (text) {
+            items.push({
+                description: text,
+                quantity: 0,
+                unit_price: 0,
+                sort_order: 100 + i
+            });
+        }
+    });
+
+    const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
+
+    const payload = {
+        title: title,
+        client_id: parseInt(clientId),
+        division_id: parseInt(divisionId),
+        description: document.getElementById('quoteDescription').value.trim(),
+        template_name: document.getElementById('templateName').value || null,
+        notes: document.getElementById('quoteNotes').value.trim(),
+        discount: discount,
+        items: items,
+        status: status
+    };
+
+    // Disable save button
+    const saveBtn = document.querySelector('.save-btn-group .btn-success');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+
+    fetch('/api/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = '/quotes';
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Save Quote';
+        }
+    })
+    .catch(err => {
+        alert('Network error: ' + err.message);
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Save Quote';
+    });
+}
+</script>
+{% endblock %}

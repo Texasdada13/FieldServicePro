@@ -1,0 +1,84 @@
+<!-- FieldServicePro - Sidebar Navigation -->
+{% set page_endpoints = {
+    'dashboard': 'dashboard',
+    'schedule': 'schedule_page',
+    'jobs': 'jobs_page',
+    'quotes': 'quotes_page',
+    'clients': 'clients_page',
+    'invoices': 'invoices_page',
+    'settings': 'settings_page',
+} %}
+{% set current_endpoint = page_endpoints.get(active_page, 'dashboard') %}
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <a href="{{ url_for('dashboard') }}" class="sidebar-brand">
+            <div class="logo"><i class="bi bi-tools"></i></div>
+            <h1>FieldServicePro</h1>
+        </a>
+    </div>
+
+    <!-- Create Button -->
+    <div style="padding: 0.5rem 0.75rem;">
+        <div class="sidebar-create-dropdown" style="position: relative;">
+            <button onclick="this.nextElementSibling.classList.toggle('show')" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.5rem; font-size: 0.85rem; border-radius: 8px;">
+                <i class="bi bi-plus-lg"></i> Create
+            </button>
+            <div class="sidebar-create-menu">
+                <a href="/clients/new"><i class="bi bi-person-plus"></i> New Client</a>
+                <a href="/jobs" onclick="setTimeout(()=>document.getElementById('newJobModal')?.classList.add('show'),100)"><i class="bi bi-clipboard-plus"></i> New Job</a>
+                <a href="/quotes/new"><i class="bi bi-file-earmark-plus"></i> New Quote</a>
+                <a href="/invoices/new"><i class="bi bi-receipt-cutoff"></i> New Invoice</a>
+            </div>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <!-- Main -->
+        <div class="nav-section">
+            <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-house"></i> <span>Home</span>
+            </a>
+            <a href="{{ url_for('schedule_page') }}" class="nav-link {% if active_page == 'schedule' %}active{% endif %}">
+                <i class="bi bi-calendar3"></i> <span>Schedule</span>
+            </a>
+            <a href="{{ url_for('clients_page') }}" class="nav-link {% if active_page == 'clients' %}active{% endif %}">
+                <i class="bi bi-people"></i> <span>Clients</span>
+            </a>
+            <a href="{{ url_for('jobs_page') }}?status=draft" class="nav-link {% if active_page == 'requests' %}active{% endif %}">
+                <i class="bi bi-inbox"></i> <span>Requests</span>
+            </a>
+            <a href="{{ url_for('quotes_page') }}" class="nav-link {% if active_page == 'quotes' %}active{% endif %}">
+                <i class="bi bi-file-earmark-text"></i> <span>Quotes</span>
+            </a>
+            <a href="{{ url_for('jobs_page') }}" class="nav-link {% if active_page == 'jobs' %}active{% endif %}">
+                <i class="bi bi-clipboard-check"></i> <span>Jobs</span>
+            </a>
+            <a href="{{ url_for('invoices_page') }}" class="nav-link {% if active_page == 'invoices' %}active{% endif %}">
+                <i class="bi bi-receipt"></i> <span>Invoices</span>
+            </a>
+            <a href="{{ url_for('invoices_page') }}?status=paid" class="nav-link {% if active_page == 'payments' %}active{% endif %}">
+                <i class="bi bi-credit-card"></i> <span>Payments</span>
+            </a>
+        </div>
+
+        <!-- More -->
+        <div class="nav-section">
+            <div class="nav-section-title">More</div>
+            <a href="{{ url_for('settings_page') }}" class="nav-link {% if active_page == 'settings' %}active{% endif %}">
+                <i class="bi bi-gear"></i> <span>Settings</span>
+            </a>
+        </div>
+    </nav>
+
+    {% if user %}
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <div class="user-avatar"><i class="bi bi-person"></i></div>
+            <div class="user-details">
+                <div class="user-name">{{ user.full_name }}</div>
+                <a href="{{ url_for('auth.logout') }}" class="user-logout">Logout</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</aside>

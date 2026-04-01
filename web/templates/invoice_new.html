@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}New Invoice - FieldServicePro{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>New Invoice</h1>
+        <p>Which client would you like to create this invoice for?</p>
+    </div>
+</div>
+
+<!-- Search + Create -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px; position: relative;">
+            <i class="bi bi-search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.9rem;"></i>
+            <input type="text" id="clientSearch" placeholder="Search clients..." autocomplete="off"
+                   style="width: 100%; padding-left: 2.25rem;">
+        </div>
+        <a href="{{ url_for('client_new_page') }}" class="btn btn-success" style="white-space: nowrap;">
+            <i class="bi bi-plus-lg"></i> Create New Client
+        </a>
+    </div>
+</div>
+
+<!-- Client List -->
+<div class="card">
+    <div class="card-body" style="padding: 0;">
+        <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">
+            <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Leads</span>
+        </div>
+
+        <div id="clientList">
+            {% if clients %}
+                {% for client in clients %}
+                <a href="/invoices?client_id={{ client.id }}" class="client-select-row" data-name="{{ client.display_name|lower }}" data-phone="{{ client.phone|default('', true)|lower }}" data-type="{{ client.client_type|lower }}">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 600; color: var(--primary); font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            {{ client.display_name }}
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
+                            {{ client.property_count }} propert{{ 'ies' if client.property_count != 1 else 'y' }}{% if client.phone %} &middot; {{ client.phone }}{% endif %}
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0;">
+                        {% if client.client_type == 'commercial' and client.company_name %}
+                        <span class="badge badge-scheduled" style="font-size: 0.7rem;">Property Management</span>
+                        {% endif %}
+                        {% if client.days_ago is not none %}
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;">
+                            Activity {{ client.days_ago }} day{{ 's' if client.days_ago != 1 else '' }} ago
+                        </span>
+                        {% endif %}
+                        <i class="bi bi-chevron-right" style="color: var(--text-secondary); font-size: 0.85rem;"></i>
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state" style="padding: 3rem 1rem;">
+                    <i class="bi bi-people"></i>
+                    <h3>No clients yet</h3>
+                    <p>Create a client first to generate an invoice</p>
+                    <a href="{{ url_for('client_new_page') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Create Client
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <div id="noResults" style="display: none; padding: 2rem 1rem; text-align: center; color: var(--text-secondary);">
+            <i class="bi bi-search" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+            No clients match your search.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    .client-select-row {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border);
+        text-decoration: none;
+        color: inherit;
+        transition: background 0.15s;
+        cursor: pointer;
+    }
+    .client-select-row:last-child {
+        border-bottom: none;
+    }
+    .client-select-row:hover {
+        background: var(--bg-secondary, #f8fafc);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const searchInput = document.getElementById('clientSearch');
+    const rows = document.querySelectorAll('.client-select-row');
+    const noResults = document.getElementById('noResults');
+
+    searchInput.addEventListener('input', function() {
+        const q = this.value.trim().toLowerCase();
+        let visible = 0;
+        rows.forEach(function(row) {
+            const name = row.getAttribute('data-name') || '';
+            const phone = row.getAttribute('data-phone') || '';
+            const type = row.getAttribute('data-type') || '';
+            const match = !q || name.includes(q) || phone.includes(q) || type.includes(q);
+            row.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+        noResults.style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
+    });
+})();
+</script>
+{% endblock %}

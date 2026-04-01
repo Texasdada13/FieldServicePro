@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="FieldServicePro">
+    <title>{% block title %}FieldServicePro{% endblock %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Mobile Toggle -->
+        <button class="sidebar-toggle" onclick="toggleSidebar()">
+            <i class="bi bi-list"></i>
+        </button>
+
+        {% include 'partials/sidebar.html' %}
+
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        <main class="main-content {% if active_page == 'dashboard' %}home-layout{% endif %}">
+
+            <!-- Division Filter Bar — always full-width across the top -->
+            {% if divisions is defined and divisions %}
+            {% set ep_map = {
+                'dashboard': 'dashboard',
+                'schedule': 'schedule_page',
+                'jobs': 'jobs_page',
+                'quotes': 'quotes_page',
+                'clients': 'clients_page',
+                'invoices': 'invoices_page',
+                'settings': 'settings_page',
+            } %}
+            {% set cur_ep = ep_map.get(active_page, 'dashboard') if active_page is defined else 'dashboard' %}
+            <div class="division-bar">
+                <span class="division-bar-label">Division</span>
+                <div class="division-tabs-track">
+                    <a href="{{ url_for(cur_ep) }}" class="division-tab {% if not active_division %}active{% endif %}">
+                        All
+                    </a>
+                    {% for div in divisions %}
+                    <a href="{{ url_for(cur_ep, division=div.id) }}" class="division-tab {% if active_division == div.id %}active{% endif %}">
+                        <span class="div-dot" style="background: {{ div.color }}"></span> {{ div.code }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-container">
+                        {% for category, message in messages %}
+                            <div class="flash flash-{{ category }}">
+                                {{ message }}
+                                <button onclick="this.parentElement.remove()" class="flash-close">&times;</button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Content row: two-column flex on home, normal block on other pages -->
+            <div class="home-content-row">
+                <div class="page-body">
+                    {% block content %}{% endblock %}
+                </div>
+                {% include 'partials/chat_panel.html' %}
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    function toggleSidebar() {
+        document.querySelector('.sidebar').classList.toggle('open');
+        document.querySelector('.sidebar-overlay').classList.toggle('show');
+    }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

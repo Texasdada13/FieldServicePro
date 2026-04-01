@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice {{ invoice.invoice_number }} - FieldServicePro{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <a href="{{ url_for('invoices_page') }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.85rem;">
+            <i class="bi bi-arrow-left"></i> Invoices
+        </a>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        {% if invoice.status in ['sent', 'viewed', 'partial', 'overdue'] %}
+        <button class="btn btn-primary" style="background: var(--success);" onclick="collectPayment()">
+            <i class="bi bi-credit-card"></i> Collect Payment
+        </button>
+        {% endif %}
+        <button class="btn btn-secondary"><i class="bi bi-pencil"></i> Edit</button>
+    </div>
+</div>
+
+<!-- Invoice Card -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 2rem;">
+        <!-- Status + Invoice number -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+            <div>
+                {% if invoice.status == 'overdue' %}
+                <span class="badge badge-overdue" style="font-size: 0.85rem; padding: 0.35rem 0.85rem; margin-bottom: 0.75rem; display: inline-block;">Past Due</span>
+                {% else %}
+                <span class="badge badge-{{ invoice.status }}" style="font-size: 0.85rem; padding: 0.35rem 0.85rem; margin-bottom: 0.75rem; display: inline-block;">{{ invoice.status | title }}</span>
+                {% endif %}
+                <h1 style="font-size: 1.75rem; font-weight: 700;">{{ client_name }}</h1>
+                <p style="color: var(--text-secondary); margin: 0.25rem 0 0;">For Services Rendered</p>
+            </div>
+            <div style="text-align: right; font-size: 0.85rem; color: var(--text-secondary);">
+                <div style="font-weight: 600; font-size: 1rem; color: var(--text-primary);">Invoice #{{ invoice.invoice_number }}</div>
+            </div>
+        </div>
+
+        <!-- Two column: addresses + invoice details -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+            <div style="display: flex; gap: 2rem; font-size: 0.85rem;">
+                {% if client.address %}
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 0.25rem;">Billing address</div>
+                    <div style="color: var(--text-secondary);">{{ client.address }}<br>{{ client.city or '' }}{% if client.province %}, {{ client.province }}{% endif %} {{ client.postal_code or '' }}</div>
+                </div>
+                {% endif %}
+                {% if property_address %}
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 0.25rem;">Property Address</div>
+                    <div style="color: var(--text-secondary);">{{ property_address }}</div>
+                </div>
+                {% endif %}
+                {% if client.email %}
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 0.25rem;">Contact details</div>
+                    <div style="color: var(--text-secondary);">{{ client.email }}</div>
+                </div>
+                {% endif %}
+            </div>
+            <div>
+                <div style="font-weight: 600; margin-bottom: 0.5rem;">Invoice Details</div>
+                <div class="jd-row"><span>Job</span><span>{% if invoice.job_id %}<a href="/jobs/{{ invoice.job_id }}" style="color: var(--primary);">#{{ invoice.job_id }}</a>{% else %}—{% endif %}</span></div>
+                <div class="jd-row"><span>Issued</span><span>{{ invoice.issued_date[:10] if invoice.issued_date else '—' }}</span></div>
+                <div class="jd-row"><span>Due</span><span>{{ invoice.due_date[:10] if invoice.due_date else '—' }}</span></div>
+                <div class="jd-row"><span>Salesperson</span><span>{{ user.first_name }}</span></div>
+            </div>
+        </div>
+
+        <!-- Line Items -->
+        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">Product / Service</h3>
+        <table class="data-table" style="margin-bottom: 1.5rem;">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th style="text-align: center;">Qty.</th>
+                    <th style="text-align: right;">Unit Price</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if invoice_items %}
+                    {% for item in invoice_items %}
+                    <tr>
+                        <td>
+                            <div style="font-weight: 500;">{{ item.description }}</div>
+                        </td>
+                        <td style="text-align: center;">{{ item.quantity }}</td>
+                        <td style="text-align: right;">${{ "{:,.2f}".format(item.unit_price) }}</td>
+                        <td style="text-align: right; font-weight: 600;">${{ "{:,.2f}".format(item.total) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td>
+                            <div style="font-weight: 500;">Services Rendered</div>
+                        </td>
+                        <td style="text-align: center;">1</td>
+                        <td style="text-align: right;">${{ "{:,.2f}".format(invoice.subtotal or invoice.total or 0) }}</td>
+                        <td style="text-align: right; font-weight: 600;">${{ "{:,.2f}".format(invoice.subtotal or invoice.total or 0) }}</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+
+        <!-- Totals -->
+        <div style="display: flex; justify-content: flex-end;">
+            <div style="width: 300px;">
+                <div class="jd-row"><span>Subtotal</span><span class="money">${{ "{:,.2f}".format(invoice.subtotal or 0) }}</span></div>
+                <div class="jd-row"><span>HST ON ({{ invoice.tax_rate or 13 }}%)</span><span class="money">${{ "{:,.2f}".format(invoice.tax_amount or 0) }}</span></div>
+                <div class="jd-row" style="font-weight: 700; font-size: 1rem; border-bottom: none; padding-top: 0.75rem; border-top: 2px solid var(--border);">
+                    <span>Total</span><span class="money">${{ "{:,.2f}".format(invoice.total or 0) }}</span>
+                </div>
+                {% if invoice.amount_paid > 0 %}
+                <div class="jd-row" style="color: var(--success);"><span>Paid</span><span class="money">- ${{ "{:,.2f}".format(invoice.amount_paid or 0) }}</span></div>
+                {% endif %}
+                {% if invoice.balance_due > 0 %}
+                <div class="jd-row" style="font-weight: 700; color: var(--danger); border-bottom: none;">
+                    <span>Account balance</span><span class="money">${{ "{:,.2f}".format(invoice.balance_due or 0) }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contract / Disclaimer -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-body" style="padding: 1.5rem;">
+        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">Contract / Disclaimer</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Thank you for your business. Please contact us with any questions regarding this invoice.</p>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
+            <strong>Warranty Statement</strong><br>
+            FieldServicePro provides a one-year warranty on all workmanship commencing from the date of project completion.
+            Any defective parts or materials will be repaired or replaced at no cost to the owner for a duration of one year following installation.
+            After this one year period, labour will not be warranted; however, any installed equipment will be covered under the manufacturer's warranty.
+        </div>
+    </div>
+</div>
+
+<!-- Internal Notes -->
+<div class="card">
+    <div class="card-header">
+        Internal notes
+        <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 400; margin-left: 0.5rem;">Internal notes will only be seen by your team</span>
+    </div>
+    <div class="card-body">
+        <textarea placeholder="Note details..." style="width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; min-height: 60px; resize: vertical; margin-bottom: 0.5rem;"></textarea>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0;">Drag your files here or <a href="#" style="color: var(--primary);">Select a File</a></p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - FieldServicePro{% endblock %}
+
+{% block content %}
+<!-- Greeting Header -->
+<div class="dash-greeting">
+    <div class="dash-date">{{ now().strftime('%A, %B %d').replace(' 0', ' ') if now else 'Today' }}</div>
+    <h1 class="dash-hello">Good {% if now %}{% set h = now().hour %}{% if h < 12 %}morning{% elif h < 17 %}afternoon{% else %}evening{% endif %}{% else %}day{% endif %}, {{ user.first_name or 'Marcus' }}</h1>
+</div>
+
+<!-- ════════ WORKFLOW PIPELINE ════════ -->
+<div class="workflow-section">
+    <h2 class="workflow-title">Workflow</h2>
+    <div class="workflow-bar">
+        <div class="workflow-segment seg-requests" style="flex:1"></div>
+        <div class="workflow-segment seg-quotes" style="flex:1"></div>
+        <div class="workflow-segment seg-jobs" style="flex:1"></div>
+        <div class="workflow-segment seg-invoices" style="flex:1"></div>
+    </div>
+    <div class="workflow-grid">
+        <!-- Requests -->
+        <div class="workflow-card">
+            <div class="workflow-card-header">
+                <i class="bi bi-inbox"></i> Requests
+            </div>
+            <div class="workflow-card-value">{{ requests_new }}</div>
+            <div class="workflow-card-label">New</div>
+            <div class="workflow-card-details">
+                <span>Assessments complete ({{ completed_jobs }})</span>
+                <span>Overdue ({{ requests_overdue }})</span>
+            </div>
+        </div>
+        <!-- Quotes -->
+        <div class="workflow-card">
+            <div class="workflow-card-header">
+                <i class="bi bi-file-earmark-text"></i> Quotes
+            </div>
+            <div class="workflow-card-value">{{ quotes_approved }}</div>
+            <div class="workflow-card-label">Approved</div>
+            <div class="workflow-card-details">
+                <span>Draft ({{ quotes_draft }}) <span class="wf-money">${{ "{:,.1f}k".format(quotes_total_value / 1000) }}</span></span>
+                <span>Changes requested ({{ quotes_changes }})</span>
+            </div>
+        </div>
+        <!-- Jobs -->
+        <div class="workflow-card">
+            <div class="workflow-card-header">
+                <i class="bi bi-wrench"></i> Jobs <span class="wf-money">${{ "{:,.1f}k".format(jobs_active_value / 1000) }}</span>
+            </div>
+            <div class="workflow-card-value">{{ active_jobs }}</div>
+            <div class="workflow-card-label">Requires invoicing</div>
+            <div class="workflow-card-details">
+                <span>Active ({{ active_jobs }}) <span class="wf-money">${{ "{:,.1f}k".format(jobs_active_value / 1000) }}</span></span>
+                <span>Action required ({{ jobs_action_required }}) <span class="wf-money">${{ "{:,.0f}".format(jobs_action_value) }}</span></span>
+            </div>
+        </div>
+        <!-- Invoices -->
+        <div class="workflow-card">
+            <div class="workflow-card-header">
+                <i class="bi bi-receipt"></i> Invoices <span class="wf-money">${{ "{:,.1f}M".format(total_invoiced / 1000000) if total_invoiced >= 1000000 else "${:,.1f}k".format(total_invoiced / 1000) }}</span>
+            </div>
+            <div class="workflow-card-value">{{ invoices_awaiting }}</div>
+            <div class="workflow-card-label">Awaiting payment</div>
+            <div class="workflow-card-details">
+                <span>Draft ({{ invoices_draft }}) <span class="wf-money">${{ "{:,.1f}k".format(invoices_draft_value / 1000) }}</span></span>
+                <span>Past due ({{ invoices_past_due }}) <span class="wf-money">${{ "{:,.1f}k".format(invoices_past_due_value / 1000) }}</span></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════ MAIN CONTENT: Appointments + Business Performance ════════ -->
+<div class="dash-main-grid">
+    <!-- Left: Today's Appointments -->
+    <div class="dash-appointments">
+        <div class="dash-section-header">
+            <h2>Today's appointments</h2>
+        </div>
+
+        <!-- Financial summary bar -->
+        <div class="appt-financials">
+            <div class="appt-fin-item">
+                <div class="appt-fin-label">Total</div>
+                <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_total / 1000) if todays_total >= 1000 else "{:,.0f}".format(todays_total) }}</div>
+            </div>
+            <div class="appt-fin-item">
+                <div class="appt-fin-label">Active</div>
+                <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_active_value / 1000) if todays_active_value >= 1000 else "{:,.0f}".format(todays_active_value) }}</div>
+            </div>
+            <div class="appt-fin-item">
+                <div class="appt-fin-label">Completed</div>
+                <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_completed_value / 1000) if todays_completed_value >= 1000 else "{:,.0f}".format(todays_completed_value) }}</div>
+            </div>
+            <div class="appt-fin-item">
+                <div class="appt-fin-label">Overdue</div>
+                <div class="appt-fin-value money-red">${{ "{:,.0f}".format(todays_overdue_value) }}</div>
+            </div>
+            <div class="appt-fin-item">
+                <div class="appt-fin-label">Remaining</div>
+                <div class="appt-fin-value">${{ "{:,.0f}".format(todays_remaining) }}</div>
+            </div>
+            <a href="{{ url_for('jobs_page') }}" class="appt-view-schedule">View Schedule</a>
+        </div>
+
+        <!-- Overdue appointments -->
+        {% set overdue_jobs = [] %}
+        {% for job in todays_jobs %}
+            {% if job.status in ['draft', 'scheduled'] %}
+                {% if overdue_jobs.append(job) %}{% endif %}
+            {% endif %}
+        {% endfor %}
+
+        {% if todays_jobs %}
+        <div class="appt-overdue-label">{{ todays_jobs|length }} SCHEDULED</div>
+        <div class="appt-list">
+            {% for job in todays_jobs %}
+            <div class="appt-item">
+                <div class="appt-item-main">
+                    <div class="appt-item-title">{{ job.title }}</div>
+                    <div class="appt-item-time">
+                        {% if job.scheduled_date %}
+                            {{ job.scheduled_date[:16].split('T')[1] if 'T' in (job.scheduled_date or '') else '' }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="appt-item-right">
+                    <span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span>
+                    {% if job.estimated_amount %}
+                    <span class="appt-item-amount">${{ "{:,.0f}".format(job.estimated_amount) }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding: 2rem;">
+            <i class="bi bi-calendar-check"></i>
+            <h3>No appointments today</h3>
+            <p>All clear for now</p>
+        </div>
+        {% endif %}
+
+        <!-- Recent Jobs -->
+        <div class="dash-section-header" style="margin-top: 1.5rem;">
+            <h2>Recent Jobs</h2>
+            <a href="{{ url_for('jobs_page') }}" class="btn btn-sm btn-secondary">View All</a>
+        </div>
+        {% if recent_jobs %}
+        <div class="appt-list">
+            {% for job in recent_jobs[:6] %}
+            <div class="appt-item">
+                <div class="appt-item-main">
+                    <div class="appt-item-title">{{ job.title }}</div>
+                    <div class="appt-item-time" style="font-size: 0.75rem; color: var(--text-secondary);">{{ job.job_number }}</div>
+                </div>
+                <div class="appt-item-right">
+                    <span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span>
+                    {% if job.estimated_amount %}
+                    <span class="appt-item-amount">${{ "{:,.0f}".format(job.estimated_amount) }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right: Business Performance -->
+    <div class="dash-performance">
+        <!-- Receivables -->
+        <div class="perf-card">
+            <div class="perf-card-header">
+                <h3>Receivables</h3>
+                <a href="{{ url_for('invoices_page') }}" class="perf-chevron"><i class="bi bi-chevron-right"></i></a>
+            </div>
+            <div class="perf-subtitle">{{ receivables_count }} clients owe you</div>
+            <div class="perf-big-number">${{ "{:,.0f}".format(total_outstanding) }}</div>
+
+            {% if receivables_clients %}
+            <table class="perf-table">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th style="text-align:right">Balance</th>
+                        <th style="text-align:right">Late</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rc in receivables_clients %}
+                    <tr>
+                        <td class="perf-client-name">
+                            {% if rc.client_type == 'commercial' and rc.company_name %}
+                                {{ rc.company_name[:30] }}
+                            {% else %}
+                                {{ (rc.first_name or '') ~ ' ' ~ (rc.last_name or '') }}
+                            {% endif %}
+                        </td>
+                        <td style="text-align:right" class="money">${{ "{:,.1f}k".format(rc.balance / 1000) if rc.balance >= 1000 else "{:,.0f}".format(rc.balance) }}</td>
+                        <td style="text-align:right" class="money money-red">{% if rc.late > 0 %}${{ "{:,.1f}k".format(rc.late / 1000) if rc.late >= 1000 else "{:,.0f}".format(rc.late) }}{% else %}-{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+
+        <!-- Upcoming Jobs -->
+        <div class="perf-card">
+            <div class="perf-card-header">
+                <h3>Upcoming jobs</h3>
+                <a href="{{ url_for('jobs_page') }}" class="perf-chevron"><i class="bi bi-chevron-right"></i></a>
+            </div>
+            <div class="perf-subtitle">This week</div>
+            <div class="perf-big-number">${{ "{:,.0f}".format(upcoming_jobs_value) }}</div>
+        </div>
+
+        <!-- Quick Financial Summary -->
+        <div class="perf-card">
+            <div class="perf-card-header">
+                <h3>Revenue Summary</h3>
+            </div>
+            <div class="perf-fin-rows">
+                <div class="perf-fin-row">
+                    <span>Total Invoiced</span>
+                    <span class="money money-green">${{ "{:,.0f}".format(total_invoiced) }}</span>
+                </div>
+                <div class="perf-fin-row">
+                    <span>Total Paid</span>
+                    <span class="money money-green">${{ "{:,.0f}".format(total_paid) }}</span>
+                </div>
+                <div class="perf-fin-row">
+                    <span>Outstanding</span>
+                    <span class="money money-orange">${{ "{:,.0f}".format(total_outstanding) }}</span>
+                </div>
+                <div class="perf-fin-row">
+                    <span>Overdue</span>
+                    <span class="money money-red">${{ "{:,.0f}".format(total_overdue) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

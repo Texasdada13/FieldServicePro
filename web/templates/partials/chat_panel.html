@@ -1,0 +1,240 @@
+<!-- AI Chat Floating Button -->
+<button class="chat-fab" onclick="toggleChat()" title="AI Assistant">
+    <i class="bi bi-chat-dots-fill"></i>
+</button>
+
+<!-- Chat Panel -->
+<div class="chat-panel" id="chatPanel">
+    <div class="chat-header">
+        <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <div class="chat-header-icon">
+                <i class="bi bi-chat-dots-fill" style="font-size: 1rem;"></i>
+            </div>
+            <div>
+                <div style="font-weight: 700; font-size: 1rem; letter-spacing: -0.01em;">AI Assistant</div>
+                <div style="font-size: 0.75rem; opacity: 0.75;">Ask about clients, jobs &amp; invoices</div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 4px;">
+            <select id="chatMode" class="chat-mode-select" title="Conversation mode">
+                <option value="general">General</option>
+                <option value="client_review">Client Review</option>
+                <option value="job_analysis">Job Analysis</option>
+                <option value="quote_assist">Quote Help</option>
+                <option value="invoice_review">Invoice Review</option>
+                <option value="technician_perf">Tech Performance</option>
+            </select>
+            <button class="chat-close-btn" onclick="toggleChat()"><i class="bi bi-x-lg"></i></button>
+        </div>
+    </div>
+
+    <!-- Suggestions -->
+    <div class="chat-suggestions" id="chatSuggestions"></div>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="chatMessages">
+        <div class="chat-msg assistant">
+            <div class="chat-msg-avatar"><i class="bi bi-robot"></i></div>
+            <div class="chat-msg-body">
+                <div class="chat-msg-content">
+                    Hey! I'm your FieldServicePro AI assistant. I can answer questions about your clients, jobs, quotes, invoices, and technicians. What would you like to know?
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input -->
+    <div class="chat-input-area">
+        <form id="chatForm" onsubmit="sendChatMessage(event)">
+            <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="chatInput" placeholder="Ask about your business..."
+                       autocomplete="off" style="flex: 1;">
+                <button type="submit" class="chat-send-btn" id="chatSendBtn">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+// Configure marked for chat-friendly output
+marked.setOptions({
+    breaks: true,
+    gfm: true,
+});
+
+const CHAT_CLIENT_ID = typeof CLIENT_ID !== 'undefined' ? CLIENT_ID : null;
+let chatSessionId = 'session-' + Date.now();
+
+function toggleChat() {
+    const panel = document.getElementById('chatPanel');
+    const fab = document.querySelector('.chat-fab');
+    panel.classList.toggle('open');
+    fab.classList.toggle('hidden');
+    if (panel.classList.contains('open')) {
+        document.getElementById('chatInput').focus();
+        loadSuggestions();
+    }
+}
+
+function loadSuggestions() {
+    const url = CHAT_CLIENT_ID
+        ? `/api/chat/suggestions?client_id=${CHAT_CLIENT_ID}`
+        : '/api/chat/suggestions';
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('chatSuggestions');
+            if (data.suggestions && data.suggestions.length) {
+                container.innerHTML = data.suggestions.map(s =>
+                    `<button class="chat-suggestion-btn" onclick="useSuggestion(this)">${s}</button>`
+                ).join('');
+                container.style.display = 'flex';
+            }
+        })
+        .catch(() => {});
+}
+
+function useSuggestion(btn) {
+    document.getElementById('chatInput').value = btn.textContent;
+    document.getElementById('chatSuggestions').style.display = 'none';
+    document.getElementById('chatForm').requestSubmit();
+}
+
+function sendChatMessage(e) {
+    e.preventDefault();
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    if (!message) return;
+
+    // Hide suggestions after first message
+    document.getElementById('chatSuggestions').style.display = 'none';
+
+    // Add user message
+    appendMessage('user', message);
+    input.value = '';
+
+    // Disable input while streaming
+    const sendBtn = document.getElementById('chatSendBtn');
+    input.disabled = true;
+    sendBtn.disabled = true;
+
+    // Create assistant placeholder
+    const assistantMsg = appendMessage('assistant', '', true);
+    const contentEl = assistantMsg.querySelector('.chat-msg-content');
+
+    // Stream response
+    fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            message: message,
+            client_id: CHAT_CLIENT_ID,
+            mode: document.getElementById('chatMode').value,
+            session_id: chatSessionId,
+        }),
+    }).then(response => {
+        if (!response.ok) {
+            return response.json().then(err => {
+                contentEl.textContent = err.error || 'Something went wrong.';
+                contentEl.style.color = 'var(--danger)';
+                throw new Error(err.error);
+            });
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        function read() {
+            reader.read().then(({done, value}) => {
+                if (done) {
+                    input.disabled = false;
+                    sendBtn.disabled = false;
+                    input.focus();
+                    return;
+                }
+
+                buffer += decoder.decode(value, {stream: true});
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            if (data.text) {
+                                contentEl.textContent += data.text;
+                                scrollChat();
+                            }
+                            if (data.done) {
+                                input.disabled = false;
+                                sendBtn.disabled = false;
+                                input.focus();
+                                // Convert markdown-like formatting
+                                formatContent(contentEl);
+                                return;
+                            }
+                            if (data.error) {
+                                contentEl.textContent = 'Error: ' + data.error;
+                                contentEl.style.color = 'var(--danger)';
+                                input.disabled = false;
+                                sendBtn.disabled = false;
+                                return;
+                            }
+                        } catch(e) {}
+                    }
+                }
+                read();
+            });
+        }
+        read();
+    }).catch(err => {
+        if (!contentEl.textContent) {
+            contentEl.textContent = 'Failed to connect. Make sure ANTHROPIC_API_KEY is set.';
+            contentEl.style.color = 'var(--danger)';
+        }
+        input.disabled = false;
+        sendBtn.disabled = false;
+    });
+}
+
+function appendMessage(role, content, streaming = false) {
+    const messages = document.getElementById('chatMessages');
+    const msg = document.createElement('div');
+    msg.className = `chat-msg ${role}`;
+    msg.innerHTML = `
+        <div class="chat-msg-avatar">
+            ${role === 'user' ? '<i class="bi bi-person-fill"></i>' : '<i class="bi bi-robot"></i>'}
+        </div>
+        <div class="chat-msg-body">
+            <div class="chat-msg-content">${streaming ? '<span class="chat-typing"></span>' : escapeHtml(content)}</div>
+        </div>
+    `;
+    messages.appendChild(msg);
+    scrollChat();
+    return msg;
+}
+
+function scrollChat() {
+    const messages = document.getElementById('chatMessages');
+    messages.scrollTop = messages.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatContent(el) {
+    // Use marked.js for full markdown rendering, then highlight money amounts
+    let raw = el.textContent;
+    let html = marked.parse(raw);
+    // Highlight CAD money amounts
+    html = html.replace(/(\$[\d,]+\.?\d*)/g, '<span class="money">$1</span>');
+    el.innerHTML = html;
+}
+</script>

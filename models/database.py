@@ -1,0 +1,49 @@
+"""Database configuration and session management."""
+
+import os
+import logging
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+logger = logging.getLogger(__name__)
+
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if DATABASE_URL:
+    # Render (and Heroku) expose postgres:// but SQLAlchemy 2.x requires postgresql://
+    if DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        pool_size=5,
+        max_overflow=10,
+        pool_recycle=300,
+        pool_pre_ping=True,
+    )
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    DATA_DIR = os.path.join(BASE_DIR, 'data')
+    os.makedirs(DATA_DIR, exist_ok=True)
+    DATABASE_PATH = os.path.join(DATA_DIR, 'fieldservicepro.db')
+    DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
+    engine = create_engine(DATABASE_URL, echo=False)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+
+def get_session():
+    """Get a new database session."""
+    return SessionLocal()
+
+
+def init_db():
+    """Initialize the database, creating all tables."""
+    from . import user, division, client, job, quote, invoice, technician  # noqa: F401
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialized successfully.")
+    except Exception as e:
+        logger.error("Failed to initialize database: %s", e)
+        raise
