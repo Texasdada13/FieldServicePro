@@ -1,0 +1,23 @@
+{% extends "portal/email/base_email.html" %}
+
+{% block content %}
+<h2 style="color:#1e293b;margin-top:0;">{{ title }}</h2>
+<p style="color:#475569;white-space:pre-wrap;">{{ message }}</p>
+
+{% if details %}
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+    {% for label, value in details %}
+    <tr>
+        <td style="padding:8px 0;color:#64748b;font-size:14px;width:120px;vertical-align:top;">{{ label }}</td>
+        <td style="padding:8px 0;color:#1e293b;font-size:14px;">{{ value }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+{% if action_url and action_url != '#' %}
+<div style="text-align:center;margin:24px 0;">
+    <a href="{{ action_url }}" style="display:inline-block;padding:10px 24px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;font-weight:bold;">{{ action_text }}</a>
+</div>
+{% endif %}
+{% endblock %}

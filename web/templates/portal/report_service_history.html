@@ -1,0 +1,85 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Service History Report{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="font-size:0.85rem;">
+            <li class="breadcrumb-item"><a href="{{ url_for('portal.portal_reports') }}" style="color:var(--portal-text-muted);text-decoration:none;">Reports</a></li>
+            <li class="breadcrumb-item active" style="color:var(--portal-text-light);">Service History</li>
+        </ol>
+    </nav>
+    <h1>Service History Report</h1>
+</div>
+
+<div class="portal-filter-bar mb-4">
+    <form method="GET" class="d-flex flex-wrap gap-2 align-items-center w-100">
+        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from.strftime('%Y-%m-%d') }}" style="max-width:160px;">
+        <span class="text-muted">to</span>
+        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to.strftime('%Y-%m-%d') }}" style="max-width:160px;">
+        <select name="property" class="form-select form-select-sm" style="max-width:220px;">
+            <option value="">All Properties</option>
+            {% for p in properties %}
+            <option value="{{ p.id }}" {{ 'selected' if selected_property == p.id|string }}>{{ p.display_address }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-portal-primary">Apply</button>
+        <a href="{{ url_for('portal.portal_report_service_history', date_from=date_from.strftime('%Y-%m-%d'), date_to=date_to.strftime('%Y-%m-%d'), property=selected_property or '', format='csv') }}"
+           class="btn btn-sm btn-portal-outline ms-auto">
+            <i class="bi bi-download"></i> Export CSV
+        </a>
+    </form>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="portal-stat-card">
+            <div class="stat-value">{{ total_jobs }}</div>
+            <div class="stat-label">Total Jobs</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="portal-stat-card">
+            <div class="stat-value" style="color:var(--portal-success);">{{ completed }}</div>
+            <div class="stat-label">Completed</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="portal-stat-card">
+            <div class="stat-value" style="color:var(--portal-primary);">{{ in_progress }}</div>
+            <div class="stat-label">In Progress</div>
+        </div>
+    </div>
+</div>
+
+{% if jobs %}
+<div class="portal-card">
+    <div class="card-body p-0">
+        <table class="portal-table">
+            <thead><tr><th>Job #</th><th>Property</th><th>Title</th><th>Type</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr class="clickable-row" data-href="{{ url_for('portal.portal_job_detail', job_id=job.id) }}">
+                    <td class="fw-semibold">#{{ job.job_number or job.id }}</td>
+                    <td>{{ job.property.name if job.property else '---' }}</td>
+                    <td>{{ job.title[:50] }}{% if job.title|length > 50 %}...{% endif %}</td>
+                    <td style="font-size:0.85rem;text-transform:capitalize;">{{ (job.job_type or '')|replace('_', ' ') or '---' }}</td>
+                    <td><span class="portal-badge {{ job.status|replace('_', '-') }}">{{ job.status|replace('_', ' ')|title }}</span></td>
+                    <td style="font-size:0.85rem;">{{ job.created_at.strftime('%b %d, %Y') if job.created_at else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="portal-card">
+    <div class="portal-empty-state">
+        <i class="bi bi-clipboard-data"></i>
+        <h5>No Jobs Found</h5>
+        <p>No jobs match the selected criteria.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

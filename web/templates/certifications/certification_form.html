@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if cert else 'New' }} Certification{% endblock %}
+{% block page_title %}{{ 'Edit' if cert else 'New' }} Certification{% endblock %}
+
+{% block content %}
+<div style="max-width:700px;">
+  <div class="card" style="margin-bottom:var(--space-3);background:var(--color-surface-raised);">
+    <div class="card-body" style="padding:var(--space-2) var(--space-4);">
+      <span style="color:var(--color-text-muted);font-size:var(--font-size-sm);">Technician:</span>
+      <strong style="margin-left:4px;">{{ technician.full_name }}</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-award" style="color:var(--color-accent);"></i> {{ 'Edit' if cert else 'Add' }} Certification</h3></div>
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Type *</label><select name="certification_type" class="form-control" required>{% for val, label in cert_types %}<option value="{{ val }}" {{ 'selected' if cert and cert.certification_type == val }}>{{ label }}</option>{% endfor %}</select></div>
+          <div class="form-group"><label class="form-label">Name *</label><input type="text" name="certification_name" class="form-control" required value="{{ cert.certification_name if cert else '' }}" placeholder="e.g. Journeyman Electrician"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Issuing Body</label><input type="text" name="issuing_body" class="form-control" value="{{ cert.issuing_body if cert else '' }}"></div>
+          <div class="form-group"><label class="form-label">Certificate #</label><input type="text" name="certificate_number" class="form-control" value="{{ cert.certificate_number if cert else '' }}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Issue Date *</label><input type="date" name="issue_date" class="form-control" required value="{{ cert.issue_date.isoformat() if cert and cert.issue_date else '' }}"></div>
+          <div class="form-group"><label class="form-label">Expiry Date</label><input type="date" name="expiry_date" class="form-control" value="{{ cert.expiry_date.isoformat() if cert and cert.expiry_date else '' }}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Reminder Days</label><input type="number" name="renewal_reminder_days" class="form-control" value="{{ cert.renewal_reminder_days if cert else 30 }}"></div>
+          <div style="display:flex;align-items:center;padding-top:var(--space-5);"><label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;"><input type="checkbox" name="is_required" style="accent-color:var(--color-accent);" {{ 'checked' if cert and cert.is_required }}> Required for employment</label></div>
+        </div>
+        <div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2">{{ cert.notes if cert else '' }}</textarea></div>
+        <div class="form-group" style="margin-bottom:0;"><label class="form-label">Attach Documents</label><input type="file" name="documents" class="form-control" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"></div>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;margin-top:var(--space-4);">
+          <a href="{{ url_for('certifications.tech_certifications', tech_id=technician.id) }}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-accent">{{ 'Update' if cert else 'Add' }} Certification</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

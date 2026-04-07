@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Lien Waiver — {{ waiver.party_name }}{% endblock %}
+{% block page_title %}Lien Waiver{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<nav style="margin-bottom:var(--space-3);font-size:var(--font-size-sm);">
+  <a href="{{ url_for('job_detail', job_id=waiver.job_id) }}" style="color:var(--color-text-muted);text-decoration:none;">Job #{{ waiver.job_id }}</a>
+  <span style="color:var(--color-text-muted);margin:0 var(--space-1);">/</span>
+  <a href="{{ url_for('lien_waivers.lien_waiver_list', job_id=waiver.job_id) }}" style="color:var(--color-text-muted);text-decoration:none;">Lien Waivers</a>
+  <span style="color:var(--color-text-muted);margin:0 var(--space-1);">/</span>
+  <span style="color:var(--color-text-secondary);">{{ waiver.party_name }}</span>
+</nav>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+  <div>
+    <h2 style="margin:0 0 var(--space-1);">{{ waiver.type_display }}</h2>
+    <span class="badge" style="background:var(--color-{{ waiver.status_color }});color:#fff;font-size:var(--font-size-sm);">{{ waiver.status_display }}</span>
+  </div>
+  <a href="{{ url_for('lien_waivers.lien_waiver_edit', waiver_id=waiver.id) }}" class="btn btn-ghost">
+    <i class="bi bi-pencil"></i> Edit
+  </a>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+  <!-- Left: Details -->
+  <div>
+    <div class="card" style="margin-bottom:var(--space-3);">
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+          <div>
+            <div style="margin-bottom:var(--space-3);">
+              <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Party</span>
+              <strong>{{ waiver.party_name }}</strong>
+              <span style="color:var(--color-text-muted);font-size:var(--font-size-sm);">({{ waiver.party_type_display }})</span>
+            </div>
+            <div style="margin-bottom:var(--space-3);">
+              <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Amount</span>
+              <strong>{{ "${:,.2f}".format(waiver.amount) if waiver.amount else '—' }}</strong>
+            </div>
+            <div>
+              <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Through Date</span>
+              <strong>{{ waiver.through_date.strftime('%b %d, %Y') if waiver.through_date else '—' }}</strong>
+            </div>
+          </div>
+          <div>
+            <div style="margin-bottom:var(--space-3);">
+              <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Requested</span>
+              <strong>{{ waiver.requested_date.strftime('%b %d, %Y') if waiver.requested_date else '—' }}</strong>
+            </div>
+            <div style="margin-bottom:var(--space-3);">
+              <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Received</span>
+              <strong>{{ waiver.received_date.strftime('%b %d, %Y') if waiver.received_date else '—' }}</strong>
+            </div>
+            {% if waiver.invoice_id %}
+            <div>
+              <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Invoice</span>
+              <a href="{{ url_for('invoice_detail', invoice_id=waiver.invoice_id) }}" style="font-weight:500;">Invoice #{{ waiver.invoice_id }}</a>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if waiver.notes %}
+        <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--color-border);">
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;margin-bottom:var(--space-1);">Notes</span>
+          <p style="margin:0;white-space:pre-wrap;">{{ waiver.notes }}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Documents + Actions -->
+  <div>
+    {% set widget_entity_type = 'lien_waiver' %}
+    {% set widget_entity_id = waiver.id %}
+    {% set widget_category = 'lien_waiver' %}
+    {% set widget_documents = documents %}
+    {% set widget_title = 'Waiver Documents' %}
+    {% include 'partials/_document_widget.html' %}
+
+    <div class="card" style="margin-top:var(--space-3);">
+      <div class="card-body">
+        <form method="POST"
+              action="{{ url_for('lien_waivers.lien_waiver_delete', waiver_id=waiver.id) }}"
+              onsubmit="return confirm('Delete this lien waiver?')">
+          <button type="submit" class="btn btn-ghost" style="width:100%;color:var(--color-danger);font-size:var(--font-size-sm);">
+            <i class="bi bi-trash"></i> Delete Waiver
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

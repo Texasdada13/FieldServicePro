@@ -67,6 +67,25 @@
                 <div class="jd-row"><span>Issued</span><span>{{ invoice.issued_date[:10] if invoice.issued_date else '—' }}</span></div>
                 <div class="jd-row"><span>Due</span><span>{{ invoice.due_date[:10] if invoice.due_date else '—' }}</span></div>
                 <div class="jd-row"><span>Salesperson</span><span>{{ user.first_name }}</span></div>
+                {% if invoice.po_number_display %}
+                <div class="jd-row"><span>PO #</span><span style="font-weight: 600; color: var(--color-accent);">{{ invoice.po_number_display }}</span></div>
+                {% endif %}
+                {% if invoice.payment_terms %}
+                <div class="jd-row"><span>Terms</span><span>{{ invoice.payment_terms | replace('_', ' ') | title }}</span></div>
+                {% endif %}
+                {% if invoice.cost_code %}
+                <div class="jd-row"><span>Cost Code</span><span><code>{{ invoice.cost_code }}</code></span></div>
+                {% endif %}
+                {% if invoice.department %}
+                <div class="jd-row"><span>Department</span><span>{{ invoice.department }}</span></div>
+                {% endif %}
+                {% if invoice.approval_status and invoice.approval_status != 'not_required' %}
+                <div class="jd-row"><span>Approval</span><span>
+                  <span class="badge badge-{% if invoice.approval_status == 'approved' %}completed{% elif invoice.approval_status == 'rejected' %}danger{% else %}pending{% endif %}">
+                    {{ invoice.approval_status | replace('_', ' ') | title }}
+                  </span>
+                </span></div>
+                {% endif %}
             </div>
         </div>
 

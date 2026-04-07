@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Safety Checklists{% endblock %}
+{% block page_title %}Safety Checklists{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <h2 style="margin:0;"><i class="bi bi-clipboard-check" style="margin-right:var(--space-2);"></i>Safety Checklists</h2>
+  <a href="{{ url_for('checklists.template_new') }}" class="btn btn-accent">
+    <i class="bi bi-plus-lg"></i> New Template
+  </a>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-success);">{{ active_count }}</div>
+    <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">Active Templates</div>
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-text-muted);">{{ inactive_count }}</div>
+    <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">Inactive</div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);flex-wrap:wrap;">
+  <select id="filterType" class="form-control" style="width:auto;" onchange="applyFilters()">
+    <option value="">All Types</option>
+    {% for val, label in type_choices %}
+    <option value="{{ val }}" {{ 'selected' if filter_type == val }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <select id="filterCategory" class="form-control" style="width:auto;" onchange="applyFilters()">
+    <option value="">All Categories</option>
+    {% for val, label in category_choices %}
+    <option value="{{ val }}" {{ 'selected' if filter_category == val }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<!-- Template Cards -->
+{% if templates %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--space-3);">
+  {% for template in templates %}
+  <div class="card {% if not template.is_active %}{% endif %}" style="{% if not template.is_active %}opacity:0.75;{% endif %}">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <h4 style="margin:0;font-size:var(--font-size-base);font-weight:600;">{{ template.name }}</h4>
+      {% if not template.is_active %}
+      <span class="badge" style="background:var(--color-text-muted);color:#fff;font-size:var(--font-size-xs);">Inactive</span>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      {% if template.description %}
+      <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin-bottom:var(--space-2);">{{ template.description|truncate(100) }}</p>
+      {% endif %}
+      <div style="margin-bottom:var(--space-2);display:flex;gap:var(--space-1);flex-wrap:wrap;">
+        <span class="badge" style="background:var(--color-info);color:#fff;font-size:var(--font-size-xs);">{{ template.type_display }}</span>
+        <span class="badge" style="background:var(--color-surface-raised);color:var(--color-text-secondary);font-size:var(--font-size-xs);">{{ template.category_display }}</span>
+      </div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ template.item_count }} items ({{ template.required_item_count }} required)</div>
+    </div>
+    <div style="padding:var(--space-2) var(--space-3);border-top:1px solid var(--color-border);display:flex;gap:var(--space-2);">
+      <a href="{{ url_for('checklists.template_detail', template_id=template.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">View</a>
+      <a href="{{ url_for('checklists.template_edit', template_id=template.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Edit</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="padding:var(--space-6);text-align:center;">
+  <i class="bi bi-clipboard-check" style="font-size:3rem;color:var(--color-text-muted);"></i>
+  <p style="margin-top:var(--space-3);color:var(--color-text-muted);">No checklist templates yet. Create your first one.</p>
+</div>
+{% endif %}
+
+<script>
+function applyFilters() {
+  const type = document.getElementById('filterType').value;
+  const cat = document.getElementById('filterCategory').value;
+  const params = new URLSearchParams();
+  if (type) params.set('type', type);
+  if (cat) params.set('category', cat);
+  window.location.href = '{{ url_for("checklists.template_list") }}' + (params.toString() ? '?' + params : '');
+}
+</script>
+{% endblock %}

@@ -3,7 +3,7 @@
 import os
 import sys
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, date, timezone, timedelta
 from sqlalchemy import func, case, text
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, stream_with_context
 from flask_login import login_required, current_user
@@ -30,8 +30,30 @@ from models import (
     Quote, QuoteItem, QuoteStatus,
     Invoice, InvoiceItem, InvoiceStatus, Payment,
     Technician,
+    SLA, PriorityLevel,
+    Contract, ContractLineItem, ContractActivityLog, ContractAttachment,
+    ContractType, ContractStatus, BillingFrequency, ServiceFrequency,
 )
 from web.auth import auth_bp, login_manager
+from web.routes.sla_routes import sla_bp
+from web.routes.contract_routes import contract_bp
+from web.utils.sla_engine import (
+    detect_contract_for_job, detect_sla_for_job,
+    apply_sla_to_job, handle_job_status_change,
+)
+from web.cli_commands import automation_cli
+from web.routes.po_routes import po_bp
+from web.routes.phase_routes import phases_bp
+from web.routes.change_order_routes import change_orders_bp
+from web.routes.document_routes import documents_bp
+from web.routes.permit_routes import permits_bp
+from web.routes.insurance_routes import insurance_bp
+from web.routes.certification_routes import certifications_bp
+from web.routes.checklist_routes import checklists_bp
+from web.routes.lien_waiver_routes import lien_waivers_bp
+from web.portal_auth import portal_auth_bp
+from web.routes.portal_routes import portal_bp
+from web.routes.portal_admin_routes import portal_admin_bp
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -48,6 +70,20 @@ app.secret_key = os.environ.get('SECRET_KEY', 'fsp-dev-secret-key-change-in-prod
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION
+
+# File upload config
+app.config['UPLOAD_FOLDER'] = os.environ.get(
+    'UPLOAD_FOLDER', os.path.join(app.instance_path, 'uploads'))
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25MB
+
+# Email config (Flask-Mail, optional — portal emails degrade gracefully if unconfigured)
+app.config.setdefault('MAIL_SERVER', os.environ.get('MAIL_SERVER', 'localhost'))
+app.config.setdefault('MAIL_PORT', int(os.environ.get('MAIL_PORT', 587)))
+app.config.setdefault('MAIL_USE_TLS', os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true')
+app.config.setdefault('MAIL_USERNAME', os.environ.get('MAIL_USERNAME'))
+app.config.setdefault('MAIL_PASSWORD', os.environ.get('MAIL_PASSWORD'))
+app.config.setdefault('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@fieldservicepro.com'))
 
 # Security headers via Talisman (HTTPS redirect, CSP, HSTS)
 csp = {
@@ -68,9 +104,38 @@ Talisman(
 CORS(app, resources={r"/api/*": {"origins": "*" if not IS_PRODUCTION else []}})
 login_manager.init_app(app)
 app.register_blueprint(auth_bp)
+app.register_blueprint(sla_bp)
+app.register_blueprint(contract_bp)
+app.register_blueprint(automation_cli)
+app.register_blueprint(po_bp)
+app.register_blueprint(phases_bp)
+app.register_blueprint(change_orders_bp)
+app.register_blueprint(documents_bp)
+app.register_blueprint(permits_bp)
+app.register_blueprint(insurance_bp)
+app.register_blueprint(certifications_bp)
+app.register_blueprint(checklists_bp)
+app.register_blueprint(lien_waivers_bp)
+app.register_blueprint(portal_auth_bp)
+app.register_blueprint(portal_bp)
+app.register_blueprint(portal_admin_bp)
+
+
+@app.before_request
+def block_portal_from_internal():
+    """Prevent portal users from accessing internal routes."""
+    from flask import session as flask_session
+    if flask_session.get('portal_user_id') and request.endpoint:
+        # Allow portal routes and static files
+        if (request.endpoint
+            and not request.endpoint.startswith('portal')
+            and request.endpoint != 'static'):
+            abort(403)
+
 
 # Make datetime.now available in templates
 app.jinja_env.globals['now'] = datetime.now
+app.jinja_env.globals['now_utc'] = datetime.utcnow
 
 # Initialize database
 with app.app_context():
@@ -97,6 +162,70 @@ with app.app_context():
 logger.info("FieldServicePro app initialized (production=%s)", IS_PRODUCTION)
 
 
+# ── Lightweight automation on request (runs at most once per hour) ──
+@app.before_request
+def run_background_checks():
+    """Run contract expiry and SLA breach checks periodically."""
+    _last_run_key = '_automation_last_run'
+    now = datetime.utcnow()
+    last_run = getattr(app, _last_run_key, None)
+    if last_run is None or (now - last_run) > timedelta(hours=1):
+        setattr(app, _last_run_key, now)
+        try:
+            from web.utils.contract_automation import (
+                check_expired_contracts, check_sla_breaches
+            )
+            db = get_session()
+            check_expired_contracts(db)
+            check_sla_breaches(db)
+            db.close()
+        except Exception:
+            pass  # Never let automation errors break normal requests
+
+
+# ── Context processor: pending approval badge count ──
+@app.context_processor
+def inject_approval_count():
+    count = 0
+    if current_user.is_authenticated and current_user.role in ('owner', 'admin'):
+        try:
+            db = get_session()
+            count = db.query(Invoice).filter(
+                Invoice.organization_id == current_user.organization_id,
+                Invoice.approval_status == 'pending'
+            ).count()
+            db.close()
+        except Exception:
+            pass
+    # Pending CO count
+    co_count = 0
+    if current_user.is_authenticated and current_user.role in ('owner', 'admin', 'dispatcher'):
+        try:
+            from models.change_order import ChangeOrder
+            db2 = get_session()
+            co_count = db2.query(ChangeOrder).join(Job).filter(
+                Job.organization_id == current_user.organization_id,
+                ChangeOrder.status.in_(['submitted', 'pending_approval'])
+            ).count()
+            db2.close()
+        except Exception:
+            pass
+
+    # Permission helpers for templates
+    from web.utils.permissions import (
+        can_manage_phase, can_approve_change_order,
+        can_edit_change_order, can_create_change_order_fn,
+    )
+    return {
+        'pending_approval_count': count,
+        'pending_co_count': co_count,
+        'can_manage_phase': can_manage_phase,
+        'can_approve_change_order': can_approve_change_order,
+        'can_edit_change_order': can_edit_change_order,
+        'can_create_change_order_fn': can_create_change_order_fn,
+    }
+
+
 # ========== HEALTH CHECK (Render uses this) ==========
 
 @app.route('/health')
@@ -115,6 +244,21 @@ def health_check():
         'status': 'healthy' if db_status == 'connected' else 'degraded',
         'database': db_status,
     }), status_code
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('errors/403.html',
+                           active_page='', user=current_user,
+                           divisions=[]), 403
+
+
+@app.errorhandler(404)
+def not_found(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Not found'}), 404
+    flash('Page not found.', 'warning')
+    return redirect(url_for('dashboard'))
 
 
 def get_divisions():
@@ -280,6 +424,87 @@ def dashboard():
         # Recent jobs
         recent_jobs = jobs_q.order_by(Job.created_at.desc()).limit(10).all()
 
+        # ── Contract & SLA dashboard widgets ──
+        in_30_days = today + timedelta(days=30)
+        expiring_contracts = (db.query(Contract)
+                               .filter(
+                                   Contract.organization_id == org_id,
+                                   Contract.status == ContractStatus.active,
+                                   Contract.end_date >= today,
+                                   Contract.end_date <= in_30_days
+                               )
+                               .order_by(Contract.end_date.asc())
+                               .limit(5)
+                               .all())
+
+        from web.utils.sla_engine import get_sla_alert_jobs
+        sla_alert_jobs = get_sla_alert_jobs(db, limit=5)
+
+        month_ago = datetime.utcnow() - timedelta(days=30)
+        sla_jobs_month = (db.query(Job)
+                            .filter(
+                                Job.organization_id == org_id,
+                                Job.sla_id.isnot(None),
+                                Job.actual_resolution_time.isnot(None),
+                                Job.actual_resolution_time >= month_ago
+                            )
+                            .all())
+        sla_perf_pct = None
+        if sla_jobs_month:
+            met_count = sum(1 for j in sla_jobs_month if j.sla_resolution_met)
+            sla_perf_pct = round(met_count / len(sla_jobs_month) * 100, 1)
+
+        # ── Commercial dashboard widgets ──
+        # AR Summary
+        outstanding_invs = db.query(Invoice).filter(
+            Invoice.organization_id == org_id,
+            Invoice.status.in_(['sent', 'overdue', 'partial'])
+        ).all()
+        total_ar = sum(float(inv.balance_due or 0) for inv in outstanding_invs)
+        overdue_amount = sum(float(inv.balance_due or 0) for inv in outstanding_invs if inv.days_overdue > 0)
+
+        # Avg days to payment (paid invoices last 90 days)
+        ninety_ago = datetime.utcnow() - timedelta(days=90)
+        paid_invs = db.query(Invoice).filter(
+            Invoice.organization_id == org_id,
+            Invoice.status == 'paid',
+            Invoice.updated_at >= ninety_ago,
+            Invoice.due_date.isnot(None),
+        ).all()
+        avg_days_to_payment = 0
+        if paid_invs:
+            avg_days_to_payment = round(sum(
+                max(0, (inv.updated_at.date() if hasattr(inv.updated_at, 'date') else inv.updated_at
+                         ) - (inv.issued_date.date() if inv.issued_date and hasattr(inv.issued_date, 'date') else today)).days
+                if inv.updated_at and inv.issued_date else 0
+                for inv in paid_invs
+            ) / len(paid_invs), 1) if paid_invs else 0
+
+        # Pending approvals
+        pending_approvals = db.query(Invoice).filter(
+            Invoice.organization_id == org_id,
+            Invoice.approval_status == 'pending'
+        ).count()
+
+        # Expiring POs
+        from models.purchase_order import PurchaseOrder
+        soon_30 = today + timedelta(days=30)
+        expiring_pos = db.query(PurchaseOrder).filter(
+            PurchaseOrder.organization_id == org_id,
+            PurchaseOrder.status == 'active',
+            PurchaseOrder.expiry_date.isnot(None),
+            PurchaseOrder.expiry_date >= today,
+            PurchaseOrder.expiry_date <= soon_30,
+        ).order_by(PurchaseOrder.expiry_date).all()
+
+        # ── Compliance alerts ──
+        compliance_alerts = []
+        try:
+            from web.utils.compliance_checks import get_all_compliance_alerts
+            compliance_alerts = get_all_compliance_alerts(db)
+        except Exception:
+            pass
+
         return render_template('dashboard.html',
             active_page='dashboard',
             user=current_user,
@@ -325,6 +550,18 @@ def dashboard():
             upcoming_jobs_value=upcoming_jobs_value,
             # Recent
             recent_jobs=[j.to_dict() for j in recent_jobs],
+            # Contracts & SLA widgets
+            expiring_contracts=expiring_contracts,
+            sla_alert_jobs=sla_alert_jobs,
+            sla_perf_pct=sla_perf_pct,
+            sla_jobs_count=len(sla_jobs_month),
+            # Commercial widgets
+            total_ar=total_ar,
+            overdue_amount=overdue_amount,
+            avg_days_to_payment=avg_days_to_payment,
+            pending_approvals=pending_approvals,
+            expiring_pos=expiring_pos,
+            compliance_alerts=compliance_alerts,
         )
     finally:
         db.close()
@@ -358,6 +595,7 @@ def jobs_page():
             jd['division_color'] = job.division.color if job.division else '#666'
             jd['technician_name'] = job.technician.full_name if job.technician else 'Unassigned'
             jd['property_address'] = job.property.display_address if job.property else ''
+            jd['contract_number'] = job.contract.contract_number if job.contract else None
             job_list.append(jd)
 
         # KPI calculations
@@ -453,6 +691,19 @@ def create_job():
             created_by_id=current_user.id,
         )
         db.add(job)
+        db.flush()
+
+        # SLA Integration: auto-detect contract and apply SLA deadlines
+        manual_contract_id = data.get('contract_id')
+        if manual_contract_id:
+            contract = db.query(Contract).filter_by(id=int(manual_contract_id)).first()
+        else:
+            contract = detect_contract_for_job(db, data['client_id'],
+                                                data.get('property_id'))
+        if contract:
+            sla = detect_sla_for_job(contract, data.get('priority', 'normal'))
+            apply_sla_to_job(job, contract, sla, created_at=job.created_at)
+
         db.commit()
         return jsonify({'success': True, 'job': job.to_dict()})
     except Exception as e:
@@ -488,9 +739,68 @@ def job_detail(job_id):
         profit = total_price
         profit_pct = 100 if total_price > 0 else 0
 
+        # SLA visibility: technicians only see SLA on their own jobs
+        show_sla_details = True
+        if current_user.role == 'technician':
+            tech_id = getattr(current_user, 'technician_id', None)
+            if not tech_id or job.assigned_technician_id != tech_id:
+                show_sla_details = False
+
+        # Financial summary for job
+        financial_summary = {
+            'invoiced_total': total_invoiced,
+            'remaining': float(job.current_contract_value) - total_invoiced,
+        }
+
+        # Activity log
+        activity_log = []
+        for phase in job.phases:
+            activity_log.append({
+                'timestamp': phase.updated_at,
+                'title': f'Phase {phase.phase_number} -- {phase.status_label}',
+                'description': phase.completion_notes or phase.title,
+                'icon': 'layers', 'type_class': 'primary',
+                'actor': phase.assigned_technician.full_name if phase.assigned_technician else None,
+            })
+        for co in job.change_orders:
+            activity_log.append({
+                'timestamp': co.created_at,
+                'title': f'Change Order {co.change_order_number}',
+                'description': f'{co.title} -- {co.status_label}',
+                'icon': 'file-diff', 'type_class': 'warning',
+                'actor': co.created_by.full_name if co.created_by else None,
+            })
+        activity_log.append({
+            'timestamp': job.created_at,
+            'title': 'Job Created', 'description': job.title,
+            'icon': 'plus-circle', 'type_class': 'success', 'actor': None,
+        })
+        activity_log = sorted(
+            [e for e in activity_log if e['timestamp']],
+            key=lambda x: x['timestamp'], reverse=True
+        )
+
+        active_tab = request.args.get('tab', 'overview')
+        can_edit_phases = current_user.role in ('owner', 'admin', 'dispatcher')
+
+        # Compliance data
+        from web.utils.compliance_checks import get_job_compliance_status
+        from models.permit import Permit
+        from models.checklist import CompletedChecklist
+        from models.lien_waiver import LienWaiver
+        compliance_status = get_job_compliance_status(db, job.id)
+        job_permits = db.query(Permit).filter_by(job_id=job.id).order_by(Permit.created_at.desc()).all()
+        job_checklists = db.query(CompletedChecklist).filter_by(job_id=job.id).order_by(
+            CompletedChecklist.completed_at.desc()).all()
+        job_lien_waivers = db.query(LienWaiver).filter_by(job_id=job.id).order_by(
+            LienWaiver.created_at.desc()).all()
+        from web.utils.file_utils import get_entity_documents
+        job_documents = get_entity_documents(db, 'job', job.id,
+                                              include_confidential=current_user.role in ('owner', 'admin'))
+
         return render_template('job_detail.html',
             active_page='jobs', user=current_user, divisions=get_divisions(),
-            job=job.to_dict(), job_obj=job,
+            job=job.to_dict(), job_obj=job, show_sla_details=show_sla_details,
             client=client.to_dict() if client else {},
             client_name=client.display_name if client else 'Unknown',
             property=prop.to_dict() if prop else {},
@@ -506,9 +816,37 @@ def job_detail(job_id):
             total_invoiced=total_invoiced, total_paid=total_paid, total_balance=total_balance,
             total_price=total_price, line_item_cost=0, labour_cost=0, expenses=0,
             profit=profit, profit_pct=profit_pct,
+            financial_summary=financial_summary,
+            activity_log=activity_log,
+            active_tab=active_tab,
+            can_edit_phases=can_edit_phases,
+            compliance_status=compliance_status,
+            job_permits=job_permits,
+            job_checklists=job_checklists,
+            job_lien_waivers=job_lien_waivers,
+            job_documents=job_documents,
         )
     finally:
         db.close()
+
+
+@app.route('/jobs/<int:job_id>/pm-notes', methods=['POST'])
+@login_required
+def update_pm_notes(job_id):
+    """Save project manager notes for a job."""
+    if current_user.role not in ('owner', 'admin', 'dispatcher'):
+        abort(403)
+    db = get_session()
+    try:
+        job = db.query(Job).filter_by(id=job_id, organization_id=current_user.organization_id).first()
+        if not job:
+            abort(404)
+        job.project_manager_notes = request.form.get('project_manager_notes', '')
+        db.commit()
+        flash('PM notes saved.', 'success')
+    finally:
+        db.close()
+    return redirect(url_for('job_detail', job_id=job_id))
 
 
 @app.route('/api/jobs/<int:job_id>/notes', methods=['POST'])
@@ -541,10 +879,35 @@ def update_job_status(job_id):
         job = db.query(Job).filter_by(id=job_id, organization_id=current_user.organization_id).first()
         if not job:
             return jsonify({'success': False, 'error': 'Job not found'}), 404
-        job.status = data['status']
-        if data['status'] == 'completed':
+        new_status = data['status']
+        override = data.get('compliance_override', False)
+
+        # Compliance gates
+        if not override:
+            from web.utils.compliance_checks import check_job_can_start, check_job_can_complete
+            warnings = []
+            if new_status == 'in_progress':
+                ok, warnings = check_job_can_start(db, job.id)
+            elif new_status == 'completed':
+                ok, warnings = check_job_can_complete(db, job.id)
+
+            if warnings:
+                can_override = current_user.role in ('owner', 'admin')
+                return jsonify({
+                    'success': False,
+                    'compliance_warnings': warnings,
+                    'can_override': can_override,
+                    'error': 'Compliance warnings must be resolved or overridden.',
+                }), 409
+
+        # SLA tracking: record response/resolution times on status transitions
+        if job.sla_id:
+            handle_job_status_change(job, new_status)
+        else:
+            job.status = new_status
+        if new_status == 'completed':
             job.completed_at = datetime.now(timezone.utc)
-        if data['status'] == 'in_progress' and not job.started_at:
+        if new_status == 'in_progress' and not job.started_at:
             job.started_at = datetime.now(timezone.utc)
         db.commit()
         return jsonify({'success': True, 'job': job.to_dict()})
@@ -829,6 +1192,54 @@ def client_detail(client_id):
         billing_history = invoices_q.order_by(Invoice.created_at.desc()).limit(10).all()
         billing_list = [inv.to_dict() for inv in billing_history]
 
+        # Contracts for this client
+        client_contracts = db.query(Contract).filter_by(client_id=client_id)\
+                             .order_by(Contract.status, Contract.start_date.desc()).all()
+
+        # SLA compliance for this client
+        client_jobs_with_sla = db.query(Job).filter(
+            Job.client_id == client_id,
+            Job.sla_id.isnot(None),
+            Job.actual_resolution_time.isnot(None)
+        ).all()
+        sla_compliance_pct = None
+        if client_jobs_with_sla:
+            met = sum(1 for j in client_jobs_with_sla if j.sla_resolution_met)
+            sla_compliance_pct = round(met / len(client_jobs_with_sla) * 100, 1)
+
+        # Purchase Orders for this client
+        from models.purchase_order import PurchaseOrder
+        client_pos = db.query(PurchaseOrder).filter_by(client_id=client_id)\
+                       .order_by(PurchaseOrder.created_at.desc()).all()
+
+        # Aging snapshot
+        outstanding_invs = db.query(Invoice).filter(
+            Invoice.client_id == client_id,
+            Invoice.organization_id == org_id,
+            Invoice.status.in_(['sent', 'overdue', 'partial']),
+        ).all()
+        aging = {'current': 0.0, 'days_1_30': 0.0, 'days_31_60': 0.0,
+                 'days_61_90': 0.0, 'days_90_plus': 0.0, 'total': 0.0}
+        for inv in outstanding_invs:
+            bal = float(inv.balance_due or 0)
+            if bal <= 0:
+                continue
+            bucket = inv.aging_bucket
+            col = {'current': 'current', '1_30': 'days_1_30', '31_60': 'days_31_60',
+                   '61_90': 'days_61_90', '90_plus': 'days_90_plus'}.get(bucket, 'current')
+            aging[col] += bal
+            aging['total'] += bal
+
+        credit_available = None
+        if client.credit_limit:
+            credit_available = float(client.credit_limit) - aging['total']
+
+        today_date = date.today()
+        if today_date.month == 1:
+            default_stmt_start = date(today_date.year - 1, 12, 1)
+        else:
+            default_stmt_start = date(today_date.year, today_date.month - 1, 1)
+
         return render_template('client_detail.html',
             active_page='clients',
             user=current_user,
@@ -853,6 +1264,14 @@ def client_detail(client_id):
             comm_sent=comm_sent,
             comm_opened=comm_opened,
             billing_history=billing_list,
+            contracts=client_contracts,
+            sla_compliance_pct=sla_compliance_pct,
+            purchase_orders=client_pos,
+            aging=aging,
+            credit_available=credit_available,
+            today=today_date,
+            default_stmt_start=default_stmt_start,
+            default_stmt_end=today_date,
         )
     finally:
         db.close()
@@ -866,6 +1285,144 @@ def client_new_page():
         user=current_user,
         divisions=get_divisions(),
     )
+
+
+# ========== Client Statements ==========
+
+@app.route('/clients/<int:client_id>/statement')
+@login_required
+def client_statement(client_id):
+    """Generate statement for a single client."""
+    if current_user.role == 'technician':
+        abort(403)
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        client = db.query(Client).filter_by(id=client_id, organization_id=org_id).first()
+        if not client:
+            flash('Client not found', 'error')
+            return redirect(url_for('clients_page'))
+
+        today = date.today()
+
+        # Default to previous month
+        if today.month == 1:
+            def_start = date(today.year - 1, 12, 1)
+        else:
+            def_start = date(today.year, today.month - 1, 1)
+        def_end = date(today.year, today.month, 1) - timedelta(days=1)
+
+        start_str = request.args.get('start_date', def_start.isoformat())
+        end_str = request.args.get('end_date', def_end.isoformat())
+        try:
+            start_date = date.fromisoformat(start_str)
+            end_date = date.fromisoformat(end_str)
+        except ValueError:
+            flash('Invalid date range.', 'danger')
+            return redirect(url_for('client_detail', client_id=client_id))
+
+        # Invoices in period
+        invoices_in_period = db.query(Invoice).filter(
+            Invoice.client_id == client_id,
+            Invoice.organization_id == org_id,
+            Invoice.issued_date >= datetime.combine(start_date, datetime.min.time()),
+            Invoice.issued_date <= datetime.combine(end_date, datetime.max.time()),
+            Invoice.status != 'void',
+        ).order_by(Invoice.issued_date).all()
+
+        # Opening balance
+        prior_invoices = db.query(Invoice).filter(
+            Invoice.client_id == client_id,
+            Invoice.organization_id == org_id,
+            Invoice.issued_date < datetime.combine(start_date, datetime.min.time()),
+            Invoice.status.in_(['sent', 'overdue', 'partial']),
+        ).all()
+        opening_balance = sum(float(inv.balance_due or 0) for inv in prior_invoices)
+
+        # Payments in period
+        payments_in_period = db.query(Payment).join(Invoice).filter(
+            Invoice.client_id == client_id,
+            Invoice.organization_id == org_id,
+            Payment.payment_date >= datetime.combine(start_date, datetime.min.time()),
+            Payment.payment_date <= datetime.combine(end_date, datetime.max.time()),
+        ).order_by(Payment.payment_date).all()
+
+        new_charges = sum(float(inv.total or 0) for inv in invoices_in_period)
+        payments_rcvd = sum(float(p.amount or 0) for p in payments_in_period)
+        closing_balance = opening_balance + new_charges - payments_rcvd
+
+        # Aging summary
+        outstanding = db.query(Invoice).filter(
+            Invoice.client_id == client_id,
+            Invoice.organization_id == org_id,
+            Invoice.status.in_(['sent', 'overdue', 'partial']),
+        ).all()
+        aging = {'current': 0.0, 'days_1_30': 0.0, 'days_31_60': 0.0,
+                 'days_61_90': 0.0, 'days_90_plus': 0.0, 'total': 0.0}
+        for inv in outstanding:
+            bal = float(inv.balance_due or 0)
+            if bal <= 0:
+                continue
+            bucket = inv.aging_bucket
+            col = {'current': 'current', '1_30': 'days_1_30', '31_60': 'days_31_60',
+                   '61_90': 'days_61_90', '90_plus': 'days_90_plus'}.get(bucket, 'current')
+            aging[col] += bal
+            aging['total'] += bal
+
+        from models.settings import OrganizationSettings
+        settings = OrganizationSettings.get_or_create(db, org_id)
+
+        ctx = dict(
+            client=client, start_date=start_date, end_date=end_date,
+            invoices=invoices_in_period, payments=payments_in_period,
+            opening_balance=opening_balance, new_charges=new_charges,
+            payments_received=payments_rcvd, closing_balance=closing_balance,
+            aging=aging, today=today, settings=settings,
+            active_page='clients', user=current_user, divisions=get_divisions(),
+        )
+
+        fmt = request.args.get('format', 'html')
+        if fmt == 'pdf':
+            html_content = render_template('clients/statement.html', **ctx, print_mode=True)
+            try:
+                from weasyprint import HTML as WPHtml
+                pdf_bytes = WPHtml(string=html_content).write_pdf()
+                return Response(
+                    pdf_bytes, mimetype='application/pdf',
+                    headers={'Content-Disposition': f'attachment; filename="statement_{client_id}_{end_str}.pdf"'},
+                )
+            except ImportError:
+                flash('PDF generation requires WeasyPrint. Install with: pip install weasyprint', 'warning')
+
+        return render_template('clients/statement.html', **ctx, print_mode=False)
+    finally:
+        db.close()
+
+
+@app.route('/clients/<int:client_id>/statement/email', methods=['POST'])
+@login_required
+def email_statement(client_id):
+    """Email statement to client (placeholder — requires email utility)."""
+    db = get_session()
+    try:
+        client = db.query(Client).filter_by(
+            id=client_id, organization_id=current_user.organization_id
+        ).first()
+        if not client:
+            return jsonify({'error': 'Client not found'}), 404
+
+        billing_email = client.billing_email or client.email
+        if not billing_email:
+            return jsonify({'error': 'No billing email on file for this client.'}), 400
+
+        # Email sending would go here — placeholder response
+        return jsonify({
+            'success': True,
+            'sent_to': billing_email,
+            'message': 'Statement email queued (email service not yet configured).',
+        })
+    finally:
+        db.close()
 
 
 @app.route('/api/clients/new', methods=['POST'])
@@ -1255,40 +1812,140 @@ def invoices_page():
         db.close()
 
 
-@app.route('/invoices/new')
+@app.route('/invoices/new', methods=['GET', 'POST'])
 @login_required
 def invoice_new():
-    """Client selector page for creating a new invoice (Jobber-style)."""
+    """Create a new invoice with full commercial billing support."""
+    if current_user.role not in ('owner', 'admin', 'dispatcher'):
+        abort(403)
+
+    from web.utils.payment_terms import calculate_due_date
+    from web.utils.po_utils import handle_po_linking
+    from models.settings import OrganizationSettings
+
     db = get_session()
     try:
         org_id = current_user.organization_id
-        clients = (
-            db.query(Client)
-            .filter_by(organization_id=org_id, is_active=True)
-            .order_by(Client.updated_at.desc().nullslast(), Client.created_at.desc())
-            .all()
-        )
-        # Pre-compute property counts and last activity for template
-        now = datetime.now(timezone.utc)
-        client_data = []
-        for c in clients:
-            prop_count = len(c.properties) if c.properties else 0
-            last_activity = c.updated_at or c.created_at
-            if last_activity:
-                delta = now - last_activity.replace(tzinfo=timezone.utc) if last_activity.tzinfo is None else now - last_activity
-                days_ago = max(delta.days, 0)
+        clients = db.query(Client).filter_by(
+            organization_id=org_id, is_active=True
+        ).order_by(Client.company_name, Client.last_name).all()
+        jobs = db.query(Job).filter(
+            Job.organization_id == org_id,
+            Job.status.notin_(['cancelled'])
+        ).order_by(Job.created_at.desc()).limit(50).all()
+        divs = db.query(Division).filter_by(
+            organization_id=org_id, is_active=True
+        ).order_by(Division.sort_order).all()
+
+        if request.method == 'POST':
+            f = request.form
+            settings = OrganizationSettings.get_or_create(db, org_id)
+
+            # Parse dates
+            invoice_date_str = f.get('invoice_date', '')
+            invoice_date = date.fromisoformat(invoice_date_str) if invoice_date_str else date.today()
+            terms = f.get('payment_terms', 'net_30')
+            custom_days = int(f.get('custom_payment_days') or 0)
+            due_date_str = f.get('due_date', '')
+            if due_date_str:
+                due_dt = date.fromisoformat(due_date_str)
             else:
-                days_ago = None
-            client_data.append({
-                'id': c.id,
-                'display_name': c.display_name,
-                'client_type': c.client_type,
-                'company_name': c.company_name,
-                'phone': c.phone,
-                'property_count': prop_count,
-                'days_ago': days_ago,
-            })
-        return render_template('invoice_new.html', clients=client_data)
+                due_dt = calculate_due_date(invoice_date, terms, custom_days)
+
+            client_id = int(f.get('client_id')) if f.get('client_id') else None
+            client = db.query(Client).filter_by(id=client_id).first() if client_id else None
+
+            # Build invoice
+            inv = Invoice(
+                organization_id=org_id,
+                client_id=client_id,
+                job_id=int(f.get('job_id')) if f.get('job_id') else None,
+                invoice_number=settings.next_invoice_number(db),
+                status=f.get('status', 'draft'),
+                issued_date=datetime.combine(invoice_date, datetime.min.time()),
+                due_date=datetime.combine(due_dt, datetime.min.time()) if due_dt else None,
+                payment_terms=terms,
+                cost_code=f.get('cost_code', '').strip() or None,
+                department=f.get('department', '').strip() or None,
+                billing_contact=f.get('billing_contact', '').strip() or None,
+                po_number_display=f.get('po_number_display', '').strip() or None,
+                notes=f.get('notes', '').strip() or None,
+                approval_status='not_required',
+                created_by_id=current_user.id,
+            )
+            db.add(inv)
+            db.flush()
+
+            # Parse line items
+            descs = f.getlist('item_desc[]')
+            qtys = f.getlist('item_qty[]')
+            rates = f.getlist('item_rate[]')
+            taxed_indices = set(f.getlist('item_tax[]'))
+
+            subtotal = 0.0
+            tax_total = 0.0
+            tax_rate = 13.0
+            tax_exempt = client.tax_exempt if client else False
+
+            for i, desc in enumerate(descs):
+                if not desc.strip():
+                    continue
+                qty = float(qtys[i] if i < len(qtys) else 1)
+                rate_val = float(rates[i] if i < len(rates) else 0)
+                is_taxable = str(i) in taxed_indices
+                line_total = qty * rate_val
+                line_tax = line_total * (tax_rate / 100) if is_taxable and not tax_exempt else 0
+
+                item = InvoiceItem(
+                    invoice_id=inv.id,
+                    description=desc.strip(),
+                    quantity=qty,
+                    unit_price=rate_val,
+                    total=line_total,
+                    sort_order=i,
+                )
+                db.add(item)
+                subtotal += line_total
+                tax_total += line_tax
+
+            inv.subtotal = subtotal
+            inv.tax_rate = tax_rate
+            inv.tax_amount = 0 if tax_exempt else tax_total
+            inv.total = subtotal + (0 if tax_exempt else tax_total)
+            inv.balance_due = inv.total
+            db.flush()
+
+            # PO linking
+            try:
+                warnings = handle_po_linking(db, inv, f.get('po_id'))
+                for w in warnings:
+                    flash(w, 'warning')
+            except ValueError as exc:
+                db.rollback()
+                flash(str(exc), 'danger')
+                return redirect(url_for('invoice_new'))
+
+            # Approval status
+            if client and settings.requires_approval(inv.total, client.client_type):
+                inv.approval_status = 'pending'
+
+            db.commit()
+
+            if inv.approval_status == 'pending':
+                flash(f'Invoice {inv.invoice_number} created and awaiting approval.', 'info')
+            else:
+                flash(f'Invoice {inv.invoice_number} created.', 'success')
+            return redirect(url_for('invoice_detail', invoice_id=inv.id))
+
+        # GET
+        return render_template('invoice_new.html',
+            active_page='invoices', user=current_user, divisions=get_divisions(),
+            clients=clients,
+            jobs=jobs,
+            all_divisions=[d.to_dict() for d in divs],
+            invoice=None,
+            today=date.today(),
+        )
     finally:
         db.close()
 
@@ -1316,6 +1973,7 @@ def invoice_detail(invoice_id):
         return render_template('invoice_detail.html',
             active_page='invoices', user=current_user, divisions=get_divisions(),
             invoice=inv.to_dict(),
+            invoice_obj=inv,
             client=client.to_dict() if client else {},
             client_name=client.display_name if client else 'Unknown',
             property_address=property_address,
@@ -1378,6 +2036,51 @@ def schedule_page():
         events = [job_to_event(j) for j in scheduled_jobs]
         unscheduled = [job_to_event(j) for j in unscheduled_jobs]
 
+        # Phase events
+        from models.job_phase import JobPhase
+        phase_events = []
+        phases_with_dates = db.query(JobPhase).join(Job).filter(
+            Job.organization_id == org_id,
+            JobPhase.scheduled_start_date.isnot(None),
+            JobPhase.status.notin_(['skipped', 'completed']),
+        ).all()
+
+        # Conflict detection
+        from collections import defaultdict
+        tech_phases = defaultdict(list)
+        for p in phases_with_dates:
+            if p.assigned_technician_id and p.scheduled_start_date:
+                tech_phases[p.assigned_technician_id].append(p)
+
+        conflict_ids = set()
+        for tid, tlist in tech_phases.items():
+            sorted_p = sorted(tlist, key=lambda x: x.scheduled_start_date)
+            for i in range(len(sorted_p)):
+                for j in range(i + 1, len(sorted_p)):
+                    a, b = sorted_p[i], sorted_p[j]
+                    a_end = a.scheduled_end_date or a.scheduled_start_date
+                    if a_end >= b.scheduled_start_date:
+                        conflict_ids.add(a.id)
+                        conflict_ids.add(b.id)
+
+        phase_colors = {'not_started': '#6c757d', 'scheduled': '#0dcaf0', 'in_progress': '#0d6efd', 'on_hold': '#ffc107'}
+        for p in phases_with_dates:
+            evt = {
+                'id': f'phase-{p.id}',
+                'title': f'[{p.job.job_number}] P{p.phase_number}: {p.title[:25]}',
+                'start': p.scheduled_start_date.isoformat(),
+                'color': phase_colors.get(p.status, '#6c757d'),
+                'url': f'/jobs/{p.job_id}#phases',
+                'type': 'phase',
+                'has_conflict': p.id in conflict_ids,
+            }
+            if p.scheduled_end_date:
+                evt['end'] = p.scheduled_end_date.isoformat()
+            phase_events.append(evt)
+
+        all_events = events + phase_events
+        phases_with_conflicts = [p for p in phases_with_dates if p.id in conflict_ids]
+
         technicians = db.query(Technician).filter_by(
             organization_id=org_id, is_active=True
         ).all()
@@ -1387,11 +2090,12 @@ def schedule_page():
             user=current_user,
             divisions=get_divisions(),
             active_division=active_div,
-            events=events,
+            events=all_events,
             unscheduled=unscheduled,
             technicians=[t.to_dict() for t in technicians],
-            events_json=events,
+            events_json=all_events,
             unscheduled_json=unscheduled,
+            phases_with_conflicts=phases_with_conflicts,
         )
     finally:
         db.close()
@@ -1408,6 +2112,9 @@ def settings_page():
         divisions = db.query(Division).filter_by(organization_id=current_user.organization_id).order_by(Division.sort_order).all()
         technicians = db.query(Technician).filter_by(organization_id=current_user.organization_id).all()
 
+        from models.settings import OrganizationSettings
+        org_settings = OrganizationSettings.get_or_create(db, current_user.organization_id)
+
         return render_template('settings.html',
             active_page='settings',
             user=current_user,
@@ -1415,9 +2122,14 @@ def settings_page():
             organization=org.to_dict() if org else {},
             all_divisions=[d.to_dict() for d in divisions],
             technicians=[t.to_dict() for t in technicians],
+            org_settings=org_settings,
         )
     finally:
         db.close()
+
+
+
+# ========== CONTRACTS -- moved to web/routes/contract_routes.py ==========
 
 
 # ========== API: Lookup data for forms ==========
@@ -1475,6 +2187,418 @@ def get_chat_engine():
         _chat_engine = ChatEngine()
     return _chat_engine
 
+
+# ========== Bulk Statements ==========
+
+@app.route('/invoices/statements')
+@login_required
+def bulk_statements():
+    if current_user.role not in ('owner', 'admin'):
+        abort(403)
+
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        today = date.today()
+        if today.month == 1:
+            start_date = date(today.year - 1, 12, 1)
+        else:
+            start_date = date(today.year, today.month - 1, 1)
+
+        # Commercial clients with outstanding balances
+        from sqlalchemy import distinct
+        client_ids_with_balance = db.query(distinct(Invoice.client_id)).filter(
+            Invoice.organization_id == org_id,
+            Invoice.status.in_(['sent', 'overdue', 'partial']),
+        ).all()
+        client_ids = [r[0] for r in client_ids_with_balance]
+
+        clients_with_balance = db.query(Client).filter(
+            Client.id.in_(client_ids),
+            Client.organization_id == org_id,
+        ).order_by(Client.company_name, Client.last_name).all()
+
+        client_totals = []
+        for client in clients_with_balance:
+            outstanding = db.query(func.coalesce(func.sum(Invoice.balance_due), 0)).filter(
+                Invoice.client_id == client.id,
+                Invoice.status.in_(['sent', 'overdue', 'partial']),
+            ).scalar() or 0
+            client_totals.append({
+                'client': client,
+                'outstanding': float(outstanding),
+                'billing_email': client.billing_email or client.email,
+            })
+
+        return render_template('invoices/bulk_statements.html',
+            active_page='invoices', user=current_user, divisions=get_divisions(),
+            client_totals=client_totals,
+            start_date=start_date, end_date=today,
+        )
+    finally:
+        db.close()
+
+
+# ========== AR Aging Report ==========
+
+@app.route('/invoices/aging')
+@login_required
+def aging_report():
+    if current_user.role == 'technician':
+        abort(403)
+    from collections import defaultdict
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+
+        f_client_id = request.args.get('client_id', type=int)
+        f_division_id = request.args.get('division_id', type=int)
+        f_overdue = request.args.get('overdue_only', 'false').lower() == 'true'
+        f_sort = request.args.get('sort', 'total')
+        f_dir = request.args.get('dir', 'desc')
+
+        q = db.query(Invoice).filter(
+            Invoice.organization_id == org_id,
+            Invoice.status.in_(['sent', 'overdue', 'partial'])
+        )
+        if f_client_id:
+            q = q.filter(Invoice.client_id == f_client_id)
+
+        invoices = q.all()
+        today = date.today()
+
+        def _build_row():
+            return {'client': None, 'current': 0.0, 'days_1_30': 0.0,
+                    'days_31_60': 0.0, 'days_61_90': 0.0, 'days_90_plus': 0.0,
+                    'total': 0.0, 'invoice_count': 0}
+
+        rows = defaultdict(_build_row)
+        for inv in invoices:
+            if not inv.due_date:
+                continue
+            remaining = float(inv.balance_due or 0)
+            if remaining <= 0:
+                continue
+
+            row = rows[inv.client_id]
+            row['client'] = inv.client
+            row['total'] += remaining
+            row['invoice_count'] += 1
+
+            bucket = inv.aging_bucket
+            if bucket == 'current':
+                row['current'] += remaining
+            elif bucket == '1_30':
+                row['days_1_30'] += remaining
+            elif bucket == '31_60':
+                row['days_31_60'] += remaining
+            elif bucket == '61_90':
+                row['days_61_90'] += remaining
+            else:
+                row['days_90_plus'] += remaining
+
+        aging_data = list(rows.values())
+
+        if f_overdue:
+            aging_data = [r for r in aging_data
+                          if r['days_1_30'] + r['days_31_60'] + r['days_61_90'] + r['days_90_plus'] > 0]
+
+        sort_map = {
+            'client': lambda r: (r['client'].display_name or '').lower() if r['client'] else '',
+            'total': lambda r: r['total'],
+            'current': lambda r: r['current'],
+            'days_1_30': lambda r: r['days_1_30'],
+            'days_31_60': lambda r: r['days_31_60'],
+            'days_61_90': lambda r: r['days_61_90'],
+            'days_90_plus': lambda r: r['days_90_plus'],
+        }
+        aging_data.sort(key=sort_map.get(f_sort, sort_map['total']), reverse=(f_dir == 'desc'))
+
+        totals = {k: sum(r[k] for r in aging_data) for k in
+                  ['current', 'days_1_30', 'days_31_60', 'days_61_90', 'days_90_plus', 'total']}
+
+        clients = db.query(Client).filter_by(
+            organization_id=org_id, is_active=True
+        ).order_by(Client.company_name, Client.last_name).all()
+
+        return render_template('invoices/aging_report.html',
+            active_page='invoices', user=current_user, divisions=get_divisions(),
+            aging_data=aging_data, totals=totals, clients=clients,
+            filters={'client_id': f_client_id, 'division_id': f_division_id,
+                     'overdue_only': f_overdue, 'sort': f_sort, 'dir': f_dir},
+            today=today,
+        )
+    finally:
+        db.close()
+
+
+# ========== Invoice Approval Workflow ==========
+
+@app.route('/invoices/approvals')
+@login_required
+def approval_queue():
+    from models.settings import OrganizationSettings
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        settings = OrganizationSettings.get_or_create(db, org_id)
+        if current_user.role not in settings.approval_role_list:
+            abort(403)
+
+        pending = db.query(Invoice).filter(
+            Invoice.organization_id == org_id,
+            Invoice.approval_status == 'pending'
+        ).order_by(Invoice.created_at.asc()).all()
+
+        now = datetime.utcnow()
+        pending_data = []
+        for inv in pending:
+            d = inv.to_dict()
+            d['client_name'] = inv.client.display_name if inv.client else 'Unknown'
+            d['job_title'] = inv.job.title if inv.job else None
+            d['days_waiting'] = (now - inv.created_at).days if inv.created_at else 0
+            pending_data.append(d)
+
+        return render_template('invoices/approval_queue.html',
+            active_page='invoices', user=current_user, divisions=get_divisions(),
+            pending_invoices=pending_data,
+            settings=settings.to_dict(),
+        )
+    finally:
+        db.close()
+
+
+@app.route('/invoices/<int:invoice_id>/approve', methods=['POST'])
+@login_required
+def approve_invoice(invoice_id):
+    from models.settings import OrganizationSettings
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        settings = OrganizationSettings.get_or_create(db, org_id)
+        if current_user.role not in settings.approval_role_list:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        invoice = db.query(Invoice).filter_by(id=invoice_id, organization_id=org_id).first()
+        if not invoice:
+            return jsonify({'error': 'Invoice not found'}), 404
+        if invoice.approval_status != 'pending':
+            return jsonify({'error': 'Invoice is not pending approval'}), 400
+
+        invoice.approval_status = 'approved'
+        invoice.approved_by = current_user.id
+        invoice.approved_at = datetime.utcnow()
+        invoice.rejection_reason = None
+        db.commit()
+
+        if request.is_json:
+            return jsonify({'success': True, 'invoice_number': invoice.invoice_number})
+
+        flash(f'Invoice {invoice.invoice_number} approved.', 'success')
+        return redirect(request.referrer or url_for('approval_queue'))
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        db.close()
+
+
+@app.route('/invoices/<int:invoice_id>/reject', methods=['POST'])
+@login_required
+def reject_invoice(invoice_id):
+    from models.settings import OrganizationSettings
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        settings = OrganizationSettings.get_or_create(db, org_id)
+        if current_user.role not in settings.approval_role_list:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        invoice = db.query(Invoice).filter_by(id=invoice_id, organization_id=org_id).first()
+        if not invoice:
+            return jsonify({'error': 'Invoice not found'}), 404
+
+        data = request.get_json(force=True, silent=True) or {}
+        reason = (data.get('reason') or '').strip()
+        if not reason:
+            return jsonify({'error': 'A rejection reason is required.'}), 400
+
+        invoice.approval_status = 'rejected'
+        invoice.rejection_reason = reason
+        invoice.status = 'draft'
+        db.commit()
+
+        if request.is_json:
+            return jsonify({'success': True, 'invoice_number': invoice.invoice_number})
+
+        flash(f'Invoice {invoice.invoice_number} rejected and returned to draft.', 'warning')
+        return redirect(request.referrer or url_for('approval_queue'))
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        db.close()
+
+
+@app.route('/settings/approvals', methods=['POST'])
+@login_required
+def save_approval_settings():
+    from models.settings import OrganizationSettings
+    if current_user.role not in ('owner', 'admin'):
+        abort(403)
+
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        settings = OrganizationSettings.get_or_create(db, org_id)
+        settings.invoice_approval_enabled = 'invoice_approval_enabled' in request.form
+        threshold = request.form.get('invoice_approval_threshold', '').strip()
+        settings.invoice_approval_threshold = float(threshold) if threshold else None
+        settings.invoice_approval_roles = request.form.get('invoice_approval_roles', 'owner,admin')
+        settings.updated_by = current_user.id
+        db.commit()
+        flash('Approval settings saved.', 'success')
+    finally:
+        db.close()
+    return redirect(url_for('settings_page'))
+
+
+# ========== API: Invoice PO Linking ==========
+
+@app.route('/api/invoices/<int:invoice_id>/link-po', methods=['POST'])
+@login_required
+def api_invoice_link_po(invoice_id):
+    """Link or unlink a PO to an invoice. POST { po_id: int|null }"""
+    from web.utils.po_utils import handle_po_linking
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        invoice = db.query(Invoice).filter_by(id=invoice_id, organization_id=org_id).first()
+        if not invoice:
+            return jsonify({'success': False, 'error': 'Invoice not found'}), 404
+
+        data = request.get_json(force=True)
+        new_po_id = data.get('po_id')
+
+        try:
+            warnings = handle_po_linking(db, invoice, new_po_id)
+            db.commit()
+            return jsonify({
+                'success': True,
+                'warnings': warnings,
+                'po_number': invoice.po_number_display,
+            })
+        except ValueError as exc:
+            db.rollback()
+            return jsonify({'success': False, 'error': str(exc)}), 400
+    except Exception as e:
+        db.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        db.close()
+
+
+@app.route('/api/invoices/<int:invoice_id>/set-terms', methods=['POST'])
+@login_required
+def api_invoice_set_terms(invoice_id):
+    """Set payment terms and recalculate due date. POST { payment_terms, custom_days }"""
+    from web.utils.payment_terms import calculate_due_date
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        invoice = db.query(Invoice).filter_by(id=invoice_id, organization_id=org_id).first()
+        if not invoice:
+            return jsonify({'success': False, 'error': 'Invoice not found'}), 404
+
+        data = request.get_json(force=True)
+        invoice.payment_terms = data.get('payment_terms', 'net_30')
+        invoice.calculate_due_date()
+        db.commit()
+        return jsonify({
+            'success': True,
+            'due_date': invoice.due_date.isoformat() if invoice.due_date else None,
+            'payment_terms': invoice.payment_terms,
+        })
+    except Exception as e:
+        db.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        db.close()
+
+
+# ========== API: Billing / Payment Terms ==========
+
+@app.route('/api/payment-terms/due-date', methods=['GET'])
+@login_required
+def api_due_date():
+    """AJAX: calculate due date from invoice_date + terms."""
+    from web.utils.payment_terms import calculate_due_date, PAYMENT_TERMS_LABELS
+
+    invoice_date_str = request.args.get('invoice_date', '')
+    terms = request.args.get('terms', 'net_30')
+    custom_days = request.args.get('custom_days', None)
+
+    try:
+        if invoice_date_str:
+            inv_date = date.fromisoformat(invoice_date_str)
+        else:
+            inv_date = date.today()
+        due = calculate_due_date(inv_date, terms, custom_days)
+        return jsonify({
+            'due_date': due.isoformat(),
+            'due_date_display': due.strftime('%B %d, %Y'),
+            'label': PAYMENT_TERMS_LABELS.get(terms, terms),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/api/client/<int:client_id>/billing-defaults', methods=['GET'])
+@app.route('/api/clients/<int:client_id>/billing', methods=['GET'])
+@login_required
+def api_client_billing_defaults(client_id):
+    """AJAX: Return client billing defaults for invoice form auto-population."""
+    from web.utils.payment_terms import get_terms_for_client
+
+    db = get_session()
+    try:
+        client = db.query(Client).filter_by(
+            id=client_id, organization_id=current_user.organization_id
+        ).first()
+        if not client:
+            return jsonify({'error': 'Client not found'}), 404
+
+        defaults = get_terms_for_client(client)
+
+        # Outstanding balance
+        outstanding = db.query(func.coalesce(func.sum(Invoice.balance_due), 0)).filter(
+            Invoice.client_id == client_id,
+            Invoice.status.in_(['sent', 'overdue', 'partial'])
+        ).scalar() or 0
+
+        credit_limit = float(client.credit_limit) if client.credit_limit else None
+        available_credit = (credit_limit - float(outstanding)) if credit_limit else None
+
+        return jsonify({
+            'payment_terms': defaults['terms'],
+            'custom_days': defaults['custom_days'],
+            'due_date': defaults['due_date'].isoformat(),
+            'due_date_display': defaults['due_date'].strftime('%B %d, %Y'),
+            'require_po': client.require_po,
+            'tax_exempt': client.tax_exempt,
+            'tax_exempt_number': client.tax_exempt_number,
+            'billing_contact_name': client.billing_contact_name,
+            'billing_email': client.billing_email,
+            'credit_limit': credit_limit,
+            'outstanding_balance': float(outstanding),
+            'available_credit': available_credit,
+            'is_commercial': client.client_type == 'commercial',
+        })
+    finally:
+        db.close()
+
+
+# ========== API: Chat ==========
 
 @app.route('/api/chat', methods=['POST'])
 @login_required

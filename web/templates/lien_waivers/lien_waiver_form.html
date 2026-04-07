@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Lien Waiver' if waiver else 'New Lien Waiver' }}{% endblock %}
+{% block page_title %}{{ 'Edit Lien Waiver' if waiver else 'New Lien Waiver' }}{% endblock %}
+
+{% block content %}
+<div style="max-width:750px;">
+  <div class="card">
+    <div class="card-header">
+      <h4 style="margin:0;">
+        <i class="bi bi-file-earmark-medical" style="color:var(--color-accent);margin-right:var(--space-2);"></i>
+        {{ 'Edit Lien Waiver' if waiver else 'New Lien Waiver — Job #' + job.id|string }}
+      </h4>
+    </div>
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Waiver Type *</label>
+            <select name="waiver_type" class="form-control" required>
+              {% for val, label in waiver_types %}
+              <option value="{{ val }}" {% if waiver and waiver.waiver_type == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Party Type *</label>
+            <select name="party_type" class="form-control" required>
+              {% for val, label in party_types %}
+              <option value="{{ val }}" {% if waiver and waiver.party_type == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Party Name *</label>
+            <input type="text" name="party_name" class="form-control" required
+                   value="{{ waiver.party_name if waiver else '' }}"
+                   placeholder="Company or individual name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Amount</label>
+            <div style="position:relative;">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);">$</span>
+              <input type="number" name="amount" class="form-control" step="0.01"
+                     style="padding-left:24px;"
+                     value="{{ waiver.amount if waiver and waiver.amount else '' }}">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status *</label>
+            <select name="status" class="form-control" required>
+              {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if waiver and waiver.status == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Through Date</label>
+            <input type="date" name="through_date" class="form-control"
+                   value="{{ waiver.through_date.isoformat() if waiver and waiver.through_date else '' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Requested Date</label>
+            <input type="date" name="requested_date" class="form-control"
+                   value="{{ waiver.requested_date.isoformat() if waiver and waiver.requested_date else '' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Received Date</label>
+            <input type="date" name="received_date" class="form-control"
+                   value="{{ waiver.received_date.isoformat() if waiver and waiver.received_date else '' }}">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Linked Invoice</label>
+          <select name="invoice_id" class="form-control">
+            <option value="">None</option>
+            {% for inv in invoices %}
+            <option value="{{ inv.id }}" {% if waiver and waiver.invoice_id == inv.id %}selected{% endif %}>
+              Invoice #{{ inv.id }} — ${{ "{:,.2f}".format(inv.total or 0) }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="2">{{ waiver.notes if waiver else '' }}</textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Attach Signed Waiver Documents</label>
+          <input type="file" name="documents" class="form-control" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-4);">
+          <a href="{{ url_for('lien_waivers.lien_waiver_list', job_id=job.id) }}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-accent">{{ 'Update' if waiver else 'Create Waiver' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

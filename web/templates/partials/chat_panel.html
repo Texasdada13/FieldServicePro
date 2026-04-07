@@ -79,6 +79,12 @@ function toggleChat() {
     }
 }
 
+// Wire sidebar AI Assistant button
+var openChatBtn = document.getElementById('openChatPanel');
+if (openChatBtn) {
+    openChatBtn.addEventListener('click', toggleChat);
+}
+
 function loadSuggestions() {
     const url = CHAT_CLIENT_ID
         ? `/api/chat/suggestions?client_id=${CHAT_CLIENT_ID}`

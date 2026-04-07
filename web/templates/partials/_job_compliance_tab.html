@@ -1,0 +1,143 @@
+{# Job Compliance Tab — expects: job_obj, compliance_status, job_permits, job_checklists, job_lien_waivers, job_documents #}
+
+<!-- Compliance Status Banner -->
+{% if compliance_status.status == 'blocked' %}
+<div style="padding:var(--space-3);background:var(--color-danger-light);border-radius:var(--radius-md);margin-bottom:var(--space-4);border-left:3px solid var(--color-danger);">
+  <i class="bi bi-exclamation-octagon" style="color:var(--color-danger);"></i>
+  <strong>Compliance Blockers:</strong>
+  <ul style="margin:var(--space-1) 0 0;padding-left:var(--space-5);">
+    {% for item in compliance_status.blockers %}<li>{{ item.message }}</li>{% endfor %}
+  </ul>
+</div>
+{% elif compliance_status.status == 'warning' %}
+<div style="padding:var(--space-3);background:rgba(245,158,11,0.08);border-radius:var(--radius-md);margin-bottom:var(--space-4);border-left:3px solid var(--color-warning);">
+  <i class="bi bi-exclamation-triangle" style="color:var(--color-warning);"></i>
+  <strong>Warnings:</strong>
+  <ul style="margin:var(--space-1) 0 0;padding-left:var(--space-5);">
+    {% for item in compliance_status.issues %}<li>{{ item.message }}</li>{% endfor %}
+  </ul>
+</div>
+{% else %}
+<div style="padding:var(--space-3);background:var(--color-success-light);border-radius:var(--radius-md);margin-bottom:var(--space-4);">
+  <i class="bi bi-check-circle" style="color:var(--color-success);"></i> All compliance items are clear.
+</div>
+{% endif %}
+
+<!-- Permits -->
+<div class="card" style="margin-bottom:var(--space-4);">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <h3 class="card-title"><i class="bi bi-card-checklist" style="color:var(--color-text-secondary);"></i> Permits</h3>
+    {% if user.role in ('owner', 'admin', 'dispatcher') %}
+    <a href="{{ url_for('permits.permit_new', job_id=job_obj.id) }}" class="btn btn-sm btn-ghost"><i class="bi bi-plus"></i> Add</a>
+    {% endif %}
+  </div>
+  {% if job_permits %}
+  <div class="card-body" style="padding:0;">
+    <div class="fsp-table-wrapper" style="border:none;border-radius:0;">
+      <table class="fsp-table" style="font-size:var(--font-size-sm);">
+        <thead><tr><th>Type</th><th>Number</th><th>Status</th><th>Expires</th><th></th></tr></thead>
+        <tbody>
+          {% for p in job_permits %}
+          <tr {% if p.blocks_completion %}style="background:var(--color-danger-light);"{% endif %}>
+            <td>{{ p.type_display }}</td>
+            <td>{{ p.permit_number or '---' }}</td>
+            <td><span class="badge badge-{{ p.status_color }}">{{ p.status_display }}</span></td>
+            <td style="font-size:var(--font-size-xs);">{{ p.expiry_date.strftime('%b %d, %Y') if p.expiry_date else '---' }}</td>
+            <td><a href="{{ url_for('permits.permit_detail', permit_id=p.id) }}" class="btn btn-sm btn-ghost">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="card-body" style="text-align:center;color:var(--color-text-muted);padding:var(--space-4);">No permits for this job.</div>
+  {% endif %}
+</div>
+
+<!-- Safety Checklists -->
+<div class="card" style="margin-bottom:var(--space-4);">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <h3 class="card-title"><i class="bi bi-clipboard-check" style="color:var(--color-text-secondary);"></i> Safety Checklists</h3>
+    <a href="{{ url_for('checklists.job_checklists', job_id=job_obj.id) }}" class="btn btn-sm btn-ghost"><i class="bi bi-plus"></i> Complete</a>
+  </div>
+  {% if job_checklists is defined and job_checklists %}
+  <div class="card-body" style="padding:0;">
+    {% for c in job_checklists %}
+    <a href="{{ url_for('checklists.completed_detail', completed_id=c.id) }}" style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-4);border-bottom:1px solid var(--color-border-light);text-decoration:none;color:inherit;">
+      <div>
+        <span style="font-size:var(--font-size-sm);font-weight:var(--font-weight-medium);">{{ c.template.name if c.template else 'Checklist' }}</span>
+        <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-left:var(--space-2);">
+          {{ c.completed_at.strftime('%b %d, %Y %I:%M %p') if c.completed_at else '' }}
+          {% if c.completer %} &middot; {{ c.completer.full_name }}{% endif %}
+        </span>
+      </div>
+      <div style="display:flex;align-items:center;gap:var(--space-2);">
+        {% if c.supervisor_reviewed %}
+        <i class="bi bi-patch-check-fill" style="color:var(--color-accent);font-size:var(--font-size-sm);" title="Supervisor reviewed"></i>
+        {% endif %}
+        <span class="badge" style="background:var(--color-{{ c.status_color }});color:#fff;font-size:var(--font-size-xs);">{{ c.status_display }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card-body" style="text-align:center;color:var(--color-text-muted);padding:var(--space-4);">No checklists completed for this job.</div>
+  {% endif %}
+</div>
+
+<!-- Lien Waivers -->
+<div class="card" style="margin-bottom:var(--space-4);">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <h3 class="card-title"><i class="bi bi-file-earmark-medical" style="color:var(--color-text-secondary);"></i> Lien Waivers</h3>
+    {% if user.role in ('owner', 'admin') %}
+    <a href="{{ url_for('lien_waivers.lien_waiver_new', job_id=job_obj.id) }}" class="btn btn-sm btn-ghost"><i class="bi bi-plus"></i> Add</a>
+    {% endif %}
+  </div>
+  {% if job_lien_waivers is defined and job_lien_waivers %}
+  <div class="card-body" style="padding:0;">
+    <div class="fsp-table-wrapper" style="border:none;border-radius:0;">
+      <table class="fsp-table" style="font-size:var(--font-size-sm);">
+        <thead><tr><th>Type</th><th>Party</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for w in job_lien_waivers %}
+          <tr>
+            <td>{{ w.type_display }}</td>
+            <td>{{ w.party_name }}<br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ w.party_type_display }}</span></td>
+            <td>{{ "${:,.2f}".format(w.amount) if w.amount else '---' }}</td>
+            <td><span class="badge" style="background:var(--color-{{ w.status_color }});color:#fff;">{{ w.status_display }}</span></td>
+            <td><a href="{{ url_for('lien_waivers.lien_waiver_detail', waiver_id=w.id) }}" class="btn btn-sm btn-ghost">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="card-body" style="text-align:center;color:var(--color-text-muted);padding:var(--space-4);">No lien waivers for this job.</div>
+  {% endif %}
+</div>
+
+<!-- Job Documents -->
+<div class="card" style="margin-bottom:var(--space-4);">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <h3 class="card-title"><i class="bi bi-folder" style="color:var(--color-text-secondary);"></i> Job Documents</h3>
+    <a href="{{ url_for('documents.document_upload', entity_type='job', entity_id=job_obj.id, next=request.url) }}" class="btn btn-sm btn-ghost"><i class="bi bi-plus"></i> Upload</a>
+  </div>
+  {% if job_documents %}
+  <div class="card-body" style="padding:0;">
+    {% for doc in job_documents %}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-4);border-bottom:1px solid var(--color-border-light);">
+      <div style="display:flex;align-items:center;gap:var(--space-2);">
+        <i class="bi {{ doc.icon_class }}"></i>
+        <a href="{{ url_for('documents.document_detail', doc_id=doc.id) }}" style="font-size:var(--font-size-sm);font-weight:var(--font-weight-medium);">{{ doc.display_name }}</a>
+        <span class="badge badge-draft" style="font-size:0.55rem;">{{ doc.category_label }}</span>
+      </div>
+      <a href="{{ url_for('documents.document_download', doc_id=doc.id) }}" class="btn btn-sm btn-ghost"><i class="bi bi-download"></i></a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card-body" style="text-align:center;color:var(--color-text-muted);padding:var(--space-4);">No documents attached.</div>
+  {% endif %}
+</div>

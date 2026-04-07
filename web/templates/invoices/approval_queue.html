@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Invoice Approval Queue{% endblock %}
+{% block page_title %}Approval Queue{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb" style="margin: 0;">
+    <li class="breadcrumb-item"><a href="{{ url_for('invoices_page') }}">Invoices</a></li>
+    <li class="breadcrumb-item active">Approvals</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+  <div>
+    {% if pending_invoices %}
+    <span class="badge badge-pending" style="font-size: var(--font-size-sm);">{{ pending_invoices|length }}</span>
+    invoice{{ 's' if pending_invoices|length != 1 }} awaiting approval
+    {% else %}
+    <span style="color: var(--color-text-secondary);">All invoices have been reviewed.</span>
+    {% endif %}
+  </div>
+  <div style="display: flex; gap: var(--space-2);">
+    <a href="{{ url_for('invoices_page') }}" class="btn btn-sm btn-ghost"><i class="bi bi-list"></i> All Invoices</a>
+    <a href="{{ url_for('settings_page') }}" class="btn btn-sm btn-ghost"><i class="bi bi-gear"></i> Settings</a>
+  </div>
+</div>
+
+{% if settings.invoice_approval_threshold %}
+<div style="padding: var(--space-2) var(--space-3); background: rgba(13,148,136,0.06); border-radius: var(--radius-md); margin-bottom: var(--space-4); font-size: var(--font-size-sm); color: var(--color-accent-dark);">
+  <i class="bi bi-info-circle"></i>
+  Approval required for commercial invoices over
+  <strong>${{ "%.2f"|format(settings.invoice_approval_threshold) }}</strong>.
+  Approvers: <strong>{{ settings.invoice_approval_roles }}</strong>.
+</div>
+{% endif %}
+
+{% if not pending_invoices %}
+<div class="empty-state">
+  <i class="bi bi-check-circle" style="display: block; color: var(--color-success);"></i>
+  <h3>All Clear</h3>
+  <p>No invoices are waiting for approval right now.</p>
+</div>
+{% else %}
+<div class="fsp-table-wrapper">
+  <table class="fsp-table">
+    <thead>
+      <tr>
+        <th>Invoice #</th>
+        <th>Client</th>
+        <th style="text-align: right;">Amount</th>
+        <th>PO Number</th>
+        <th>Submitted</th>
+        <th style="text-align: center;">Waiting</th>
+        <th style="text-align: right;">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="approval-table-body">
+      {% for inv in pending_invoices %}
+      <tr id="row-{{ inv.id }}">
+        <td>
+          <a href="{{ url_for('invoice_detail', invoice_id=inv.id) }}" style="font-weight: var(--font-weight-semibold);">{{ inv.invoice_number }}</a>
+          {% if inv.job_title %}<div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">{{ inv.job_title }}</div>{% endif %}
+        </td>
+        <td>
+          <div style="font-weight: var(--font-weight-medium);">{{ inv.client_name }}</div>
+          {% if inv.department %}<div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">{{ inv.department }}</div>{% endif %}
+        </td>
+        <td class="col-number">${{ "{:,.2f}".format(inv.total or 0) }}</td>
+        <td>
+          {% if inv.po_number_display %}
+          <span class="badge badge-draft" style="font-size: var(--font-size-xs);"><i class="bi bi-file-earmark-text"></i> {{ inv.po_number_display }}</span>
+          {% else %}<span style="color: var(--color-text-muted); font-size: var(--font-size-xs);">No PO</span>{% endif %}
+        </td>
+        <td style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">{{ inv.created_at[:10] if inv.created_at else '---' }}</td>
+        <td style="text-align: center;">
+          {% if inv.days_waiting == 0 %}<span class="badge badge-completed">Today</span>
+          {% elif inv.days_waiting <= 2 %}<span class="badge badge-pending">{{ inv.days_waiting }}d</span>
+          {% else %}<span class="badge badge-danger">{{ inv.days_waiting }}d</span>{% endif %}
+        </td>
+        <td style="text-align: right;">
+          <div style="display: flex; gap: 4px; justify-content: flex-end;">
+            <a href="{{ url_for('invoice_detail', invoice_id=inv.id) }}" class="btn btn-sm btn-ghost" title="View"><i class="bi bi-eye"></i></a>
+            <button class="btn btn-sm btn-success btn-approve" data-id="{{ inv.id }}" data-num="{{ inv.invoice_number }}" title="Approve"><i class="bi bi-check-lg"></i></button>
+            <button class="btn btn-sm btn-ghost btn-reject" data-id="{{ inv.id }}" data-num="{{ inv.invoice_number }}" title="Reject" style="color: var(--color-danger);"><i class="bi bi-x-lg"></i></button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-check-circle" style="color: var(--color-success);"></i> Approve Invoice</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">Approve invoice <strong id="approve-num"></strong>? This will allow it to be sent to the client.</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-ghost" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-success" id="confirm-approve"><i class="bi bi-check-circle"></i> Yes, Approve</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-x-circle" style="color: var(--color-danger);"></i> Reject Invoice</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+          Rejecting <strong id="reject-num"></strong> will return it to Draft status with your reason attached.
+        </p>
+        <div class="form-group">
+          <label class="form-label">Reason <span style="color: var(--color-danger);">*</span></label>
+          <textarea class="form-control" id="rejection-reason" rows="3" placeholder="Explain why this invoice is being rejected..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-ghost" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-danger" id="confirm-reject"><i class="bi bi-x-circle"></i> Reject Invoice</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var activeId = null;
+  var approveModal = new bootstrap.Modal(document.getElementById('approveModal'));
+  var rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
+
+  document.querySelectorAll('.btn-approve').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      activeId = btn.dataset.id;
+      document.getElementById('approve-num').textContent = btn.dataset.num;
+      approveModal.show();
+    });
+  });
+
+  document.querySelectorAll('.btn-reject').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      activeId = btn.dataset.id;
+      document.getElementById('reject-num').textContent = btn.dataset.num;
+      document.getElementById('rejection-reason').value = '';
+      rejectModal.show();
+    });
+  });
+
+  document.getElementById('confirm-approve').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    fetch('/invoices/' + activeId + '/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      btn.disabled = false;
+      if (data.success) {
+        approveModal.hide();
+        var row = document.getElementById('row-' + activeId);
+        if (row) row.remove();
+        if (!document.querySelectorAll('#approval-table-body tr').length) location.reload();
+      } else {
+        alert(data.error || 'Failed to approve.');
+      }
+    });
+  });
+
+  document.getElementById('confirm-reject').addEventListener('click', function () {
+    var reasonEl = document.getElementById('rejection-reason');
+    var reason = reasonEl.value.trim();
+    if (!reason) { reasonEl.style.borderColor = 'var(--color-danger)'; return; }
+    reasonEl.style.borderColor = '';
+
+    var btn = this;
+    btn.disabled = true;
+    fetch('/invoices/' + activeId + '/reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reason }),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      btn.disabled = false;
+      if (data.success) {
+        rejectModal.hide();
+        var row = document.getElementById('row-' + activeId);
+        if (row) row.remove();
+        if (!document.querySelectorAll('#approval-table-body tr').length) location.reload();
+      } else {
+        alert(data.error || 'Failed to reject.');
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

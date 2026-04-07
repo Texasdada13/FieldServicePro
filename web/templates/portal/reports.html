@@ -1,0 +1,40 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <h1>Reports</h1>
+    <p class="text-muted">Generate reports on service history, spending, and performance.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <a href="{{ url_for('portal.portal_report_service_history') }}" class="text-decoration-none">
+            <div class="portal-card h-100">
+                <div class="card-body text-center py-4">
+                    <div style="width:56px;height:56px;font-size:1.5rem;border-radius:var(--portal-radius);display:inline-flex;align-items:center;justify-content:center;background:var(--portal-primary-light);color:var(--portal-primary);margin-bottom:0.75rem;">
+                        <i class="bi bi-clipboard-data"></i>
+                    </div>
+                    <h5 style="color:var(--portal-text);">Service History</h5>
+                    <p class="text-muted mb-0">All jobs and services in a date range with status breakdown.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6">
+        <a href="{{ url_for('portal.portal_report_spend_summary') }}" class="text-decoration-none">
+            <div class="portal-card h-100">
+                <div class="card-body text-center py-4">
+                    <div style="width:56px;height:56px;font-size:1.5rem;border-radius:var(--portal-radius);display:inline-flex;align-items:center;justify-content:center;background:#dcfce7;color:var(--portal-success);margin-bottom:0.75rem;">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <h5 style="color:var(--portal-text);">Spend Summary</h5>
+                    <p class="text-muted mb-0">Monthly invoice breakdown and total spending analysis.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

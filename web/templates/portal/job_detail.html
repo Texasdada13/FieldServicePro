@@ -1,0 +1,288 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Job #{{ job.job_number or job.id }}{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="font-size:0.85rem;">
+            <li class="breadcrumb-item"><a href="{{ url_for('portal.portal_jobs') }}" style="color:var(--portal-text-muted);text-decoration:none;">Jobs</a></li>
+            <li class="breadcrumb-item active" style="color:var(--portal-text-light);">#{{ job.job_number or job.id }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+            <h1>{{ job.title }}</h1>
+            <p class="text-muted mb-0">Job #{{ job.job_number or job.id }}
+                {% if job.property %} &middot; {{ job.property.display_address }}{% endif %}
+            </p>
+        </div>
+        <span class="portal-badge {{ job.status|replace('_', '-') }}" style="font-size:0.9rem;padding:0.5em 1em;">
+            {{ job.status|replace('_', ' ')|title }}
+        </span>
+    </div>
+</div>
+
+{# ── Status Timeline ── #}
+<div class="portal-card mb-4">
+    <div class="card-body">
+        <div class="portal-timeline">
+            {% for step in timeline_steps %}
+            <div class="portal-timeline-step {% if step.completed %}completed{% elif step.active %}active{% endif %}">
+                <div class="portal-timeline-dot">
+                    {% if step.completed %}
+                    <i class="bi bi-check-lg"></i>
+                    {% else %}
+                    {{ loop.index }}
+                    {% endif %}
+                </div>
+                <span class="portal-timeline-label">{{ step.label }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    {# ── Left Column ── #}
+    <div class="col-lg-8">
+        {# ── Job Details ── #}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-info-circle"></i> Job Details</div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <small class="text-muted">Priority</small><br>
+                        <span class="portal-badge {{ job.priority or 'routine' }}">{{ (job.priority or 'Normal')|title }}</span>
+                    </div>
+                    {% if job.job_type %}
+                    <div class="col-md-4">
+                        <small class="text-muted">Type</small><br>
+                        <strong style="text-transform:capitalize;">{{ job.job_type|replace('_', ' ') }}</strong>
+                    </div>
+                    {% endif %}
+                    {% if job.scheduled_date %}
+                    <div class="col-md-4">
+                        <small class="text-muted">Scheduled</small><br>
+                        <strong>{{ job.scheduled_date.strftime('%b %d, %Y') }}</strong>
+                        {% if job.scheduled_end %}
+                        <span class="text-muted">- {{ job.scheduled_end.strftime('%b %d, %Y') }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if job.description %}
+                <hr>
+                <h6 class="fw-semibold">Description</h6>
+                <p style="white-space:pre-wrap;margin:0;">{{ job.description }}</p>
+                {% endif %}
+
+                {% if job.portal_access_instructions %}
+                <div class="mt-3 p-3" style="background:var(--portal-bg);border-radius:var(--portal-radius);">
+                    <small class="text-muted fw-semibold">Access Instructions</small><br>
+                    {{ job.portal_access_instructions }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Phases ── #}
+        {% if phases %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-layers"></i> Project Phases ({{ phases|length }})</div>
+            <div class="card-body p-0">
+                <table class="portal-table">
+                    <thead><tr><th>#</th><th>Phase</th><th>Status</th><th>Progress</th></tr></thead>
+                    <tbody>
+                    {% for phase in phases %}
+                    <tr>
+                        <td>{{ phase.phase_number }}</td>
+                        <td class="fw-semibold">{{ phase.title }}</td>
+                        <td><span class="portal-badge {{ phase.status|replace('_', '-') if phase.status else 'draft' }}">{{ phase.status_label if phase.status_label is defined else (phase.status or 'pending')|replace('_', ' ')|title }}</span></td>
+                        <td>
+                            {% if phase.percent_complete is defined %}
+                            <div style="background:var(--portal-border);border-radius:999px;height:8px;width:100px;">
+                                <div style="background:var(--portal-success);border-radius:999px;height:100%;width:{{ phase.percent_complete or 0 }}%;"></div>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Change Orders ── #}
+        {% if change_orders and g.portal_user.can_approve_change_orders() %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-file-diff"></i> Change Orders ({{ change_orders|length }})</div>
+            <div class="card-body p-0">
+                <table class="portal-table">
+                    <thead><tr><th>CO #</th><th>Title</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                    {% for co in change_orders %}
+                    <tr>
+                        <td class="fw-semibold">{{ co.change_order_number }}</td>
+                        <td>{{ co.title }}</td>
+                        <td>${{ '{:,.2f}'.format(co.total_amount or 0) }}</td>
+                        <td><span class="portal-badge {{ co.status|replace('_', '-') if co.status else 'pending' }}">{{ co.status_label if co.status_label is defined else (co.status or 'pending')|replace('_', ' ')|title }}</span></td>
+                        <td>
+                            {% if co.client_approved is none and co.status in ('submitted', 'pending_approval') %}
+                            <a href="{{ url_for('portal.portal_change_order_review', job_id=job.id, co_id=co.id) }}"
+                               class="btn btn-portal btn-portal-outline btn-portal-sm">Review</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Documents ── #}
+        {% if documents and g.portal_user.can_view_documents() %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-folder2-open"></i> Documents ({{ documents|length }})</div>
+            <div class="card-body p-0">
+                <table class="portal-table">
+                    <thead><tr><th>Document</th><th>Category</th><th>Date</th></tr></thead>
+                    <tbody>
+                    {% for doc in documents %}
+                    <tr>
+                        <td><i class="bi {{ doc.icon_class }}" style="color:var(--portal-text-muted);margin-right:4px;"></i> {{ doc.display_name }}</td>
+                        <td><span class="portal-badge draft">{{ doc.category_label }}</span></td>
+                        <td style="font-size:0.85rem;">{{ doc.created_at.strftime('%b %d, %Y') if doc.created_at else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Messages ── #}
+        {% if g.portal_user.can_send_messages() %}
+        <div class="portal-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-chat-dots"></i> Messages</span>
+                <span class="badge bg-secondary">{{ messages|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                <div style="max-height:400px;overflow-y:auto;margin-bottom:1rem;">
+                    {% for msg in messages %}
+                    <div class="portal-message {% if msg.sender_type == 'portal_user' %}from-client{% else %}from-staff{% endif %}">
+                        <div class="portal-message-bubble">
+                            {{ msg.message }}
+                            <div class="portal-message-meta">
+                                {{ msg.sender_name }} &middot; {{ msg.created_at.strftime('%b %d at %I:%M %p') if msg.created_at else '' }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center mb-3">No messages yet. Send a message to your service team.</p>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('portal.portal_send_message', job_id=job.id) }}">
+                    <div class="input-group">
+                        <input type="text" name="message" class="form-control" placeholder="Type a message..." required
+                               style="border-radius:var(--portal-radius) 0 0 var(--portal-radius);">
+                        <button type="submit" class="btn btn-portal-primary" style="border-radius:0 var(--portal-radius) var(--portal-radius) 0;">
+                            <i class="bi bi-send"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── Right Column ── #}
+    <div class="col-lg-4">
+        {# ── Job Info ── #}
+        <div class="portal-card mb-4">
+            <div class="card-header">Details</div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0" style="font-size:0.9rem;">
+                    {% if job.property %}
+                    <tr>
+                        <td class="text-muted" style="width:40%;">Property</td>
+                        <td>
+                            <a href="{{ url_for('portal.portal_property_detail', property_id=job.property_id) }}" style="color:var(--portal-primary);">
+                                {{ job.property.name or job.property.address }}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if job.technician %}
+                    <tr>
+                        <td class="text-muted">Technician</td>
+                        <td>{{ job.technician.full_name }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if job.started_at %}
+                    <tr>
+                        <td class="text-muted">Started</td>
+                        <td>{{ job.started_at.strftime('%b %d, %Y') }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if job.completed_at %}
+                    <tr>
+                        <td class="text-muted">Completed</td>
+                        <td>{{ job.completed_at.strftime('%b %d, %Y') }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if job.source == 'portal_request' %}
+                    <tr>
+                        <td class="text-muted">Source</td>
+                        <td><span class="portal-badge draft">Portal Request</span></td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        {# ── Contact Info ── #}
+        {% if job.portal_contact_name or job.portal_contact_phone %}
+        <div class="portal-card mb-4">
+            <div class="card-header">Site Contact</div>
+            <div class="card-body">
+                {% if job.portal_contact_name %}
+                <div class="mb-1"><strong>{{ job.portal_contact_name }}</strong></div>
+                {% endif %}
+                {% if job.portal_contact_phone %}
+                <div class="text-muted">{{ job.portal_contact_phone }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Linked Records ── #}
+        {% if linked_quote or linked_invoice %}
+        <div class="portal-card">
+            <div class="card-header">Related</div>
+            <div class="card-body p-0">
+                {% if linked_quote %}
+                <a href="{{ url_for('portal.portal_quotes') }}" class="d-flex justify-content-between align-items-center px-3 py-2 text-decoration-none border-bottom" style="color:var(--portal-text);">
+                    <div><i class="bi bi-file-earmark-text" style="color:var(--portal-primary);"></i> Quote #{{ linked_quote.id }}</div>
+                    <span class="portal-badge {{ linked_quote.status }}">{{ linked_quote.status|title }}</span>
+                </a>
+                {% endif %}
+                {% if linked_invoice %}
+                <a href="{{ url_for('portal.portal_invoice_detail', invoice_id=linked_invoice.id) }}" class="d-flex justify-content-between align-items-center px-3 py-2 text-decoration-none" style="color:var(--portal-text);">
+                    <div><i class="bi bi-receipt" style="color:var(--portal-primary);"></i> Invoice #{{ linked_invoice.id }}</div>
+                    <span class="portal-badge {{ linked_invoice.status }}">{{ linked_invoice.status|title }}</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

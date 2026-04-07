@@ -1,0 +1,163 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Service Request #{{ job.job_number or job.id }}{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="font-size:0.85rem;">
+            <li class="breadcrumb-item"><a href="{{ url_for('portal.portal_service_requests') }}" style="color:var(--portal-text-muted);text-decoration:none;">Service Requests</a></li>
+            <li class="breadcrumb-item active" style="color:var(--portal-text-light);">#{{ job.job_number or job.id }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <h1>Service Request #{{ job.job_number or job.id }}</h1>
+        {% if job.status == 'draft' %}
+        <span class="portal-badge pending" style="font-size:0.9rem;">Submitted - Awaiting Review</span>
+        {% else %}
+        <span class="portal-badge {{ job.status|replace('_', '-') }}" style="font-size:0.9rem;">
+            {{ job.status|replace('_', ' ')|title }}
+        </span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        {# ── Request Details ── #}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-info-circle"></i> Request Details</div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <small class="text-muted">Property</small><br>
+                        <strong>
+                            {% if job.property %}
+                            <a href="{{ url_for('portal.portal_property_detail', property_id=job.property_id) }}" style="color:var(--portal-primary);">
+                                {{ job.property.display_address }}
+                            </a>
+                            {% else %}---{% endif %}
+                        </strong>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Priority</small><br>
+                        <span class="portal-badge {{ job.priority or 'routine' }}">{{ (job.priority or 'Normal')|title }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Submitted</small><br>
+                        {{ job.created_at.strftime('%B %d, %Y at %I:%M %p') if job.created_at else '' }}
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Preferred Date</small><br>
+                        {{ job.scheduled_date.strftime('%B %d, %Y') if job.scheduled_date else 'Flexible' }}
+                    </div>
+                </div>
+                <hr>
+                <h6 class="fw-semibold">Description</h6>
+                <p class="mb-0" style="white-space:pre-wrap;">{{ job.description }}</p>
+            </div>
+        </div>
+
+        {# ── Status Progress ── #}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-signpost-2"></i> Status</div>
+            <div class="card-body">
+                {% set statuses = ['draft', 'scheduled', 'in_progress', 'completed'] %}
+                {% set status_labels = {'draft': 'Submitted', 'scheduled': 'Scheduled', 'in_progress': 'In Progress', 'completed': 'Completed'} %}
+                {% set current_idx = statuses.index(job.status) if job.status in statuses else 0 %}
+                <div class="portal-timeline">
+                    {% for s in statuses %}
+                    <div class="portal-timeline-step {% if loop.index0 < current_idx %}completed{% elif loop.index0 == current_idx %}active{% endif %}">
+                        <div class="portal-timeline-dot">
+                            {% if loop.index0 < current_idx %}
+                            <i class="bi bi-check"></i>
+                            {% else %}
+                            {{ loop.index }}
+                            {% endif %}
+                        </div>
+                        <span class="portal-timeline-label">{{ status_labels.get(s, s) }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# ── Messages ── #}
+        <div class="portal-card">
+            <div class="card-header"><i class="bi bi-chat-dots"></i> Messages</div>
+            <div class="card-body">
+                {% if messages %}
+                {% for msg in messages %}
+                <div class="portal-message {% if msg.sender_type == 'portal_user' %}from-client{% else %}from-staff{% endif %}">
+                    <div class="portal-message-bubble">
+                        {{ msg.message }}
+                        <div class="portal-message-meta">
+                            {{ msg.sender_name }} &middot; {{ msg.created_at.strftime('%b %d, %I:%M %p') if msg.created_at else '' }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center text-muted py-3" style="font-size:0.9rem;">
+                    <i class="bi bi-chat-dots"></i> No messages yet. Our team will update you here.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        {# ── Site Contact ── #}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-person-badge"></i> Site Contact</div>
+            <div class="card-body">
+                {% if job.portal_contact_name %}
+                <div class="mb-2">
+                    <small class="text-muted">Contact</small><br>
+                    <strong>{{ job.portal_contact_name }}</strong>
+                </div>
+                {% endif %}
+                {% if job.portal_contact_phone %}
+                <div class="mb-2">
+                    <small class="text-muted">Phone</small><br>
+                    {{ job.portal_contact_phone }}
+                </div>
+                {% endif %}
+                {% if job.portal_access_instructions %}
+                <div>
+                    <small class="text-muted">Access Instructions</small><br>
+                    {{ job.portal_access_instructions }}
+                </div>
+                {% endif %}
+                {% if not job.portal_contact_name and not job.portal_contact_phone and not job.portal_access_instructions %}
+                <p class="text-muted mb-0">No site contact information provided.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Assigned Technician ── #}
+        {% if job.technician %}
+        <div class="portal-card mb-4">
+            <div class="card-header">Assigned Technician</div>
+            <div class="card-body text-center">
+                <div style="width:48px;height:48px;font-size:1.1rem;background:var(--portal-primary);color:white;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:0.5rem;">
+                    {{ job.technician.first_name[0]|upper if job.technician.first_name else 'T' }}
+                </div>
+                <div class="fw-semibold">{{ job.technician.full_name }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── View Full Job ── #}
+        {% if job.status != 'draft' %}
+        <div class="portal-card">
+            <div class="card-body text-center">
+                <a href="{{ url_for('portal.portal_job_detail', job_id=job.id) }}" class="btn btn-portal btn-portal-primary w-100">
+                    <i class="bi bi-clipboard-check"></i> View Full Job Details
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

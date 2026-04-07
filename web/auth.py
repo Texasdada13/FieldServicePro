@@ -37,6 +37,27 @@ def generate_token():
     return secrets.token_urlsafe(32)
 
 
+def role_required(*roles):
+    """
+    Decorator: restrict route to users with one of the given roles.
+    Usage: @role_required('owner', 'admin')
+    Must be placed AFTER @login_required in decorator stack.
+    """
+    from functools import wraps
+    from flask import abort
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                flash('Please log in to continue.', 'warning')
+                return redirect(url_for('auth.login'))
+            if current_user.role not in roles:
+                abort(403)
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:

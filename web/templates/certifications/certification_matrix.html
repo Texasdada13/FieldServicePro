@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Certification Matrix{% endblock %}
+{% block page_title %}Certification Matrix{% endblock %}
+
+{% block head %}
+<style>.sticky-col{position:sticky;left:0;background:var(--color-surface);z-index:1;min-width:150px;} thead .sticky-col{background:var(--color-surface-raised);z-index:2;}</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="metric-card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);">{{ total_certs }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Certifications</div></div></div>
+  <div class="col-md-4"><div class="metric-card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-warning);">{{ expiring_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Expiring Soon</div></div></div>
+  <div class="col-md-4"><div class="metric-card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-danger);">{{ expired_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Expired</div></div></div>
+</div>
+
+<div class="fsp-table-wrapper" style="overflow-x:auto;">
+  <table class="fsp-table" style="font-size:var(--font-size-xs);">
+    <thead>
+      <tr>
+        <th class="sticky-col">Technician</th>
+        {% for type_val, type_label in cert_types %}<th style="text-align:center;min-width:80px;">{{ type_label }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for tech in technicians %}
+      <tr>
+        <td class="sticky-col"><a href="{{ url_for('certifications.tech_certifications', tech_id=tech.id) }}" style="font-weight:var(--font-weight-medium);">{{ tech.full_name }}</a></td>
+        {% for type_val, type_label in cert_types %}
+        <td style="text-align:center;">
+          {% set cert = matrix.get(tech.id, {}).get(type_val) %}
+          {% if cert %}
+            {% if cert.status == 'active' %}<span class="badge badge-completed" title="{{ cert.certification_name }}"><i class="bi bi-check-circle"></i></span>
+            {% elif cert.status == 'expiring_soon' %}<span class="badge badge-pending" title="Expiring {{ cert.expiry_date.strftime('%b %d') if cert.expiry_date else '' }}"><i class="bi bi-exclamation-triangle"></i></span>
+            {% elif cert.status == 'expired' %}<span class="badge badge-danger" title="Expired"><i class="bi bi-x-circle"></i></span>
+            {% else %}<span class="badge badge-draft"><i class="bi bi-dash-circle"></i></span>{% endif %}
+          {% else %}<span style="color:var(--color-text-muted);">---</span>{% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div style="margin-top:var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">
+  <span class="badge badge-completed"><i class="bi bi-check-circle"></i></span> Active
+  <span class="badge badge-pending" style="margin-left:var(--space-2);"><i class="bi bi-exclamation-triangle"></i></span> Expiring
+  <span class="badge badge-danger" style="margin-left:var(--space-2);"><i class="bi bi-x-circle"></i></span> Expired
+  <span style="margin-left:var(--space-2);">--- Not Held</span>
+</div>
+{% endblock %}

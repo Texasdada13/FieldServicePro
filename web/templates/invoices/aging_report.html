@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}AR Aging Report{% endblock %}
+{% block page_title %}AR Aging Report{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb" style="margin: 0;">
+    <li class="breadcrumb-item"><a href="{{ url_for('invoices_page') }}">Invoices</a></li>
+    <li class="breadcrumb-item active">Aging Report</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block head %}
+<style>
+@media print {
+  .no-print { display: none !important; }
+  .card { box-shadow: none !important; border: 1px solid var(--color-border) !important; }
+  .sidebar, .topbar, .chat-fab { display: none !important; }
+  .main-content { margin-left: 0 !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+  <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">
+    As of {{ today.strftime('%B %d, %Y') }}
+  </p>
+  <div style="display: flex; gap: var(--space-2);">
+    <button onclick="window.print()" class="btn btn-sm btn-ghost"><i class="bi bi-printer"></i> Print</button>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card no-print" style="margin-bottom: var(--space-4);">
+  <div class="card-body" style="padding: var(--space-3) var(--space-4);">
+    <form method="GET" style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end;">
+      <div style="min-width: 160px;">
+        <label class="form-label" style="font-size: var(--font-size-xs);">Client</label>
+        <select name="client_id" class="form-control" style="font-size: var(--font-size-sm);">
+          <option value="">All Clients</option>
+          {% for c in clients %}
+          <option value="{{ c.id }}" {{ 'selected' if filters.client_id == c.id }}>{{ c.display_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer; padding-top: 1.2rem;">
+          <input type="checkbox" name="overdue_only" value="true" style="accent-color: var(--color-accent);"
+                 {{ 'checked' if filters.overdue_only }}>
+          Overdue only
+        </label>
+      </div>
+      <div style="display: flex; gap: var(--space-1);">
+        <button type="submit" class="btn btn-sm btn-accent">Apply</button>
+        <a href="{{ url_for('aging_report') }}" class="btn btn-sm btn-ghost">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  {% set cards = [
+    ('Total AR', totals.total, 'accent', 'currency-dollar'),
+    ('Current', totals.current, 'success', 'check-circle'),
+    ('1-30 Days', totals.days_1_30, 'primary', 'hourglass-split'),
+    ('31-60 Days', totals.days_31_60, 'warning', 'exclamation-triangle'),
+    ('61-90 Days', totals.days_61_90, 'warning', 'exclamation-circle'),
+    ('90+ Days', totals.days_90_plus, 'danger', 'x-octagon'),
+  ] %}
+  {% for label, amount, color, icon in cards %}
+  <div class="col-6 col-md-2">
+    <div class="metric-card" style="padding: var(--space-3); text-align: center;">
+      <i class="bi bi-{{ icon }}" style="color: var(--color-{{ color }}); font-size: 1.1rem;"></i>
+      <div style="font-weight: var(--font-weight-bold); font-size: var(--font-size-md);">${{ "{:,.0f}".format(amount) }}</div>
+      <div style="font-size: 0.65rem; color: var(--color-text-muted);">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Aging Table -->
+{% if not aging_data %}
+<div class="empty-state">
+  <i class="bi bi-check-circle" style="display: block; color: var(--color-success);"></i>
+  <h3>No Outstanding Balances</h3>
+  <p>All invoices matching the current filters have been paid.</p>
+</div>
+{% else %}
+
+{% macro sort_link(col, label) %}
+{% set nd = 'asc' if filters.sort == col and filters.dir == 'desc' else 'desc' %}
+<a href="?sort={{ col }}&dir={{ nd }}{% if filters.client_id %}&client_id={{ filters.client_id }}{% endif %}{% if filters.overdue_only %}&overdue_only=true{% endif %}"
+   style="color: var(--color-text-secondary); text-decoration: none;">
+  {{ label }}
+  {% if filters.sort == col %}
+  <i class="bi bi-chevron-{{ 'up' if filters.dir == 'asc' else 'down' }}" style="font-size: 0.6rem;"></i>
+  {% endif %}
+</a>
+{% endmacro %}
+
+<div class="fsp-table-wrapper">
+  <table class="fsp-table" style="font-size: var(--font-size-sm);">
+    <thead>
+      <tr>
+        <th>{{ sort_link('client', 'Client') }}</th>
+        <th style="text-align: right;">{{ sort_link('current', 'Current') }}</th>
+        <th style="text-align: right;">{{ sort_link('days_1_30', '1-30 Days') }}</th>
+        <th style="text-align: right;">{{ sort_link('days_31_60', '31-60 Days') }}</th>
+        <th style="text-align: right;">{{ sort_link('days_61_90', '61-90 Days') }}</th>
+        <th style="text-align: right;">{{ sort_link('days_90_plus', '90+ Days') }}</th>
+        <th style="text-align: right;">{{ sort_link('total', 'Total AR') }}</th>
+        <th style="text-align: right;">Credit Limit</th>
+        <th style="text-align: right;">Avail Credit</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in aging_data %}
+      {% set client = row.client %}
+      <tr>
+        <td>
+          <a href="{{ url_for('client_detail', client_id=client.id) }}" style="font-weight: var(--font-weight-semibold);">{{ client.display_name }}</a>
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">{{ row.invoice_count }} invoice{{ 's' if row.invoice_count != 1 }}</div>
+        </td>
+        <td class="col-number" style="{% if row.current > 0 %}color: var(--color-success);{% else %}color: var(--color-text-muted);{% endif %}">
+          ${{ "{:,.2f}".format(row.current) }}
+        </td>
+        <td class="col-number">${{ "{:,.2f}".format(row.days_1_30) }}</td>
+        <td class="col-number" style="{% if row.days_31_60 > 0 %}color: var(--color-warning); font-weight: var(--font-weight-semibold);{% endif %}">
+          ${{ "{:,.2f}".format(row.days_31_60) }}
+        </td>
+        <td class="col-number" style="{% if row.days_61_90 > 0 %}color: #fd7e14; font-weight: var(--font-weight-semibold);{% endif %}">
+          ${{ "{:,.2f}".format(row.days_61_90) }}
+        </td>
+        <td class="col-number" style="{% if row.days_90_plus > 0 %}color: var(--color-danger); font-weight: var(--font-weight-bold);{% endif %}">
+          ${{ "{:,.2f}".format(row.days_90_plus) }}
+        </td>
+        <td class="col-number" style="font-weight: var(--font-weight-bold);">${{ "{:,.2f}".format(row.total) }}</td>
+        <td class="col-number" style="color: var(--color-text-muted);">
+          {% if client.credit_limit %}${{ "{:,.0f}".format(client.credit_limit) }}{% else %}--{% endif %}
+        </td>
+        <td class="col-number">
+          {% if client.credit_limit %}
+          {% set avail = client.credit_limit - row.total %}
+          <span style="font-weight: var(--font-weight-semibold); color: {% if avail < 0 %}var(--color-danger){% elif avail < client.credit_limit * 0.15 %}var(--color-warning){% else %}var(--color-success){% endif %};">
+            ${{ "{:,.0f}".format(avail) }}
+          </span>
+          {% else %}<span style="color: var(--color-text-muted);">--</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr style="background: var(--color-surface-raised); font-weight: var(--font-weight-bold);">
+        <td>TOTALS ({{ aging_data|length }} clients)</td>
+        <td class="col-number">${{ "{:,.2f}".format(totals.current) }}</td>
+        <td class="col-number">${{ "{:,.2f}".format(totals.days_1_30) }}</td>
+        <td class="col-number">${{ "{:,.2f}".format(totals.days_31_60) }}</td>
+        <td class="col-number">${{ "{:,.2f}".format(totals.days_61_90) }}</td>
+        <td class="col-number">${{ "{:,.2f}".format(totals.days_90_plus) }}</td>
+        <td class="col-number">${{ "{:,.2f}".format(totals.total) }}</td>
+        <td colspan="2"></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,84 +1,254 @@
-<!-- FieldServicePro - Sidebar Navigation -->
-{% set page_endpoints = {
-    'dashboard': 'dashboard',
-    'schedule': 'schedule_page',
-    'jobs': 'jobs_page',
-    'quotes': 'quotes_page',
-    'clients': 'clients_page',
-    'invoices': 'invoices_page',
-    'settings': 'settings_page',
-} %}
-{% set current_endpoint = page_endpoints.get(active_page, 'dashboard') %}
-<aside class="sidebar">
-    <div class="sidebar-header">
-        <a href="{{ url_for('dashboard') }}" class="sidebar-brand">
-            <div class="logo"><i class="bi bi-tools"></i></div>
-            <h1>FieldServicePro</h1>
+<!-- FieldServicePro — Sidebar Navigation -->
+<nav class="sidebar" id="appSidebar" aria-label="Main navigation">
+
+  <!-- Wordmark / Logo -->
+  <div class="sidebar__brand">
+    <a href="{{ url_for('dashboard') }}" class="sidebar__logo-link">
+      <svg class="sidebar__icon-mark" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="28" height="28" rx="7" fill="#0d9488"/>
+        <path d="M7 10h14M7 14h10M7 18h7" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="21" cy="18" r="3" fill="#f59e0b"/>
+      </svg>
+      <span class="sidebar__wordmark">
+        <span class="sidebar__wordmark-main">FieldService</span><span class="sidebar__wordmark-accent">Pro</span>
+      </span>
+    </a>
+  </div>
+
+  <!-- Navigation Groups -->
+  <div class="sidebar__nav">
+
+    <!-- Operations -->
+    <div class="sidebar__group">
+      <span class="sidebar__group-label">Operations</span>
+      <ul class="sidebar__list" role="list">
+        <li class="sidebar__item">
+          <a href="{{ url_for('dashboard') }}"
+             class="sidebar__link {% if active_page == 'dashboard' %}is-active{% endif %}">
+            <i class="bi bi-speedometer2 sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Dashboard</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('jobs_page') }}"
+             class="sidebar__link {% if active_page == 'jobs' %}is-active{% endif %}">
+            <i class="bi bi-briefcase sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Jobs</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('schedule_page') }}"
+             class="sidebar__link {% if active_page == 'schedule' %}is-active{% endif %}">
+            <i class="bi bi-calendar3 sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Schedule</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('jobs_page') }}?status=draft"
+             class="sidebar__link {% if active_page == 'requests' %}is-active{% endif %}">
+            <i class="bi bi-inbox sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Requests</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('change_orders.co_list') }}"
+             class="sidebar__link {% if active_page == 'change_orders' %}is-active{% endif %}">
+            <i class="bi bi-file-diff sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Change Orders</span>
+            {% if pending_co_count is defined and pending_co_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-warning); color: #000;">{{ pending_co_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Clients -->
+    <div class="sidebar__group">
+      <span class="sidebar__group-label">Clients</span>
+      <ul class="sidebar__list" role="list">
+        <li class="sidebar__item">
+          <a href="{{ url_for('clients_page') }}"
+             class="sidebar__link {% if active_page == 'clients' %}is-active{% endif %}">
+            <i class="bi bi-people sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Clients</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('contracts.contract_list') }}"
+             class="sidebar__link {% if active_page == 'contracts' %}is-active{% endif %}">
+            <i class="bi bi-file-earmark-ruled sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Contracts</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('quotes_page') }}"
+             class="sidebar__link {% if active_page == 'quotes' %}is-active{% endif %}">
+            <i class="bi bi-file-earmark-text sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Quotes</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('invoices_page') }}"
+             class="sidebar__link {% if active_page == 'invoices' %}is-active{% endif %}">
+            <i class="bi bi-receipt sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Invoices</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('invoices_page') }}?status=paid"
+             class="sidebar__link {% if active_page == 'payments' %}is-active{% endif %}">
+            <i class="bi bi-credit-card sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Payments</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('aging_report') }}"
+             class="sidebar__link {% if active_page == 'aging' %}is-active{% endif %}">
+            <i class="bi bi-bar-chart-line sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">AR Aging</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('bulk_statements') }}"
+             class="sidebar__link {% if active_page == 'statements' %}is-active{% endif %}">
+            <i class="bi bi-envelope-paper sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Statements</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('approval_queue') }}"
+             class="sidebar__link {% if active_page == 'approvals' %}is-active{% endif %}">
+            <i class="bi bi-clipboard-check sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Approvals</span>
+            {% if pending_approval_count is defined and pending_approval_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-warning); color: #000;">{{ pending_approval_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('purchase_orders.po_list') }}"
+             class="sidebar__link {% if active_page == 'purchase_orders' %}is-active{% endif %}">
+            <i class="bi bi-clipboard2-check sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Purchase Orders</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Documents -->
+    <div class="sidebar__group">
+      <span class="sidebar__group-label">Compliance</span>
+      <ul class="sidebar__list" role="list">
+        <li class="sidebar__item">
+          <a href="{{ url_for('documents.document_center') }}"
+             class="sidebar__link {% if active_page == 'documents' %}is-active{% endif %}">
+            <i class="bi bi-folder2-open sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Documents</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('permits.permit_list') }}"
+             class="sidebar__link {% if active_page == 'permits' %}is-active{% endif %}">
+            <i class="bi bi-clipboard-check sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Permits</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('insurance.insurance_list') }}"
+             class="sidebar__link {% if active_page == 'insurance' %}is-active{% endif %}">
+            <i class="bi bi-shield-check sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Insurance</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('certifications.certification_matrix') }}"
+             class="sidebar__link {% if active_page == 'certifications' %}is-active{% endif %}">
+            <i class="bi bi-award sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Certifications</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('checklists.template_list') }}"
+             class="sidebar__link {% if active_page == 'checklists' %}is-active{% endif %}">
+            <i class="bi bi-card-checklist sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Checklists</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- System -->
+    <div class="sidebar__group">
+      <span class="sidebar__group-label">System</span>
+      <ul class="sidebar__list" role="list">
+        <li class="sidebar__item">
+          <a href="{{ url_for('portal_admin.portal_notifications') }}"
+             class="sidebar__link {% if active_page == 'notifications' %}is-active{% endif %}">
+            <i class="bi bi-bell sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Notifications</span>
+            <span class="sidebar__badge" id="notifBadge" style="background:var(--color-danger);color:#fff;display:none;">0</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('settings_page') }}"
+             class="sidebar__link {% if active_page == 'settings' %}is-active{% endif %}">
+            <i class="bi bi-gear sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Settings</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <button class="sidebar__link sidebar__link--button" id="openChatPanel" type="button">
+            <i class="bi bi-robot sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">AI Assistant</span>
+            <span class="sidebar__badge">Beta</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- User profile footer -->
+  {% if user %}
+  <div class="sidebar__footer">
+    <div class="sidebar__user">
+      <div class="sidebar__user-avatar">
+        {{ user.first_name[0]|upper if user.first_name else 'U' }}
+      </div>
+      <div class="sidebar__user-info">
+        <span class="sidebar__user-name">{{ user.full_name }}</span>
+        <span class="sidebar__user-role">{{ user.role|title if user.role else 'User' }}</span>
+      </div>
+      <div class="sidebar__user-actions">
+        <a href="{{ url_for('auth.logout') }}" class="sidebar__logout-btn" title="Log out">
+          <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
         </a>
+      </div>
     </div>
+  </div>
+  {% endif %}
 
-    <!-- Create Button -->
-    <div style="padding: 0.5rem 0.75rem;">
-        <div class="sidebar-create-dropdown" style="position: relative;">
-            <button onclick="this.nextElementSibling.classList.toggle('show')" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.5rem; font-size: 0.85rem; border-radius: 8px;">
-                <i class="bi bi-plus-lg"></i> Create
-            </button>
-            <div class="sidebar-create-menu">
-                <a href="/clients/new"><i class="bi bi-person-plus"></i> New Client</a>
-                <a href="/jobs" onclick="setTimeout(()=>document.getElementById('newJobModal')?.classList.add('show'),100)"><i class="bi bi-clipboard-plus"></i> New Job</a>
-                <a href="/quotes/new"><i class="bi bi-file-earmark-plus"></i> New Quote</a>
-                <a href="/invoices/new"><i class="bi bi-receipt-cutoff"></i> New Invoice</a>
-            </div>
-        </div>
-    </div>
+</nav>
 
-    <nav class="sidebar-nav">
-        <!-- Main -->
-        <div class="nav-section">
-            <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
-                <i class="bi bi-house"></i> <span>Home</span>
-            </a>
-            <a href="{{ url_for('schedule_page') }}" class="nav-link {% if active_page == 'schedule' %}active{% endif %}">
-                <i class="bi bi-calendar3"></i> <span>Schedule</span>
-            </a>
-            <a href="{{ url_for('clients_page') }}" class="nav-link {% if active_page == 'clients' %}active{% endif %}">
-                <i class="bi bi-people"></i> <span>Clients</span>
-            </a>
-            <a href="{{ url_for('jobs_page') }}?status=draft" class="nav-link {% if active_page == 'requests' %}active{% endif %}">
-                <i class="bi bi-inbox"></i> <span>Requests</span>
-            </a>
-            <a href="{{ url_for('quotes_page') }}" class="nav-link {% if active_page == 'quotes' %}active{% endif %}">
-                <i class="bi bi-file-earmark-text"></i> <span>Quotes</span>
-            </a>
-            <a href="{{ url_for('jobs_page') }}" class="nav-link {% if active_page == 'jobs' %}active{% endif %}">
-                <i class="bi bi-clipboard-check"></i> <span>Jobs</span>
-            </a>
-            <a href="{{ url_for('invoices_page') }}" class="nav-link {% if active_page == 'invoices' %}active{% endif %}">
-                <i class="bi bi-receipt"></i> <span>Invoices</span>
-            </a>
-            <a href="{{ url_for('invoices_page') }}?status=paid" class="nav-link {% if active_page == 'payments' %}active{% endif %}">
-                <i class="bi bi-credit-card"></i> <span>Payments</span>
-            </a>
-        </div>
+<!-- Sidebar overlay (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
-        <!-- More -->
-        <div class="nav-section">
-            <div class="nav-section-title">More</div>
-            <a href="{{ url_for('settings_page') }}" class="nav-link {% if active_page == 'settings' %}active{% endif %}">
-                <i class="bi bi-gear"></i> <span>Settings</span>
-            </a>
-        </div>
-    </nav>
-
-    {% if user %}
-    <div class="sidebar-footer">
-        <div class="user-info">
-            <div class="user-avatar"><i class="bi bi-person"></i></div>
-            <div class="user-details">
-                <div class="user-name">{{ user.full_name }}</div>
-                <a href="{{ url_for('auth.logout') }}" class="user-logout">Logout</a>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-</aside>
+<!-- Notification badge polling -->
+<script>
+(function pollNotifications() {
+    fetch('/admin/portal/api/notifications/count')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var badge = document.getElementById('notifBadge');
+            if (badge && data.count > 0) {
+                badge.textContent = data.count;
+                badge.style.display = '';
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
+        })
+        .catch(function() {});
+    setTimeout(pollNotifications, 60000);
+})();
+</script>

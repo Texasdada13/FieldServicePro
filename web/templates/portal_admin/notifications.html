@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Portal Notifications{% endblock %}
+{% block page_title %}Portal Notifications{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:var(--space-4);"><i class="bi bi-bell"></i> Portal Notifications</h2>
+
+{% if notifications %}
+<div class="card">
+    <div style="padding:0;">
+        {% for n in notifications %}
+        <form method="POST" action="{{ url_for('portal_admin.mark_notification_read', notif_id=n.id) }}" style="display:contents;">
+            <button type="submit" style="display:flex;justify-content:space-between;align-items:flex-start;width:100%;padding:var(--space-3) var(--space-4);border:none;border-bottom:1px solid var(--color-border);background:{% if not n.is_read %}rgba(13,148,136,0.04){% else %}transparent{% endif %};cursor:pointer;text-align:left;">
+                <div style="display:flex;gap:var(--space-3);align-items:flex-start;">
+                    <div>
+                        {% if n.notification_type == 'service_request' %}
+                        <i class="bi bi-wrench" style="color:var(--color-accent);"></i>
+                        {% elif n.notification_type == 'quote_approved' %}
+                        <i class="bi bi-check-circle" style="color:var(--color-success);"></i>
+                        {% elif n.notification_type == 'quote_change_requested' %}
+                        <i class="bi bi-pencil" style="color:var(--color-warning);"></i>
+                        {% elif n.notification_type == 'co_approved' %}
+                        <i class="bi bi-check-circle" style="color:var(--color-success);"></i>
+                        {% elif n.notification_type == 'co_rejected' %}
+                        <i class="bi bi-x-circle" style="color:var(--color-danger);"></i>
+                        {% elif n.notification_type == 'portal_message' %}
+                        <i class="bi bi-chat-dots" style="color:var(--color-info);"></i>
+                        {% else %}
+                        <i class="bi bi-bell" style="color:var(--color-text-muted);"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div style="font-weight:{% if not n.is_read %}600{% else %}400{% endif %};font-size:var(--font-size-sm);">
+                            {{ n.title }}
+                        </div>
+                        {% if n.message %}
+                        <div style="color:var(--color-text-muted);font-size:var(--font-size-xs);margin-top:2px;">
+                            {{ n.message[:150] }}{% if n.message|length > 150 %}...{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);white-space:nowrap;margin-left:var(--space-3);">
+                    {{ n.created_at.strftime('%b %d at %I:%M %p') if n.created_at else '' }}
+                </div>
+            </button>
+        </form>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="card" style="padding:var(--space-6);text-align:center;">
+    <i class="bi bi-bell" style="font-size:3rem;color:var(--color-text-muted);opacity:0.2;"></i>
+    <p style="color:var(--color-text-muted);margin-top:var(--space-2);">No notifications yet.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Contracts{% endblock %}
+{% block page_title %}Contracts{% endblock %}
+
+{% block content %}
+<!-- Stats Bar -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--success">
+        <i class="bi bi-file-earmark-check-fill" aria-hidden="true"></i>
+      </div>
+      <p class="metric-card__label">Active</p>
+      <p class="metric-card__value">{{ active_count }}</p>
+      <p class="metric-card__trend metric-card__trend--neutral"><span>contracts</span></p>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--primary">
+        <i class="bi bi-currency-dollar" aria-hidden="true"></i>
+      </div>
+      <p class="metric-card__label">Total Active Value</p>
+      <p class="metric-card__value">${{ '{:,.0f}'.format(total_value) }}</p>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--warning">
+        <i class="bi bi-clock-history" aria-hidden="true"></i>
+      </div>
+      <p class="metric-card__label">Expiring Soon</p>
+      <p class="metric-card__value">{{ expiring_soon_count }}</p>
+      <p class="metric-card__trend metric-card__trend--neutral"><span>in 30 days</span></p>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--danger">
+        <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+      </div>
+      <p class="metric-card__label">SLA Breaches</p>
+      <p class="metric-card__value">{{ breached_slas_month }}</p>
+      <p class="metric-card__trend metric-card__trend--down"><span>this month</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+  <h2 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); margin: 0;">
+    Contracts &amp; Service Agreements
+  </h2>
+  {% if user.role in ('owner', 'admin') %}
+  <a href="{{ url_for('contracts.contract_new') }}" class="btn btn-accent">
+    <i class="bi bi-plus-circle"></i> New Contract
+  </a>
+  {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-body" style="padding: var(--space-3) var(--space-4);">
+    <form method="GET" style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end;">
+      <div style="flex: 1; min-width: 180px;">
+        <input type="text" name="search" class="form-control" style="font-size: var(--font-size-sm);"
+               placeholder="Search by title or number..." value="{{ search }}">
+      </div>
+      <div style="min-width: 140px;">
+        <select name="status" class="form-control" style="font-size: var(--font-size-sm);">
+          <option value="">All Statuses</option>
+          {% for s in ContractStatus %}
+          <option value="{{ s.value }}" {{ 'selected' if status_filter == s.value }}>
+            {{ s.value.replace('_',' ').title() }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="min-width: 140px;">
+        <select name="contract_type" class="form-control" style="font-size: var(--font-size-sm);">
+          <option value="">All Types</option>
+          {% for ct in ContractType %}
+          <option value="{{ ct.value }}" {{ 'selected' if type_filter == ct.value }}>
+            {{ ct.value.replace('_',' ').title() }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="min-width: 140px;">
+        <select name="client_id" class="form-control" style="font-size: var(--font-size-sm);">
+          <option value="">All Clients</option>
+          {% for c in clients %}
+          <option value="{{ c.id }}" {{ 'selected' if client_filter == c.id|string }}>
+            {{ c.display_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
+          <input type="checkbox" name="expiring_soon" value="1"
+                 style="accent-color: var(--color-accent);"
+                 {{ 'checked' if request.args.get('expiring_soon') }}>
+          Expiring Soon
+        </label>
+      </div>
+      <div style="display: flex; gap: var(--space-1);">
+        <button type="submit" class="btn btn-sm btn-accent">Filter</button>
+        <a href="{{ url_for('contracts.contract_list') }}" class="btn btn-sm btn-ghost">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+{% if contracts %}
+<div class="fsp-table-wrapper">
+  <table class="fsp-table">
+    <thead>
+      <tr>
+        <th>Contract #</th>
+        <th>Title</th>
+        <th>Client</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Start</th>
+        <th>End</th>
+        <th style="text-align: right;">Value</th>
+        <th>SLAs</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in contracts %}
+      <tr class="{{ 'clickable-row' }}" onclick="window.location.href='{{ url_for('contracts.contract_detail', contract_id=c.id) }}'">
+        <td style="font-weight: var(--font-weight-semibold); font-family: monospace;">{{ c.contract_number }}</td>
+        <td>
+          {{ c.title }}
+          {% if c.is_expiring_soon %}
+          <span class="badge badge-pending" style="margin-left: 4px;">{{ c.days_until_expiry }}d</span>
+          {% endif %}
+        </td>
+        <td>{{ c.client.display_name if c.client else '---' }}</td>
+        <td style="font-size: var(--font-size-xs);">{{ c.contract_type.value.replace('_',' ').title() }}</td>
+        <td><span class="badge badge-{{ c.status_badge_class }}">{{ c.status.value.replace('_',' ').title() }}</span></td>
+        <td style="font-size: var(--font-size-xs);">{{ c.start_date.strftime('%b %d, %Y') }}</td>
+        <td style="font-size: var(--font-size-xs);">{{ c.end_date.strftime('%b %d, %Y') }}</td>
+        <td class="col-number">${{ '{:,.0f}'.format(c.value) }}</td>
+        <td>
+          {% for sla in c.slas %}
+          <span class="badge badge-{{ sla.priority_badge_class }}" title="{{ sla.sla_name }}" style="margin-right: 2px;">
+            {{ sla.priority_level.value[:3].upper() }}
+          </span>
+          {% endfor %}
+        </td>
+        <td style="text-align: right;">
+          <a href="{{ url_for('contracts.contract_detail', contract_id=c.id) }}"
+             class="btn btn-sm btn-ghost" onclick="event.stopPropagation();">
+            View <i class="bi bi-chevron-right"></i>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div style="padding: var(--space-3) var(--space-4); font-size: var(--font-size-xs); color: var(--color-text-muted);">
+  Showing {{ contracts|length }} contract{{ 's' if contracts|length != 1 }}
+</div>
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-file-earmark-ruled" style="display: block;"></i>
+  <h3>No contracts found</h3>
+  <p>No contracts match your filters. Try adjusting or create a new contract.</p>
+  {% if user.role in ('owner', 'admin') %}
+  <a href="{{ url_for('contracts.contract_new') }}" class="btn btn-accent">
+    <i class="bi bi-plus-circle"></i> Create First Contract
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

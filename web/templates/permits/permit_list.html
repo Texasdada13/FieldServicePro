@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Permits{% endblock %}
+{% block page_title %}Permits{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <div></div>
+  {% if user.role in ('owner', 'admin', 'dispatcher') %}
+  <a href="{{ url_for('permits.permit_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> Add Permit</a>
+  {% endif %}
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="metric-card" style="padding:var(--space-3);text-align:center;">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);">{{ total }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Permits</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-card" style="padding:var(--space-3);text-align:center;">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-success);">{{ active }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Active / Approved</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-card" style="padding:var(--space-3);text-align:center;">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-warning);">{{ pending_inspection }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Pending Inspection</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-card" style="padding:var(--space-3);text-align:center;">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-danger);">{{ expiring }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Expiring Soon</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:var(--space-4);">
+  <div class="card-body" style="padding:var(--space-3) var(--space-4);">
+    <form method="GET" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:var(--space-2);align-items:end;">
+      <select name="type" class="form-control" style="font-size:var(--font-size-sm);">
+        <option value="">All Types</option>
+        {% for val, label in permit_types %}<option value="{{ val }}" {{ 'selected' if filter_type == val }}>{{ label }}</option>{% endfor %}
+      </select>
+      <select name="status" class="form-control" style="font-size:var(--font-size-sm);">
+        <option value="">All Statuses</option>
+        {% for val, label in status_choices %}<option value="{{ val }}" {{ 'selected' if filter_status == val }}>{{ label }}</option>{% endfor %}
+      </select>
+      <input type="number" name="job_id" class="form-control" style="font-size:var(--font-size-sm);" placeholder="Job ID" value="{{ filter_job_id or '' }}">
+      <div style="display:flex;gap:var(--space-1);">
+        <button type="submit" class="btn btn-sm btn-accent"><i class="bi bi-funnel"></i> Filter</button>
+        <a href="{{ url_for('permits.permit_list') }}" class="btn btn-sm btn-ghost">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+{% if permits %}
+<div class="fsp-table-wrapper">
+  <table class="fsp-table">
+    <thead><tr><th>Permit #</th><th>Type</th><th>Job</th><th>Authority</th><th>Status</th><th>Issued</th><th>Expires</th><th>Cost</th><th></th></tr></thead>
+    <tbody>
+      {% for permit in permits %}
+      <tr class="clickable-row" onclick="window.location.href='{{ url_for('permits.permit_detail', permit_id=permit.id) }}'">
+        <td><a href="{{ url_for('permits.permit_detail', permit_id=permit.id) }}" onclick="event.stopPropagation();" style="font-weight:var(--font-weight-semibold);">{{ permit.permit_number or '---' }}</a></td>
+        <td>{{ permit.type_display }}</td>
+        <td><a href="{{ url_for('job_detail', job_id=permit.job_id) }}" onclick="event.stopPropagation();">{{ permit.job.job_number if permit.job else 'Job #' ~ permit.job_id }}</a>{% if permit.job %}<br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ permit.job.title[:30] }}</span>{% endif %}</td>
+        <td style="font-size:var(--font-size-xs);">{{ permit.issuing_authority or '---' }}</td>
+        <td>
+          <span class="badge badge-{{ permit.status_color }}">{{ permit.status_display }}</span>
+          {% if permit.is_expiring_soon %}<span class="badge badge-pending" style="font-size:0.55rem;"><i class="bi bi-exclamation-triangle"></i></span>{% endif %}
+        </td>
+        <td style="font-size:var(--font-size-xs);">{{ permit.issue_date.strftime('%b %d, %Y') if permit.issue_date else '---' }}</td>
+        <td style="font-size:var(--font-size-xs);">{% if permit.expiry_date %}<span style="{% if permit.is_expired %}color:var(--color-danger);font-weight:var(--font-weight-bold);{% elif permit.is_expiring_soon %}color:var(--color-warning);{% endif %}">{{ permit.expiry_date.strftime('%b %d, %Y') }}</span>{% else %}---{% endif %}</td>
+        <td style="font-size:var(--font-size-sm);">{% if permit.cost %}${{ "{:,.2f}".format(permit.cost) }}{% else %}---{% endif %}</td>
+        <td><a href="{{ url_for('permits.permit_edit', permit_id=permit.id) }}" class="btn btn-sm btn-ghost" onclick="event.stopPropagation();" title="Edit"><i class="bi bi-pencil"></i></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state"><i class="bi bi-card-checklist" style="display:block;"></i><h3>No permits found</h3></div>
+{% endif %}
+{% endblock %}

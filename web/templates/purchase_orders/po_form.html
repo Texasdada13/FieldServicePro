@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit PO' if mode == 'edit' else 'New Purchase Order' }}{% endblock %}
+{% block page_title %}{{ 'Edit Purchase Order' if mode == 'edit' else 'New Purchase Order' }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb" style="margin: 0;">
+    <li class="breadcrumb-item"><a href="{{ url_for('purchase_orders.po_list') }}">Purchase Orders</a></li>
+    {% if po %}<li class="breadcrumb-item"><a href="{{ url_for('purchase_orders.po_detail', po_id=po.id) }}">{{ po.po_number }}</a></li>{% endif %}
+    <li class="breadcrumb-item active">{{ 'Edit' if mode == 'edit' else 'New' }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px;">
+  <form method="POST">
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header"><h3 class="card-title">Purchase Order Details</h3></div>
+      <div class="card-body">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Client <span style="color: var(--color-danger);">*</span></label>
+            <select name="client_id" id="clientSelect" class="form-control" required {% if mode == 'edit' %}disabled{% endif %}>
+              <option value="">-- Select Client --</option>
+              {% for c in clients %}
+              <option value="{{ c.id }}" {{ 'selected' if (form_data.get('client_id')|string == c.id|string) or (po and po.client_id == c.id) }}>
+                {{ c.display_name }}
+              </option>
+              {% endfor %}
+            </select>
+            {% if mode == 'edit' %}<input type="hidden" name="client_id" value="{{ po.client_id }}">{% endif %}
+          </div>
+          <div class="form-group">
+            <label class="form-label">PO Number <span style="color: var(--color-danger);">*</span></label>
+            <input type="text" name="po_number" class="form-control" required
+                   value="{{ form_data.get('po_number', '') if form_data is mapping else (po.po_number if po else '') }}"
+                   placeholder="e.g. PO-2025-001">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Authorized Amount ($) <span style="color: var(--color-danger);">*</span></label>
+            <input type="number" name="amount_authorized" class="form-control" step="0.01" min="0.01" required
+                   value="{{ form_data.get('amount_authorized', '') if form_data is mapping else (po.amount_authorized if po else '') }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Issue Date <span style="color: var(--color-danger);">*</span></label>
+            <input type="date" name="issue_date" class="form-control" required
+                   value="{{ form_data.get('issue_date', '') if form_data is mapping else (po.issue_date.isoformat() if po else '') }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Expiry Date</label>
+            <input type="date" name="expiry_date" class="form-control"
+                   value="{{ form_data.get('expiry_date', '') if form_data is mapping else (po.expiry_date.isoformat() if po and po.expiry_date else '') }}">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <input type="text" name="department" class="form-control"
+                   value="{{ form_data.get('department', '') if form_data is mapping else (po.department or '' if po else '') }}"
+                   placeholder="e.g. Facilities">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cost Code</label>
+            <input type="text" name="cost_code" class="form-control"
+                   value="{{ form_data.get('cost_code', '') if form_data is mapping else (po.cost_code or '' if po else '') }}"
+                   placeholder="e.g. 5200-MTC">
+          </div>
+        </div>
+
+        {% if mode == 'edit' %}
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select name="status" class="form-control">
+            <option value="active" {{ 'selected' if po.status == 'active' }}>Active</option>
+            <option value="exhausted" {{ 'selected' if po.status == 'exhausted' }}>Exhausted</option>
+            <option value="expired" {{ 'selected' if po.status == 'expired' }}>Expired</option>
+            <option value="cancelled" {{ 'selected' if po.status == 'cancelled' }}>Cancelled</option>
+          </select>
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+          <label class="form-label">Description / Scope</label>
+          <textarea name="description" class="form-control" rows="3" placeholder="What this PO covers...">{{ form_data.get('description', '') if form_data is mapping else (po.description or '' if po else '') }}</textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="2" placeholder="Internal notes...">{{ form_data.get('notes', '') if form_data is mapping else (po.notes or '' if po else '') }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: var(--space-2); justify-content: flex-end; padding: var(--space-4) 0;">
+      <a href="{{ url_for('purchase_orders.po_list') }}" class="btn btn-ghost">Cancel</a>
+      <button type="submit" class="btn btn-accent">
+        <i class="bi bi-check-lg"></i> {{ 'Update PO' if mode == 'edit' else 'Create Purchase Order' }}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

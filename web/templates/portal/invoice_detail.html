@@ -1,0 +1,174 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Invoice #{{ invoice.invoice_number or invoice.id }}{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="font-size:0.85rem;">
+            <li class="breadcrumb-item"><a href="{{ url_for('portal.portal_invoices') }}" style="color:var(--portal-text-muted);text-decoration:none;">Invoices</a></li>
+            <li class="breadcrumb-item active" style="color:var(--portal-text-light);">#{{ invoice.invoice_number or invoice.id }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <h1>Invoice #{{ invoice.invoice_number or invoice.id }}</h1>
+        <span class="portal-badge {{ invoice.status }}" style="font-size:0.9rem;padding:0.5em 1em;">
+            {{ invoice.status|replace('_', ' ')|title }}
+        </span>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        {# ── Line Items ── #}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-receipt"></i> Invoice Details</div>
+            <div class="card-body">
+                {% if invoice.items %}
+                <table class="portal-table">
+                    <thead>
+                        <tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit Price</th><th class="text-end">Total</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in invoice.items %}
+                        <tr>
+                            <td>{{ item.description }}</td>
+                            <td class="text-end">{{ item.quantity }}</td>
+                            <td class="text-end">${{ '{:,.2f}'.format(item.unit_price or 0) }}</td>
+                            <td class="text-end fw-semibold">${{ '{:,.2f}'.format(item.total or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        {% if invoice.subtotal %}
+                        <tr>
+                            <td colspan="3" class="text-end text-muted">Subtotal</td>
+                            <td class="text-end">${{ '{:,.2f}'.format(invoice.subtotal or 0) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if invoice.tax_amount and invoice.tax_amount > 0 %}
+                        <tr>
+                            <td colspan="3" class="text-end text-muted">Tax ({{ invoice.tax_rate or 0 }}%)</td>
+                            <td class="text-end">${{ '{:,.2f}'.format(invoice.tax_amount or 0) }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr class="fw-bold" style="font-size:1.1rem;">
+                            <td colspan="3" class="text-end">Total</td>
+                            <td class="text-end">${{ '{:,.2f}'.format(invoice.total or 0) }}</td>
+                        </tr>
+                        {% if invoice.amount_paid and invoice.amount_paid > 0 %}
+                        <tr style="color:var(--portal-success);">
+                            <td colspan="3" class="text-end">Paid</td>
+                            <td class="text-end">-${{ '{:,.2f}'.format(invoice.amount_paid or 0) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if invoice.balance_due is not none %}
+                        <tr class="fw-bold" style="font-size:1.1rem;{% if invoice.balance_due > 0 %}color:var(--portal-danger);{% endif %}">
+                            <td colspan="3" class="text-end">Balance Due</td>
+                            <td class="text-end">${{ '{:,.2f}'.format(invoice.balance_due or 0) }}</td>
+                        </tr>
+                        {% endif %}
+                    </tfoot>
+                </table>
+                {% else %}
+                <div class="d-flex justify-content-between align-items-center p-3" style="background:var(--portal-bg);border-radius:var(--portal-radius);">
+                    <span class="fw-semibold">Total Amount</span>
+                    <span class="fw-bold" style="font-size:1.5rem;">${{ '{:,.2f}'.format(invoice.total or 0) }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Notes ── #}
+        {% if invoice.notes %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-file-text"></i> Notes</div>
+            <div class="card-body">
+                <div style="white-space:pre-wrap;font-size:0.9rem;">{{ invoice.notes }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Payment Instructions ── #}
+        {% if settings and settings.payment_instructions and invoice.balance_due and invoice.balance_due > 0 %}
+        <div class="portal-card">
+            <div class="card-header"><i class="bi bi-credit-card"></i> Payment Information</div>
+            <div class="card-body">
+                <div style="white-space:pre-wrap;font-size:0.9rem;">{{ settings.payment_instructions }}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        {# ── Balance Due Highlight ── #}
+        {% if invoice.balance_due and invoice.balance_due > 0 %}
+        <div class="portal-card mb-4" style="border-color:var(--portal-danger);">
+            <div class="card-body text-center">
+                <div class="text-muted mb-1" style="font-size:0.85rem;">Balance Due</div>
+                <div class="fw-bold" style="font-size:2rem;color:var(--portal-danger);">${{ '{:,.2f}'.format(invoice.balance_due) }}</div>
+                {% if invoice.due_date %}
+                <div class="text-muted" style="font-size:0.85rem;">Due {{ invoice.due_date.strftime('%B %d, %Y') }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% elif invoice.status == 'paid' %}
+        <div class="portal-card mb-4">
+            <div class="card-body text-center" style="color:var(--portal-success);">
+                <i class="bi bi-check-circle-fill" style="font-size:2rem;"></i>
+                <div class="fw-bold mt-1">Paid in Full</div>
+                {% if invoice.paid_date %}
+                <div class="text-muted" style="font-size:0.85rem;">{{ invoice.paid_date.strftime('%B %d, %Y') }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Invoice Info ── #}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-info-circle"></i> Invoice Info</div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0" style="font-size:0.85rem;">
+                    <tr><td class="text-muted">Invoice #</td><td class="fw-semibold">{{ invoice.invoice_number or invoice.id }}</td></tr>
+                    <tr><td class="text-muted">Issued</td><td>{{ invoice.issued_date.strftime('%b %d, %Y') if invoice.issued_date else invoice.created_at.strftime('%b %d, %Y') if invoice.created_at else '' }}</td></tr>
+                    {% if invoice.due_date %}
+                    <tr><td class="text-muted">Due Date</td><td>{{ invoice.due_date.strftime('%b %d, %Y') }}</td></tr>
+                    {% endif %}
+                    {% if invoice.payment_terms %}
+                    <tr><td class="text-muted">Terms</td><td>{{ invoice.payment_terms|replace('_', ' ')|title }}</td></tr>
+                    {% endif %}
+                    {% if invoice.po_number_display %}
+                    <tr><td class="text-muted">PO #</td><td>{{ invoice.po_number_display }}</td></tr>
+                    {% endif %}
+                    {% if invoice.job %}
+                    <tr>
+                        <td class="text-muted">Job</td>
+                        <td><a href="{{ url_for('portal.portal_job_detail', job_id=invoice.job_id) }}" style="color:var(--portal-primary);">#{{ invoice.job.job_number or invoice.job_id }}</a></td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        {# ── Payments ── #}
+        {% if invoice.payments %}
+        <div class="portal-card">
+            <div class="card-header"><i class="bi bi-cash-stack"></i> Payment History</div>
+            <div class="card-body p-0">
+                {% for payment in invoice.payments %}
+                <div class="px-3 py-2 border-bottom" style="font-size:0.85rem;">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-success fw-semibold">${{ '{:,.2f}'.format(payment.amount or 0) }}</span>
+                        <span class="text-muted">{{ payment.payment_date.strftime('%b %d, %Y') if payment.payment_date else '' }}</span>
+                    </div>
+                    {% if payment.payment_method %}
+                    <div class="text-muted" style="font-size:0.8rem;">{{ payment.payment_method|replace('_', ' ')|title }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

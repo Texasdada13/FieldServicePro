@@ -116,4 +116,66 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Invoice Approval Workflow -->
+<div class="card" style="margin-bottom: 1.5rem;" id="approvals">
+  <div class="card-header">
+    <i class="bi bi-clipboard-check" style="color: var(--color-warning);"></i> Invoice Approval Workflow
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('save_approval_settings') }}">
+      <div style="margin-bottom: var(--space-3);">
+        <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+          <input type="checkbox" id="invoice_approval_enabled" name="invoice_approval_enabled" value="1"
+                 style="width: 1rem; height: 1rem; accent-color: var(--color-accent);"
+                 {% if org_settings and org_settings.invoice_approval_enabled %}checked{% endif %}>
+          <span style="font-weight: var(--font-weight-semibold);">Require approval for commercial invoices</span>
+        </label>
+      </div>
+
+      <div id="approval-options" style="{% if not (org_settings and org_settings.invoice_approval_enabled) %}display: none;{% endif %}">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Approval Threshold ($)</label>
+            <input type="number" class="form-control" step="0.01" min="0"
+                   name="invoice_approval_threshold"
+                   value="{{ org_settings.invoice_approval_threshold if org_settings and org_settings.invoice_approval_threshold else '' }}"
+                   placeholder="Leave blank = all invoices">
+            <div class="form-text">Leave blank to require approval on all commercial invoices.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Roles That Can Approve</label>
+            <input type="text" class="form-control" name="invoice_approval_roles"
+                   value="{{ org_settings.invoice_approval_roles if org_settings else 'owner,admin' }}">
+            <div class="form-text">Comma-separated (e.g. owner,admin)</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: var(--space-3);">
+        <button type="submit" class="btn btn-accent btn-sm"><i class="bi bi-save"></i> Save Approval Settings</button>
+        <a href="{{ url_for('approval_queue') }}" class="btn btn-ghost btn-sm" style="margin-left: var(--space-2);">
+          <i class="bi bi-clipboard-check"></i> View Approval Queue
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SLA Management -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-header">
+    <i class="bi bi-shield-check" style="color: var(--color-accent);"></i> SLA Templates
+  </div>
+  <div class="card-body">
+    <p style="color: var(--color-text-secondary); margin-bottom: var(--space-3);">Manage service level agreement templates for contracts.</p>
+    <a href="{{ url_for('sla.sla_list') }}" class="btn btn-ghost btn-sm"><i class="bi bi-arrow-right"></i> Manage SLA Templates</a>
+  </div>
+</div>
+
+<script>
+document.getElementById('invoice_approval_enabled').addEventListener('change', function () {
+  document.getElementById('approval-options').style.display = this.checked ? '' : 'none';
+});
+</script>
 {% endblock %}

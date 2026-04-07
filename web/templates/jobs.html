@@ -98,6 +98,15 @@
             <option value="inspection">Inspection</option>
             <option value="emergency">Emergency</option>
         </select>
+
+        <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer; margin-left: var(--space-2);">
+          <input type="checkbox" id="filterMultiPhase" onchange="filterTable()" style="accent-color: var(--color-accent);">
+          Multi-Phase
+        </label>
+        <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
+          <input type="checkbox" id="filterPendingCO" onchange="filterTable()" style="accent-color: var(--color-warning);">
+          Has Pending COs
+        </label>
     </div>
     <div style="position: relative;">
         <i class="bi bi-search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.85rem;"></i>
@@ -122,12 +131,16 @@
                     <th>Property</th>
                     <th>Schedule</th>
                     <th>Status</th>
+                    <th>Contract</th>
+                    <th>SLA</th>
+                    <th>Progress</th>
+                    <th>COs</th>
                     <th style="text-align: right;">Total</th>
                 </tr>
             </thead>
             <tbody>
                 {% for job in jobs %}
-                <tr data-job-type="{{ job.job_type }}" data-searchable="{{ job.client_name|lower }} {{ job.job_number|lower }} {{ job.title|lower }} {{ (job.property_address or '')|lower }} {{ job.status|lower }}" onclick="window.location.href='/jobs/{{ job.id }}'" style="cursor: pointer;">
+                <tr data-job-id="{{ job.id }}" data-job-type="{{ job.job_type }}" data-is-multi-phase="{{ job.is_multi_phase|lower }}" data-pending-co-count="{{ job.pending_change_orders_count }}" data-searchable="{{ job.client_name|lower }} {{ job.job_number|lower }} {{ job.title|lower }} {{ (job.property_address or '')|lower }} {{ job.status|lower }}" onclick="window.location.href='/jobs/{{ job.id }}'" style="cursor: pointer;">
                     <td>
                         <div style="font-weight: 500;">{{ job.client_name }}</div>
                         <div style="font-size: 0.75rem; color: var(--text-secondary);">
@@ -148,6 +161,57 @@
                         {% endif %}
                     </td>
                     <td><span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span></td>
+                    <td>
+                      {% if job.contract_id %}
+                      <a href="{{ url_for('contracts.contract_detail', contract_id=job.contract_id) }}"
+                         class="badge badge-active" style="text-decoration: none; font-size: 0.65rem;"
+                         title="{{ job.contract_number }}" onclick="event.stopPropagation();">
+                        {{ job.contract_number }}
+                      </a>
+                      {% else %}
+                      <span style="color: var(--color-text-muted);">---</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% set sla_s = job.sla_status %}
+                      {% if sla_s == 'breached' %}
+                        <span class="badge badge-danger"><i class="bi bi-exclamation-triangle-fill"></i> Breached</span>
+                      {% elif sla_s == 'at_risk' %}
+                        <span class="badge badge-pending"><i class="bi bi-clock-history"></i> At Risk</span>
+                      {% elif sla_s == 'met' %}
+                        <span class="badge badge-completed">Met</span>
+                      {% elif sla_s == 'on_track' %}
+                        <span class="badge badge-active">On Track</span>
+                      {% else %}
+                        <span style="color: var(--color-text-muted);">---</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if job.is_multi_phase and job.phase_count > 0 %}
+                      <div style="min-width: 100px;">
+                        <div style="height: 6px; background: var(--color-border); border-radius: var(--radius-full); overflow: hidden; margin-bottom: 2px;">
+                          <div style="height: 100%; width: {{ job.percent_complete }}%; background: var(--color-accent); border-radius: var(--radius-full);"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--color-text-muted);">
+                          <span>{{ job.completed_phase_count }}/{{ job.phase_count }}</span>
+                          <span>{{ job.percent_complete }}%</span>
+                        </div>
+                      </div>
+                      {% elif job.is_multi_phase %}
+                      <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">No phases</span>
+                      {% else %}
+                      <span style="color: var(--color-text-muted);">---</span>
+                      {% endif %}
+                    </td>
+                    <td style="text-align: center;">
+                      {% if job.pending_change_orders_count > 0 %}
+                      <a href="/jobs/{{ job.id }}?tab=change_orders" class="badge badge-pending" style="text-decoration: none;" onclick="event.stopPropagation();">{{ job.pending_change_orders_count }} pending</a>
+                      {% elif job.total_change_orders > 0 %}
+                      <span class="badge badge-completed" style="font-size: var(--font-size-xs);">{{ job.total_change_orders }} approved</span>
+                      {% else %}
+                      <span style="color: var(--color-text-muted);">---</span>
+                      {% endif %}
+                    </td>
                     <td style="text-align: right; font-weight: 600; white-space: nowrap;">${{ "{:,.2f}".format(job.estimated_amount or 0) }}</td>
                 </tr>
                 {% endfor %}
@@ -334,6 +398,8 @@ function createJob(e) {
 function filterTable() {
     const searchTerm = (document.getElementById('jobSearch').value || '').toLowerCase();
     const jobType = document.getElementById('jobTypeFilter').value;
+    const multiPhaseOnly = document.getElementById('filterMultiPhase') ? document.getElementById('filterMultiPhase').checked : false;
+    const pendingCOOnly = document.getElementById('filterPendingCO') ? document.getElementById('filterPendingCO').checked : false;
     const table = document.getElementById('jobsTable');
     if (!table) return;
 
@@ -343,11 +409,15 @@ function filterTable() {
     rows.forEach(row => {
         const searchable = row.getAttribute('data-searchable') || '';
         const rowJobType = row.getAttribute('data-job-type') || '';
+        const isMultiPhase = row.getAttribute('data-is-multi-phase') === 'true';
+        const pendingCO = parseInt(row.getAttribute('data-pending-co-count') || '0') > 0;
 
         const matchesSearch = !searchTerm || searchable.includes(searchTerm);
         const matchesType = !jobType || rowJobType === jobType;
+        const matchesMultiPhase = !multiPhaseOnly || isMultiPhase;
+        const matchesPendingCO = !pendingCOOnly || pendingCO;
 
-        if (matchesSearch && matchesType) {
+        if (matchesSearch && matchesType && matchesMultiPhase && matchesPendingCO) {
             row.style.display = '';
             visibleCount++;
         } else {

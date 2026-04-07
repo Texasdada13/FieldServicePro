@@ -1,0 +1,147 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Change Order {{ co.change_order_number }} — Job #{{ job.job_number or job.id }}{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="font-size:0.85rem;">
+            <li class="breadcrumb-item"><a href="{{ url_for('portal.portal_jobs') }}" style="color:var(--portal-text-muted);text-decoration:none;">Jobs</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('portal.portal_job_detail', job_id=job.id) }}" style="color:var(--portal-text-muted);text-decoration:none;">#{{ job.job_number or job.id }}</a></li>
+            <li class="breadcrumb-item active" style="color:var(--portal-text-light);">{{ co.change_order_number }}</li>
+        </ol>
+    </nav>
+    <h1>Change Order {{ co.change_order_number }}</h1>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-pencil-square"></i> Change Order Details</div>
+            <div class="card-body">
+                <h6 class="fw-semibold">{{ co.title }}</h6>
+                <p style="white-space:pre-wrap;">{{ co.description }}</p>
+
+                {% if co.reason %}
+                <div class="mb-3">
+                    <small class="text-muted">Reason for Change</small><br>
+                    <strong>{{ co.reason_label }}</strong>
+                </div>
+                {% endif %}
+
+                <hr>
+
+                {# ── Cost Impact ── #}
+                <h6 class="fw-semibold">Cost Impact</h6>
+                <div class="row g-3 text-center mb-3">
+                    <div class="col-md-4">
+                        <div class="p-3" style="background:var(--portal-bg);border-radius:var(--portal-radius);">
+                            <small class="text-muted">Original Amount</small>
+                            <div class="fw-bold" style="font-size:1.2rem;">${{ '{:,.2f}'.format(co.original_amount or 0) }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3" style="background:var(--portal-bg);border-radius:var(--portal-radius);">
+                            <small class="text-muted">Change Amount</small>
+                            <div class="fw-bold {% if co.cost_difference > 0 %}text-danger{% elif co.cost_difference < 0 %}text-success{% endif %}"
+                                 style="font-size:1.2rem;">
+                                {% if co.cost_difference >= 0 %}+{% endif %}${{ '{:,.2f}'.format(co.cost_difference) }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3" style="background:rgba(37,99,235,0.06);border-radius:var(--portal-radius);">
+                            <small class="text-muted">Revised Total</small>
+                            <div class="fw-bold" style="font-size:1.2rem;color:var(--portal-primary);">${{ '{:,.2f}'.format(co.revised_amount or 0) }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── Line Items ── #}
+                {% if co.line_items %}
+                <h6 class="fw-semibold mt-4">Line Items</h6>
+                <table class="portal-table">
+                    <thead><tr><th>Description</th><th>Type</th><th class="text-end">Amount</th></tr></thead>
+                    <tbody>
+                        {% for item in co.line_items %}
+                        <tr>
+                            <td>{{ item.description }}</td>
+                            <td>
+                                {% if item.is_addition is defined %}
+                                <span class="portal-badge {% if item.is_addition %}pending{% else %}completed{% endif %}">
+                                    {{ 'Addition' if item.is_addition else 'Deduction' }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-semibold">${{ '{:,.2f}'.format(item.line_total or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        {# ── Decision Card ── #}
+        {% if co.client_approved is none and g.portal_user.can_approve_change_orders() %}
+        <div class="portal-card mb-4" style="border-color:var(--portal-primary);">
+            <div class="card-header" style="background:var(--portal-primary);color:white;">
+                <i class="bi bi-check2-square"></i> Your Decision
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('portal.portal_approve_change_order', job_id=job.id, co_id=co.id) }}" class="mb-3">
+                    <button type="submit" class="btn btn-portal btn-portal-success w-100" style="padding:0.75rem;"
+                            data-confirm="Approve this change order for {{ '+' if co.cost_difference >= 0 else '' }}${{ '{:,.2f}'.format(co.cost_difference) }}?">
+                        <i class="bi bi-check-circle"></i> Approve
+                    </button>
+                </form>
+
+                <hr>
+
+                <form method="POST" action="{{ url_for('portal.portal_reject_change_order', job_id=job.id, co_id=co.id) }}">
+                    <label class="form-label fw-semibold" style="font-size:0.85rem;">Reject with Reason</label>
+                    <textarea name="reason" class="form-control mb-2" rows="3"
+                              placeholder="Reason for rejection..." required
+                              style="border-radius:var(--portal-radius);font-size:0.9rem;"></textarea>
+                    <button type="submit" class="btn btn-portal btn-portal-danger w-100">
+                        <i class="bi bi-x-circle"></i> Reject
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Decision Record ── #}
+        {% if co.client_approved is not none %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-check-circle"></i> Decision</div>
+            <div class="card-body">
+                {% if co.client_approved %}
+                <div class="text-success fw-semibold"><i class="bi bi-check-circle-fill"></i> Approved</div>
+                {% else %}
+                <div class="text-danger fw-semibold"><i class="bi bi-x-circle-fill"></i> Rejected</div>
+                {% if co.client_rejection_reason %}
+                <div class="mt-2 text-muted" style="font-size:0.85rem;">{{ co.client_rejection_reason }}</div>
+                {% endif %}
+                {% endif %}
+                {% if co.client_approved_date %}
+                <div class="text-muted mt-1" style="font-size:0.8rem;">
+                    {{ co.client_approved_date.strftime('%B %d, %Y at %I:%M %p') }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="portal-card">
+            <div class="card-body text-center">
+                <a href="{{ url_for('portal.portal_job_detail', job_id=job.id) }}" class="btn btn-portal btn-portal-outline w-100">
+                    <i class="bi bi-arrow-left"></i> Back to Job
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

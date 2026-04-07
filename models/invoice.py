@@ -1,7 +1,7 @@
 """Invoice and Payment models."""
 
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Float
+from datetime import datetime, date, timedelta
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Text, Float, Boolean
 from sqlalchemy.orm import relationship
 import enum
 from .database import Base
@@ -15,6 +15,13 @@ class InvoiceStatus(enum.Enum):
     PAID = "paid"
     OVERDUE = "overdue"
     VOID = "void"
+
+
+class ApprovalStatus(str, enum.Enum):
+    not_required = "not_required"
+    pending      = "pending"
+    approved     = "approved"
+    rejected     = "rejected"
 
 
 class Invoice(Base):
@@ -46,19 +53,96 @@ class Invoice(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Commercial billing fields
+    po_id              = Column(Integer, ForeignKey('purchase_orders.id'), nullable=True, index=True)
+    po_number_display  = Column(String(100), nullable=True)
+    payment_terms      = Column(String(20), nullable=True)
+    cost_code          = Column(String(100), nullable=True)
+    department         = Column(String(100), nullable=True)
+    billing_contact    = Column(String(200), nullable=True)
+
+    # Approval workflow
+    approval_status    = Column(String(20), nullable=False, default=ApprovalStatus.not_required.value, index=True)
+    approved_by        = Column(Integer, ForeignKey('users.id'), nullable=True)
+    approved_at        = Column(DateTime, nullable=True)
+    rejection_reason   = Column(Text, nullable=True)
+
+    # Late fees
+    late_fee_rate      = Column(Float, nullable=True)
+    late_fee_applied   = Column(Float, nullable=True, default=0)
+    late_fee_date      = Column(Date, nullable=True)
+
     # Relationships
     client = relationship("Client", back_populates="invoices")
     job = relationship("Job", back_populates="invoices")
     items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="invoice", cascade="all, delete-orphan")
+    purchase_order = relationship("PurchaseOrder", back_populates="invoices")
+    approver = relationship("User", foreign_keys=[approved_by])
 
     @property
     def is_overdue(self):
         if self.status in ('paid', 'void'):
             return False
-        if self.due_date and self.due_date < datetime.utcnow():
-            return True
+        if self.due_date:
+            due = self.due_date.date() if hasattr(self.due_date, 'date') else self.due_date
+            return date.today() > due
         return False
+
+    @property
+    def is_commercial(self):
+        return self.client and self.client.client_type == 'commercial'
+
+    @property
+    def days_outstanding(self):
+        """Days since invoice was issued."""
+        if not self.issued_date:
+            return 0
+        ref = self.issued_date.date() if hasattr(self.issued_date, 'date') else self.issued_date
+        return (date.today() - ref).days
+
+    @property
+    def days_overdue(self):
+        """Days past due_date. Negative means not yet due."""
+        if not self.due_date:
+            return 0
+        due = self.due_date if isinstance(self.due_date, date) else self.due_date.date()
+        return (date.today() - due).days
+
+    @property
+    def aging_bucket(self):
+        """Returns string bucket for aging reports."""
+        days = self.days_overdue
+        if days <= 0:
+            return 'current'
+        elif days <= 30:
+            return '1_30'
+        elif days <= 60:
+            return '31_60'
+        elif days <= 90:
+            return '61_90'
+        else:
+            return '90_plus'
+
+    def calculate_due_date(self):
+        """Calculate due_date from issued_date and payment_terms."""
+        terms = self.payment_terms
+        ref_date = self.issued_date
+        if ref_date is None:
+            ref_date = datetime.utcnow()
+        if hasattr(ref_date, 'date'):
+            ref_date = ref_date.date()
+
+        days_map = {
+            'due_on_receipt': 0, 'net_15': 15, 'net_30': 30,
+            'net_45': 45, 'net_60': 60, 'net_90': 90,
+        }
+        if terms in days_map:
+            self.due_date = ref_date + timedelta(days=days_map[terms])
+        elif terms == 'custom' and self.client and self.client.custom_payment_days:
+            self.due_date = ref_date + timedelta(days=self.client.custom_payment_days)
+        elif not self.due_date:
+            self.due_date = ref_date + timedelta(days=30)
 
     def to_dict(self):
         return {
@@ -76,6 +160,16 @@ class Invoice(Base):
             'issued_date': self.issued_date.isoformat() if self.issued_date else None,
             'due_date': self.due_date.isoformat() if self.due_date else None,
             'is_overdue': self.is_overdue,
+            'po_id': self.po_id,
+            'po_number_display': self.po_number_display,
+            'payment_terms': self.payment_terms,
+            'cost_code': self.cost_code,
+            'department': self.department,
+            'billing_contact': self.billing_contact,
+            'approval_status': self.approval_status,
+            'late_fee_applied': self.late_fee_applied,
+            'days_overdue': self.days_overdue,
+            'aging_bucket': self.aging_bucket,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 

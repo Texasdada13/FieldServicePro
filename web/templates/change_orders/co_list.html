@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Change Orders{% endblock %}
+{% block page_title %}Change Orders{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <div>
+    {% if pending_count > 0 %}
+    <span class="badge badge-pending" style="font-size:var(--font-size-sm);">{{ pending_count }} awaiting approval</span>
+    {% else %}
+    <span style="font-size:var(--font-size-sm);color:var(--color-text-secondary);">All change orders reviewed</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="metric-card" style="text-align:center;padding:var(--space-3);">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-warning);">{{ pending_count }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Pending Approval</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-card" style="text-align:center;padding:var(--space-3);">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-success);">{{ change_orders|selectattr('status', 'equalto', 'approved')|list|length }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Approved</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-card" style="text-align:center;padding:var(--space-3);">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-text-muted);">{{ change_orders|selectattr('status', 'equalto', 'draft')|list|length }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Drafts</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-card" style="text-align:center;padding:var(--space-3);">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-accent);">{{ change_orders|length }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter -->
+<div class="card" style="margin-bottom:var(--space-4);">
+  <div class="card-body" style="padding:var(--space-2) var(--space-4);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;">
+      <span style="font-size:var(--font-size-sm);font-weight:var(--font-weight-semibold);">Status:</span>
+      <select name="status" class="form-control" style="width:auto;font-size:var(--font-size-sm);" onchange="this.form.submit()">
+        <option value="">All</option>
+        {% for s in statuses %}<option value="{{ s.value }}" {{ 'selected' if status_filter == s.value }}>{{ s.value | replace('_', ' ') | title }}</option>{% endfor %}
+      </select>
+      {% if status_filter %}<a href="{{ url_for('change_orders.co_list') }}" class="btn btn-sm btn-ghost"><i class="bi bi-x-lg"></i> Clear</a>{% endif %}
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+{% if change_orders %}
+<div class="fsp-table-wrapper">
+  <table class="fsp-table">
+    <thead>
+      <tr>
+        <th>CO Number</th>
+        <th>Job</th>
+        <th>Client</th>
+        <th>Title</th>
+        <th style="text-align:center;">Status</th>
+        <th style="text-align:right;">Cost Impact</th>
+        <th>Requested</th>
+        <th style="text-align:center;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for co in change_orders %}
+      <tr {% if co.awaiting_approval %}style="background:rgba(245,158,11,0.04);"{% endif %}>
+        <td><a href="{{ url_for('change_orders.co_detail', job_id=co.job_id, co_id=co.id) }}" style="font-weight:var(--font-weight-semibold);">{{ co.change_order_number }}</a></td>
+        <td><a href="{{ url_for('job_detail', job_id=co.job_id) }}">{{ co.job.job_number }}</a></td>
+        <td>{{ co.job.client.display_name if co.job.client else '---' }}</td>
+        <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ co.title }}">{{ co.title }}</td>
+        <td style="text-align:center;">
+          <span class="badge badge-{{ co.status_badge_class }}">{{ co.status_label }}</span>
+          {% if co.awaiting_approval %}<i class="bi bi-exclamation-circle" style="color:var(--color-warning);margin-left:4px;" title="Awaiting approval"></i>{% endif %}
+        </td>
+        <td class="col-number" style="font-weight:var(--font-weight-semibold);color:{% if co.cost_difference >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">
+          {{ '+' if co.cost_difference >= 0 }}${{ "{:,.2f}".format(co.cost_difference) }}
+        </td>
+        <td style="font-size:var(--font-size-xs);color:var(--color-text-secondary);">{{ co.requested_date.strftime('%b %d, %Y') if co.requested_date else '---' }}</td>
+        <td style="text-align:center;">
+          <a href="{{ url_for('change_orders.co_detail', job_id=co.job_id, co_id=co.id) }}" class="btn btn-sm btn-ghost">View</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div style="font-size:var(--font-size-xs);color:var(--color-text-muted);padding:var(--space-2) var(--space-4);">
+  Showing {{ change_orders|length }} change order{{ 's' if change_orders|length != 1 }}
+</div>
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-file-diff" style="display:block;"></i>
+  <h3>No change orders found</h3>
+  {% if status_filter %}<p><a href="{{ url_for('change_orders.co_list') }}">Clear filter</a></p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

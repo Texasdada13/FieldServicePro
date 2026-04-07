@@ -24,6 +24,7 @@ class Division(Base):
     jobs = relationship("Job", back_populates="division", cascade="all, delete-orphan")
     quotes = relationship("Quote", back_populates="division", cascade="all, delete-orphan")
     technicians = relationship("Technician", back_populates="division", cascade="all, delete-orphan")
+    contracts = relationship("Contract", back_populates="division")
 
     def to_dict(self):
         return {

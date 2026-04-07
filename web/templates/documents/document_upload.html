@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Upload Documents{% endblock %}
+{% block page_title %}Upload Documents{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb" style="margin:0;">
+  <li class="breadcrumb-item"><a href="{{ url_for('documents.document_list') }}">Documents</a></li>
+  <li class="breadcrumb-item active">Upload</li>
+</ol></nav>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:700px;">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-cloud-upload" style="color:var(--color-accent);"></i> Upload Documents</h3></div>
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+
+        <div class="form-group">
+          <label class="form-label">Files <span style="color:var(--color-danger);">*</span></label>
+          <input type="file" name="files" class="form-control" multiple required
+                 accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx,.txt,.csv" id="fileInput">
+          <div class="form-text">PDF, images, Word, Excel, text. Max 25MB per file.</div>
+          <div id="filePreview" style="margin-top:var(--space-2);"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Display Name</label>
+          <input type="text" name="display_name" class="form-control" placeholder="Leave blank to use filename">
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Category <span style="color:var(--color-danger);">*</span></label>
+            <select name="category" class="form-control" required>
+              {% for val, label in category_choices %}<option value="{{ val }}" {{ 'selected' if category == val }}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Expiry Date</label>
+            <input type="date" name="expiry_date" class="form-control">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Link To (Type)</label>
+            <select name="entity_type" class="form-control">
+              <option value="">None -- General</option>
+              <option value="job" {{ 'selected' if entity_type == 'job' }}>Job</option>
+              <option value="permit" {{ 'selected' if entity_type == 'permit' }}>Permit</option>
+              <option value="insurance_policy" {{ 'selected' if entity_type == 'insurance_policy' }}>Insurance</option>
+              <option value="certification" {{ 'selected' if entity_type == 'certification' }}>Certification</option>
+              <option value="contract" {{ 'selected' if entity_type == 'contract' }}>Contract</option>
+              <option value="lien_waiver" {{ 'selected' if entity_type == 'lien_waiver' }}>Lien Waiver</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Link To (ID)</label>
+            <input type="number" name="entity_id" class="form-control" value="{{ entity_id }}" placeholder="ID">
+          </div>
+        </div>
+
+        <div class="form-group"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+        <div class="form-group"><label class="form-label">Tags</label><input type="text" name="tags" class="form-control" placeholder="Comma-separated tags"></div>
+        <div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
+
+        {% if user.role in ('owner', 'admin') %}
+        <div style="margin-bottom:var(--space-4);"><label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;"><input type="checkbox" name="is_confidential" style="accent-color:var(--color-accent);"><i class="bi bi-lock"></i> <span style="font-size:var(--font-size-sm);">Confidential</span></label></div>
+        {% endif %}
+
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+          <a href="{{ url_for('documents.document_list') }}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-accent"><i class="bi bi-cloud-upload"></i> Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  var preview = document.getElementById('filePreview');
+  preview.innerHTML = '';
+  for (var i = 0; i < e.target.files.length; i++) {
+    var f = e.target.files[i];
+    var size = f.size < 1024*1024 ? (f.size/1024).toFixed(1)+' KB' : (f.size/(1024*1024)).toFixed(1)+' MB';
+    preview.innerHTML += '<span class="badge badge-active" style="margin-right:4px;">'+f.name+' ('+size+')</span>';
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Document Center{% endblock %}
+{% block page_title %}Document Center{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/compliance.css') }}">
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <div><span style="font-size:var(--font-size-sm);color:var(--color-text-secondary);">{{ total_docs }} documents stored</span></div>
+  <a href="{{ url_for('documents.document_upload') }}" class="btn btn-accent"><i class="bi bi-cloud-upload"></i> Upload Documents</a>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="metric-card" style="padding:var(--space-3);text-align:center;">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);">{{ total_docs }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total</div>
+    </div>
+  </div>
+  {% for cat, count in categories_used.items() %}{% if loop.index <= 3 %}
+  <div class="col-md-3">
+    <div class="metric-card" style="padding:var(--space-3);text-align:center;">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);">{{ count }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ cat | title }}</div>
+    </div>
+  </div>
+  {% endif %}{% endfor %}
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:var(--space-4);">
+  <div class="card-body" style="padding:var(--space-3) var(--space-4);">
+    <form method="GET" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:var(--space-2);align-items:end;">
+      <div><input type="text" name="q" class="form-control" placeholder="Search documents..." value="{{ search_q }}" style="font-size:var(--font-size-sm);"></div>
+      <div><select name="category" class="form-control" style="font-size:var(--font-size-sm);"><option value="">All Categories</option>{% for val, label in category_choices %}<option value="{{ val }}" {{ 'selected' if category == val }}>{{ label }}</option>{% endfor %}</select></div>
+      <div><select name="entity_type" class="form-control" style="font-size:var(--font-size-sm);"><option value="">All Types</option><option value="job" {{ 'selected' if entity_type == 'job' }}>Jobs</option><option value="permit" {{ 'selected' if entity_type == 'permit' }}>Permits</option><option value="contract" {{ 'selected' if entity_type == 'contract' }}>Contracts</option><option value="certification" {{ 'selected' if entity_type == 'certification' }}>Certifications</option></select></div>
+      <div><input type="date" name="date_from" class="form-control" value="{{ date_from }}" style="font-size:var(--font-size-sm);"></div>
+      <div><input type="date" name="date_to" class="form-control" value="{{ date_to }}" style="font-size:var(--font-size-sm);"></div>
+      <div style="display:flex;gap:var(--space-1);"><button type="submit" class="btn btn-sm btn-accent"><i class="bi bi-search"></i></button><a href="{{ url_for('documents.document_list') }}" class="btn btn-sm btn-ghost">Clear</a></div>
+    </form>
+  </div>
+</div>
+
+<!-- View Toggle -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+  <span style="font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ documents|length }} result{{ 's' if documents|length != 1 }}</span>
+  <div style="display:flex;gap:2px;">
+    <a href="?view=list&q={{ search_q }}&category={{ category }}" class="btn btn-sm {% if view_mode != 'grid' %}btn-accent{% else %}btn-ghost{% endif %}"><i class="bi bi-list-ul"></i></a>
+    <a href="?view=grid&q={{ search_q }}&category={{ category }}" class="btn btn-sm {% if view_mode == 'grid' %}btn-accent{% else %}btn-ghost{% endif %}"><i class="bi bi-grid-3x3-gap"></i></a>
+  </div>
+</div>
+
+{% if view_mode == 'grid' %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:var(--space-3);">
+  {% for doc in documents %}
+  <div class="card" style="height:100%;">
+    <div class="card-body" style="text-align:center;padding:var(--space-3);">
+      <i class="bi {{ doc.icon_class }}" style="font-size:2.5rem;"></i>
+      <p style="font-size:var(--font-size-sm);font-weight:var(--font-weight-semibold);margin:var(--space-2) 0 var(--space-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ doc.display_name }}">{{ doc.display_name }}</p>
+      <span class="badge badge-draft">{{ doc.category_label }}</span>
+      {% if doc.is_confidential %}<br><span class="badge badge-danger" style="font-size:0.55rem;margin-top:4px;"><i class="bi bi-lock"></i> Confidential</span>{% endif %}
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:var(--space-1);">{{ doc.file_size_display }} · v{{ doc.version }}</div>
+    </div>
+    <div style="padding:var(--space-2) var(--space-3);border-top:1px solid var(--color-border-light);text-align:center;display:flex;gap:var(--space-1);justify-content:center;">
+      <a href="{{ url_for('documents.document_detail', doc_id=doc.id) }}" class="btn btn-sm btn-ghost"><i class="bi bi-eye"></i></a>
+      <a href="{{ url_for('documents.document_download', doc_id=doc.id) }}" class="btn btn-sm btn-ghost"><i class="bi bi-download"></i></a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="fsp-table-wrapper">
+  <table class="fsp-table">
+    <thead><tr><th></th><th>Name</th><th>Category</th><th>Linked To</th><th>Size</th><th>Uploaded</th><th>Ver</th><th></th></tr></thead>
+    <tbody>
+      {% for doc in documents %}
+      <tr>
+        <td><i class="bi {{ doc.icon_class }}"></i>{% if doc.is_confidential %} <i class="bi bi-lock" style="color:var(--color-danger);" title="Confidential"></i>{% endif %}</td>
+        <td><a href="{{ url_for('documents.document_detail', doc_id=doc.id) }}" style="font-weight:var(--font-weight-semibold);">{{ doc.display_name }}</a>{% if doc.description %}<br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ doc.description[:60] }}</span>{% endif %}</td>
+        <td><span class="badge badge-draft">{{ doc.category_label }}</span></td>
+        <td style="font-size:var(--font-size-xs);">{% if doc.entity_type %}{{ doc.entity_type | title }} #{{ doc.entity_id }}{% else %}<span style="color:var(--color-text-muted);">---</span>{% endif %}</td>
+        <td style="font-size:var(--font-size-xs);">{{ doc.file_size_display }}</td>
+        <td style="font-size:var(--font-size-xs);">{{ doc.uploaded_at.strftime('%b %d, %Y') if doc.uploaded_at else '---' }}</td>
+        <td style="font-size:var(--font-size-xs);">v{{ doc.version }}</td>
+        <td><a href="{{ url_for('documents.document_download', doc_id=doc.id) }}" class="btn btn-sm btn-ghost" title="Download"><i class="bi bi-download"></i></a></td>
+      </tr>
+      {% endfor %}
+      {% if not documents %}
+      <tr><td colspan="8" style="text-align:center;padding:var(--space-6);color:var(--color-text-muted);">No documents found.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

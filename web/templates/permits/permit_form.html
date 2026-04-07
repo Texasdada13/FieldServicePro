@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Permit' if permit else 'New Permit' }}{% endblock %}
+{% block page_title %}{{ 'Edit Permit' if permit else 'New Permit' }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb" style="margin:0;">
+  <li class="breadcrumb-item"><a href="{{ url_for('permits.permit_list') }}">Permits</a></li>
+  <li class="breadcrumb-item active">{{ 'Edit' if permit else 'New' }}</li>
+</ol></nav>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-card-checklist" style="color:var(--color-accent);"></i> {{ 'Edit Permit' if permit else 'New Permit' }}</h3></div>
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Job <span style="color:var(--color-danger);">*</span></label>
+            <select name="job_id" class="form-control" required id="jobSelect">
+              <option value="">Select Job</option>
+              {% for job in jobs %}<option value="{{ job.id }}" {{ 'selected' if (permit and permit.job_id == job.id) or (preselect_job_id and preselect_job_id == job.id) }}>#{{ job.job_number }} -- {{ job.title }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Phase (Optional)</label>
+            <select name="phase_id" class="form-control" id="phaseSelect">
+              <option value="">Applies to entire job</option>
+              {% for phase in phases %}<option value="{{ phase.id }}" {{ 'selected' if permit and permit.phase_id == phase.id }}>Phase {{ phase.phase_number }}: {{ phase.title }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Permit Number</label><input type="text" name="permit_number" class="form-control" value="{{ permit.permit_number if permit else '' }}" placeholder="e.g. BP-2025-00123"></div>
+          <div class="form-group"><label class="form-label">Type <span style="color:var(--color-danger);">*</span></label><select name="permit_type" class="form-control" required>{% for val, label in permit_types %}<option value="{{ val }}" {{ 'selected' if permit and permit.permit_type == val }}>{{ label }}</option>{% endfor %}</select></div>
+          <div class="form-group"><label class="form-label">Status <span style="color:var(--color-danger);">*</span></label><select name="status" class="form-control" required>{% for val, label in status_choices %}<option value="{{ val }}" {{ 'selected' if permit and permit.status == val }}>{{ label }}</option>{% endfor %}</select></div>
+        </div>
+
+        <div class="form-group"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2" placeholder="e.g. Electrical permit for 200A panel upgrade">{{ permit.description if permit else '' }}</textarea></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Issuing Authority</label><input type="text" name="issuing_authority" class="form-control" value="{{ permit.issuing_authority if permit else '' }}" placeholder="e.g. City Building Dept."></div>
+          <div class="form-group"><label class="form-label">Permit Fee ($)</label><input type="number" name="cost" class="form-control" step="0.01" value="{{ permit.cost if permit and permit.cost else '' }}"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Application Date</label><input type="date" name="application_date" class="form-control" value="{{ permit.application_date.isoformat() if permit and permit.application_date else '' }}"></div>
+          <div class="form-group"><label class="form-label">Issue Date</label><input type="date" name="issue_date" class="form-control" value="{{ permit.issue_date.isoformat() if permit and permit.issue_date else '' }}"></div>
+          <div class="form-group"><label class="form-label">Expiry Date</label><input type="date" name="expiry_date" class="form-control" value="{{ permit.expiry_date.isoformat() if permit and permit.expiry_date else '' }}"></div>
+        </div>
+
+        <div class="form-group"><label class="form-label">Conditions</label><textarea name="conditions" class="form-control" rows="2">{{ permit.conditions if permit else '' }}</textarea></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Inspector Name</label><input type="text" name="inspector_name" class="form-control" value="{{ permit.inspector_name if permit else '' }}"></div>
+          <div class="form-group"><label class="form-label">Inspector Phone</label><input type="text" name="inspector_phone" class="form-control" value="{{ permit.inspector_phone if permit else '' }}"></div>
+        </div>
+
+        <div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2">{{ permit.notes if permit else '' }}</textarea></div>
+
+        <div class="form-group" style="margin-bottom:0;"><label class="form-label">Attach Documents</label><input type="file" name="documents" class="form-control" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"></div>
+
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;margin-top:var(--space-4);">
+          <a href="{{ url_for('permits.permit_list') }}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-accent">{{ 'Update Permit' if permit else 'Create Permit' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('jobSelect').addEventListener('change', function() {
+  var jobId = this.value;
+  var phaseSelect = document.getElementById('phaseSelect');
+  phaseSelect.innerHTML = '<option value="">Applies to entire job</option>';
+  if (!jobId) return;
+  fetch('/api/jobs/' + jobId + '/phases')
+    .then(function(r) { return r.json(); })
+    .then(function(phases) {
+      phases.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        phaseSelect.appendChild(opt);
+      });
+    });
+});
+</script>
+{% endblock %}

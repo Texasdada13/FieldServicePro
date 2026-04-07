@@ -1,0 +1,145 @@
+/* ============================================================
+   FieldServicePro — Phase Timeline & Cards
+   ============================================================ */
+
+/* -- Phase Timeline -- */
+.phase-timeline {
+  position: relative;
+  padding: 0;
+}
+
+.phase-timeline::before {
+  content: '';
+  position: absolute;
+  left: 28px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-border);
+  z-index: 0;
+}
+
+.phase-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+  cursor: grab;
+}
+
+.phase-item:active { cursor: grabbing; }
+.phase-item.dragging { opacity: 0.5; background: var(--color-surface-raised); border-radius: var(--radius-md); }
+.phase-item.drag-over { border-top: 3px solid var(--color-accent); }
+
+.phase-number-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  border: 3px solid var(--color-surface);
+  box-shadow: 0 0 0 2px var(--color-border);
+}
+
+.phase-number-badge.status-not_started  { background: var(--color-text-muted); color: #fff; }
+.phase-number-badge.status-scheduled    { background: #0dcaf0; color: #000; }
+.phase-number-badge.status-in_progress  { background: var(--color-accent); color: #fff; }
+.phase-number-badge.status-on_hold      { background: var(--color-warning); color: #000; }
+.phase-number-badge.status-completed    { background: var(--color-success); color: #fff; }
+.phase-number-badge.status-skipped      { background: var(--color-text-muted); color: #fff; }
+
+.phase-card {
+  flex: 1;
+  margin-left: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  transition: box-shadow var(--transition-base);
+}
+
+.phase-card:hover { box-shadow: var(--shadow-sm); }
+.phase-card.status-in_progress { border-left: 4px solid var(--color-accent); }
+.phase-card.status-on_hold { border-left: 4px solid var(--color-warning); }
+.phase-card.status-completed { border-left: 4px solid var(--color-success); background: rgba(16,185,129,0.02); }
+.phase-card.status-skipped { opacity: 0.6; }
+
+.phase-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  user-select: none;
+}
+
+.phase-card-body {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border-light);
+}
+
+/* -- Progress Bar -- */
+.phase-progress-bar {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.phase-progress-bar .fill {
+  height: 100%;
+  background: var(--color-accent);
+  transition: width 0.4s ease;
+}
+
+/* -- Inspection Badge -- */
+.inspection-badge {
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* -- Drag Handle -- */
+.drag-handle {
+  cursor: grab;
+  color: var(--color-text-muted);
+  padding: 0 var(--space-1);
+  font-size: 1.1rem;
+}
+
+.drag-handle:hover { color: var(--color-text-primary); }
+
+/* -- Status Pill -- */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  border: none;
+  transition: filter var(--transition-fast);
+}
+
+.status-pill:hover { filter: brightness(0.9); }
+
+/* -- Progress Header -- */
+.phases-progress-header {
+  background: linear-gradient(135deg, var(--color-surface-raised), var(--color-surface));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.tiny { font-size: 0.65rem; }

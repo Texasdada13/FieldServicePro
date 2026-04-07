@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Contract' if action == 'edit' else 'New Contract' }}{% endblock %}
+{% block page_title %}{{ 'Edit Contract' if action == 'edit' else 'New Contract' }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb" style="margin: 0;">
+    <li class="breadcrumb-item"><a href="{{ url_for('contracts.contract_list') }}">Contracts</a></li>
+    {% if contract %}
+    <li class="breadcrumb-item"><a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}">{{ contract.contract_number }}</a></li>
+    {% endif %}
+    <li class="breadcrumb-item active">{{ 'Edit' if action == 'edit' else 'New' }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{# ── Jinja macro for line-item rows (must be defined before use) ─────────── #}
+{% macro _line_item_row(li, idx) %}
+<tr class="line-item-row">
+  <td><input type="text" name="li_service_type[]" class="form-control form-control-sm"
+             value="{{ li.service_type if li else '' }}"
+             placeholder="Service type" required></td>
+  <td><input type="text" name="li_description[]" class="form-control form-control-sm"
+             value="{{ li.description if li else '' }}"
+             placeholder="Optional description"></td>
+  <td>
+    <select name="li_frequency[]" class="form-select form-select-sm">
+      {% for sf in ServiceFrequency %}
+      <option value="{{ sf.value }}"
+        {{ 'selected' if li and li.frequency == sf }}>
+        {{ sf.value.replace('_',' ').title() }}
+      </option>
+      {% endfor %}
+    </select>
+  </td>
+  <td><input type="number" name="li_quantity[]" class="form-control form-control-sm li-qty"
+             step="0.5" min="0" value="{{ li.quantity if li else 1 }}"></td>
+  <td><input type="number" name="li_unit_price[]"
+             class="form-control form-control-sm li-price"
+             step="0.01" min="0"
+             value="{{ li.unit_price if li else '0.00' }}"></td>
+  <td><input type="number" name="li_estimated_hours[]"
+             class="form-control form-control-sm"
+             step="0.5" min="0"
+             value="{{ li.estimated_hours_per_visit if li else '' }}"
+             placeholder="hrs"></td>
+  <td><input type="date" name="li_next_scheduled_date[]"
+             class="form-control form-control-sm"
+             value="{{ li.next_scheduled_date.strftime('%Y-%m-%d') if li and li.next_scheduled_date else '' }}">
+  </td>
+  <td class="text-center">
+    <select name="li_is_included[]" class="form-select form-select-sm">
+      <option value="1" {{ 'selected' if not li or li.is_included }}>Included</option>
+      <option value="0" {{ 'selected' if li and not li.is_included }}>Billable</option>
+    </select>
+  </td>
+  <td class="text-center">
+    <button type="button" class="btn btn-sm btn-outline-danger remove-line-item"
+            title="Remove row">
+      <i class="bi bi-trash"></i>
+    </button>
+  </td>
+</tr>
+{% endmacro %}
+
+{% block content %}
+<div style="max-width: 1100px;">
+
+<form method="POST" id="contract-form">
+
+<!-- Step 1: Basic Info -->
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-header" style="display: flex; align-items: center; gap: var(--space-2);">
+    <span class="badge badge-active" style="width: 1.5rem; height: 1.5rem; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-size: var(--font-size-xs);">1</span>
+    <h3 class="card-title" style="margin: 0;">Basic Information</h3>
+  </div>
+  <div class="card-body">
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-3);">
+      <div class="form-group">
+        <label class="form-label">Contract Title <span style="color: var(--color-danger);">*</span></label>
+        <input type="text" name="title" class="form-control"
+               value="{{ contract.title if contract else '' }}"
+               placeholder="e.g., Annual HVAC Maintenance — 5 Locations" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-control">
+          {% for s in ContractStatus %}
+          <option value="{{ s.value }}"
+            {{ 'selected' if contract and contract.status == s else
+               ('selected' if s.value == 'draft' and not contract else '') }}>
+            {{ s.value.replace('_',' ').title() }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+      <div class="form-group">
+        <label class="form-label">Client <span style="color: var(--color-danger);">*</span></label>
+        <select name="client_id" id="client_id" class="form-control" required>
+          <option value="">-- Select Client --</option>
+          {% for c in clients %}
+          <option value="{{ c.id }}"
+            {{ 'selected' if contract and contract.client_id == c.id }}>
+            {{ c.display_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Division</label>
+        <select name="division_id" class="form-control">
+          <option value="">-- No Division --</option>
+          {% for d in all_divisions %}
+          <option value="{{ d.id }}"
+            {{ 'selected' if contract and contract.division_id == d.id }}>
+            {{ d.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-3);">
+      <div class="form-group">
+        <label class="form-label">Contract Type <span style="color: var(--color-danger);">*</span></label>
+        <select name="contract_type" class="form-control" required>
+          {% for ct in ContractType %}
+          <option value="{{ ct.value }}"
+            {{ 'selected' if contract and contract.contract_type == ct }}>
+            {{ ct.value.replace('_',' ').title() }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Start Date <span style="color: var(--color-danger);">*</span></label>
+        <input type="date" name="start_date" class="form-control" required
+               value="{{ contract.start_date.strftime('%Y-%m-%d') if contract else '' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Date <span style="color: var(--color-danger);">*</span></label>
+        <input type="date" name="end_date" class="form-control" required
+               value="{{ contract.end_date.strftime('%Y-%m-%d') if contract else '' }}">
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+      <div class="form-group">
+        <label class="form-label">Contract Value ($)</label>
+        <input type="number" name="value" class="form-control" step="0.01" min="0"
+               value="{{ contract.value if contract else '0' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Billing Frequency</label>
+        <select name="billing_frequency" class="form-control">
+          {% for bf in BillingFrequency %}
+          <option value="{{ bf.value }}"
+            {{ 'selected' if contract and contract.billing_frequency == bf }}>
+            {{ bf.value.replace('_',' ').title() }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Description / Scope of Work</label>
+      <textarea name="description" class="form-control" rows="3">{{ contract.description if contract else '' }}</textarea>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2: Covered Properties -->
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-header" style="display: flex; align-items: center; gap: var(--space-2);">
+    <span class="badge badge-active" style="width: 1.5rem; height: 1.5rem; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-size: var(--font-size-xs);">2</span>
+    <h3 class="card-title" style="margin: 0;">Covered Properties</h3>
+    <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">(populated after client selection)</span>
+  </div>
+  <div class="card-body">
+    <div id="properties-container">
+      {% if contract and contract.properties %}
+        {% set sel_ids = contract.properties | map(attribute='id') | list %}
+        {% for prop in properties | default([]) %}
+        <label style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) 0; cursor: pointer;">
+          <input type="checkbox" name="property_ids" value="{{ prop.id }}"
+                 style="accent-color: var(--color-accent);"
+                 {{ 'checked' if prop.id in sel_ids }}>
+          <span style="font-size: var(--font-size-sm);">{{ prop.name if prop.name else prop.display_address }}</span>
+        </label>
+        {% endfor %}
+      {% else %}
+        <p id="properties-placeholder" style="color: var(--color-text-muted); margin: 0;">
+          Select a client above to see available properties.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Step 3: Service Line Items -->
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-header" style="display: flex; align-items: center; gap: var(--space-2);">
+    <span class="badge badge-active" style="width: 1.5rem; height: 1.5rem; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-size: var(--font-size-xs);">3</span>
+    <h3 class="card-title" style="margin: 0;">Service Line Items</h3>
+  </div>
+  <div class="card-body" style="padding: 0;">
+    <div style="overflow-x: auto;">
+      <table class="fsp-table" id="line-items-table">
+        <thead>
+          <tr>
+            <th style="min-width:160px">Service Type *</th>
+            <th style="min-width:200px">Description</th>
+            <th style="min-width:130px">Frequency</th>
+            <th style="width:70px">Qty</th>
+            <th style="width:110px">Unit Price</th>
+            <th style="width:90px">Est. Hrs</th>
+            <th style="width:140px">Next Scheduled</th>
+            <th style="width:100px">Included</th>
+            <th style="width:50px"></th>
+          </tr>
+        </thead>
+        <tbody id="line-items-body">
+          {% if contract and contract.line_items %}
+            {% for li in contract.line_items %}
+            {{ _line_item_row(li, loop.index0) }}
+            {% endfor %}
+          {% else %}
+            {{ _line_item_row(none, 0) }}
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+    <div style="padding: var(--space-3) var(--space-4); border-top: 1px solid var(--color-border); display: flex; align-items: center; gap: var(--space-3);">
+      <button type="button" id="add-line-item" class="btn btn-sm btn-ghost">
+        <i class="bi bi-plus-circle"></i> Add Line Item
+      </button>
+      <span style="font-size: var(--font-size-sm); color: var(--color-text-muted);">
+        Total: <strong id="line-items-total">$0.00</strong>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Step 4: SLA Assignment -->
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-header" style="display: flex; align-items: center; gap: var(--space-2);">
+    <span class="badge badge-active" style="width: 1.5rem; height: 1.5rem; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-size: var(--font-size-xs);">4</span>
+    <h3 class="card-title" style="margin: 0;">SLA Assignment</h3>
+  </div>
+  <div class="card-body">
+    {% if slas %}
+    <div class="row g-3">
+      {% for sla in slas %}
+      {% set is_selected = contract and sla in contract.slas %}
+      <div class="col-md-6">
+        <div class="card" id="sla-card-{{ sla.id }}"
+             style="border-left: 3px solid var(--color-{{ sla.priority_badge_class }}); {% if is_selected %}background: rgba(13,148,136,0.04);{% endif %}">
+          <div class="card-body" style="padding: var(--space-3);">
+            <label style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; cursor: pointer; gap: var(--space-2);">
+              <div style="display: flex; gap: var(--space-2);">
+                <input type="checkbox" name="sla_ids" value="{{ sla.id }}"
+                       class="sla-checkbox"
+                       data-card="sla-card-{{ sla.id }}"
+                       style="margin-top: 3px; accent-color: var(--color-accent);"
+                       {{ 'checked' if is_selected }}>
+                <div>
+                  <span style="font-weight: var(--font-weight-semibold);">{{ sla.sla_name }}</span>
+                  <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">
+                    Response: {{ sla.response_time_hours }}h
+                    {% if sla.resolution_time_hours %} · Resolution: {{ sla.resolution_time_hours }}h{% else %} · Best effort{% endif %}
+                  </div>
+                </div>
+              </div>
+              <span class="badge badge-{{ sla.priority_badge_class }}">{{ sla.priority_level.value.title() }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="margin-top: var(--space-3);">
+      <a href="{{ url_for('sla.sla_new') }}" target="_blank" class="btn btn-sm btn-ghost">
+        <i class="bi bi-plus"></i> Create New SLA Template
+      </a>
+    </div>
+    {% else %}
+    <div class="alert alert-info" style="margin: 0;">
+      No active SLA templates found. <a href="{{ url_for('sla.sla_new') }}">Create one first</a>.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Step 5: Renewal & Terms -->
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-header" style="display: flex; align-items: center; gap: var(--space-2);">
+    <span class="badge badge-active" style="width: 1.5rem; height: 1.5rem; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-size: var(--font-size-xs);">5</span>
+    <h3 class="card-title" style="margin: 0;">Renewal &amp; Terms</h3>
+  </div>
+  <div class="card-body">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+      <div>
+        <div style="margin-bottom: var(--space-3);">
+          <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+            <input type="checkbox" id="auto_renew" name="auto_renew" value="1"
+                   style="width: 1rem; height: 1rem; accent-color: var(--color-accent);"
+                   {{ 'checked' if contract and contract.auto_renew }}>
+            <span style="font-weight: var(--font-weight-semibold);">Auto-Renew Contract</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Renewal Reminder (days before expiry)</label>
+          <input type="number" name="renewal_reminder_days" class="form-control"
+                 min="1" max="365"
+                 value="{{ contract.renewal_reminder_days if contract else 30 }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Renewal Terms</label>
+        <textarea name="renewal_terms" class="form-control" rows="3"
+                  placeholder="Conditions for renewal...">{{ contract.renewal_terms if contract else '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Terms &amp; Conditions</label>
+      <textarea name="terms_and_conditions" class="form-control" rows="4">{{ contract.terms_and_conditions if contract else '' }}</textarea>
+    </div>
+
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label">Internal Notes</label>
+      <textarea name="internal_notes" class="form-control" rows="3"
+                placeholder="Private notes not shown to the client...">{{ contract.internal_notes if contract else '' }}</textarea>
+    </div>
+  </div>
+</div>
+
+<!-- Submit -->
+<div style="display: flex; gap: var(--space-2); justify-content: flex-end; padding: var(--space-4) 0;">
+  <a href="{{ url_for('contracts.contract_list') }}" class="btn btn-ghost">Cancel</a>
+  <button type="submit" class="btn btn-accent" style="padding-left: var(--space-6); padding-right: var(--space-6);">
+    <i class="bi bi-check-circle"></i>
+    {{ 'Update Contract' if action == 'edit' else 'Create Contract' }}
+  </button>
+</div>
+
+</form>
+</div>
+
+<!-- Line item row template (hidden, for JS cloning) -->
+<template id="line-item-template">
+  <tr class="line-item-row">
+    <td><input type="text" name="li_service_type[]" class="form-control form-control-sm"
+               placeholder="Service type" required></td>
+    <td><input type="text" name="li_description[]" class="form-control form-control-sm"
+               placeholder="Optional description"></td>
+    <td>
+      <select name="li_frequency[]" class="form-select form-select-sm">
+        {% for sf in ServiceFrequency %}
+        <option value="{{ sf.value }}">{{ sf.value.replace('_',' ').title() }}</option>
+        {% endfor %}
+      </select>
+    </td>
+    <td><input type="number" name="li_quantity[]" class="form-control form-control-sm li-qty"
+               step="0.5" min="0" value="1"></td>
+    <td><input type="number" name="li_unit_price[]"
+               class="form-control form-control-sm li-price"
+               step="0.01" min="0" value="0.00" placeholder="0.00"></td>
+    <td><input type="number" name="li_estimated_hours[]"
+               class="form-control form-control-sm"
+               step="0.5" min="0" placeholder="hrs"></td>
+    <td><input type="date" name="li_next_scheduled_date[]"
+               class="form-control form-control-sm"></td>
+    <td class="text-center">
+      <select name="li_is_included[]" class="form-select form-select-sm">
+        <option value="1">Included</option>
+        <option value="0">Billable</option>
+      </select>
+    </td>
+    <td class="text-center">
+      <button type="button" class="btn btn-sm btn-outline-danger remove-line-item" title="Remove row">
+        <i class="bi bi-trash"></i>
+      </button>
+    </td>
+  </tr>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// -- Line Items --
+var tbody   = document.getElementById('line-items-body');
+var tmpl    = document.getElementById('line-item-template');
+var addBtn  = document.getElementById('add-line-item');
+var totalEl = document.getElementById('line-items-total');
+
+function addRow() {
+  var clone = tmpl.content.cloneNode(true);
+  tbody.appendChild(clone);
+  recalcTotal();
+}
+
+function recalcTotal() {
+  var total = 0;
+  tbody.querySelectorAll('tr.line-item-row').forEach(function(row) {
+    var qty   = parseFloat(row.querySelector('.li-qty')  ? row.querySelector('.li-qty').value  : 0) || 0;
+    var price = parseFloat(row.querySelector('.li-price') ? row.querySelector('.li-price').value : 0) || 0;
+    total += qty * price;
+  });
+  totalEl.textContent = '$' + total.toLocaleString('en-US', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  });
+}
+
+addBtn.addEventListener('click', addRow);
+
+tbody.addEventListener('click', function(e) {
+  if (e.target.closest('.remove-line-item')) {
+    var row = e.target.closest('tr');
+    if (tbody.querySelectorAll('tr').length > 1) {
+      row.remove();
+      recalcTotal();
+    } else {
+      row.querySelectorAll('input').forEach(function(i) { i.value = ''; });
+      recalcTotal();
+    }
+  }
+});
+
+tbody.addEventListener('input', function(e) {
+  if (e.target.classList.contains('li-qty') || e.target.classList.contains('li-price')) {
+    recalcTotal();
+  }
+});
+
+// -- Dynamic Properties --
+var clientSel = document.getElementById('client_id');
+var propsDiv  = document.getElementById('properties-container');
+
+function loadProperties(clientId) {
+  if (!clientId) {
+    propsDiv.innerHTML = '<p style="color:var(--color-text-muted);margin:0;">Select a client above to see available properties.</p>';
+    return;
+  }
+  fetch('/contracts/api/client-properties/' + clientId)
+    .then(function(r) { return r.json(); })
+    .then(function(props) {
+      if (!props.length) {
+        propsDiv.innerHTML = '<p style="color:var(--color-text-muted);margin:0;">No properties found for this client.</p>';
+        return;
+      }
+      propsDiv.innerHTML = props.map(function(p) {
+        return '<label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;cursor:pointer;">'
+          + '<input type="checkbox" name="property_ids" value="' + p.id + '" style="accent-color:var(--color-accent);">'
+          + '<span style="font-size:var(--font-size-sm);">' + (p.name || p.address) + '</span></label>';
+      }).join('');
+    })
+    .catch(function() {
+      propsDiv.innerHTML = '<p style="color:var(--color-danger);margin:0;">Error loading properties.</p>';
+    });
+}
+
+clientSel.addEventListener('change', function() { loadProperties(clientSel.value); });
+
+// -- SLA card highlight toggle --
+document.querySelectorAll('.sla-checkbox').forEach(function(cb) {
+  cb.addEventListener('change', function() {
+    var card = document.getElementById(cb.dataset.card);
+    if (cb.checked) {
+      card.style.background = 'rgba(13,148,136,0.04)';
+    } else {
+      card.style.background = '';
+    }
+  });
+});
+
+// -- Initial total calculation --
+recalcTotal();
+</script>
+{% endblock %}

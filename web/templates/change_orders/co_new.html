@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}{% if co %}Edit{% else %}New{% endif %} Change Order — {{ job.job_number }}{% endblock %}
+{% block page_title %}{% if co %}Edit Change Order{% else %}New Change Order{% endif %}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/phases.css') }}">
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb" style="margin: 0;">
+    <li class="breadcrumb-item"><a href="{{ url_for('jobs_page') }}">Jobs</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('job_detail', job_id=job.id) }}">{{ job.job_number }}</a></li>
+    <li class="breadcrumb-item active">{% if co %}{{ co.change_order_number }}{% else %}New CO{% endif %}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-4);">
+
+  <!-- Left: Form -->
+  <div>
+    <div class="card">
+      <div class="card-header" style="background: var(--color-warning); color: #000;">
+        <h3 class="card-title" style="color: #000; margin: 0;">
+          <i class="bi bi-file-diff"></i>
+          {% if co %}Edit {{ co.change_order_number }}{% else %}New Change Order{% endif %}
+        </h3>
+      </div>
+      <div class="card-body">
+        <form method="POST" id="coForm">
+          <!-- Basic Info -->
+          <div style="display: grid; gap: var(--space-3); margin-bottom: var(--space-4);">
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Title <span style="color: var(--color-danger);">*</span></label>
+              <input type="text" name="title" class="form-control" required value="{{ co.title if co else '' }}"
+                     placeholder="e.g., Additional electrical panel upgrade">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label">Reason <span style="color: var(--color-danger);">*</span></label>
+                <select name="reason" class="form-control" required>
+                  {% for r in reasons %}<option value="{{ r.value }}" {{ 'selected' if co and co.reason == r.value }}>{{ r.value | replace('_', ' ') | title }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label">Requested By <span style="color: var(--color-danger);">*</span></label>
+                <select name="requested_by" class="form-control" required>
+                  {% for rb in requested_bys %}<option value="{{ rb.value }}" {{ 'selected' if co and co.requested_by == rb.value }}>{{ rb.value | replace('_', ' ') | title }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label">Request Date</label>
+                <input type="date" name="requested_date" class="form-control" value="{{ co.requested_date.isoformat() if co and co.requested_date else today.isoformat() }}">
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label">Affects Phase</label>
+                <select name="phase_id" class="form-control">
+                  <option value="">-- No specific phase --</option>
+                  {% for phase in phases %}<option value="{{ phase.id }}" {{ 'selected' if co and co.phase_id == phase.id }}>Phase {{ phase.phase_number }}: {{ phase.title }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Description <span style="color: var(--color-danger);">*</span></label>
+              <textarea name="description" class="form-control" rows="4" required placeholder="Detailed description of what is changing and why...">{{ co.description if co else '' }}</textarea>
+            </div>
+          </div>
+
+          <!-- Line Items -->
+          <h6 style="font-weight: var(--font-weight-semibold); color: var(--color-text-muted); margin-bottom: var(--space-2);"><i class="bi bi-list-ul"></i> Line Items</h6>
+          <div class="fsp-table-wrapper" style="margin-bottom: var(--space-3);">
+            <table class="fsp-table" id="coLineItemsTable">
+              <thead>
+                <tr><th style="width:40%">Description</th><th style="width:10%;text-align:center;">Qty</th><th style="width:15%;text-align:center;">Unit Price</th><th style="width:15%;text-align:right;">Total</th><th style="width:12%;text-align:center;">Add?</th><th style="width:8%"></th></tr>
+              </thead>
+              <tbody id="lineItemsBody">
+                {% if co and co.line_items %}
+                {% for item in co.line_items %}
+                <tr class="line-item-row">
+                  <td><input type="text" name="li_description[]" class="form-control" value="{{ item.description }}" required></td>
+                  <td><input type="number" name="li_qty[]" class="form-control qty-input" value="{{ item.quantity }}" step="0.01" min="0.01" style="text-align:right;"></td>
+                  <td><input type="number" name="li_unit_price[]" class="form-control price-input" value="{{ item.unit_price }}" step="0.01" min="0" style="text-align:right;"></td>
+                  <td style="text-align:right;font-weight:var(--font-weight-semibold);" class="line-total">${{ "{:,.2f}".format(item.line_total) }}</td>
+                  <td style="text-align:center;"><input type="checkbox" name="li_is_addition[]" value="{{ loop.index0 }}" {{ 'checked' if item.is_addition }} style="accent-color:var(--color-accent);"></td>
+                  <td><button type="button" class="btn btn-sm btn-ghost remove-line-item" style="color:var(--color-danger);"><i class="bi bi-x-lg"></i></button></td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr class="line-item-row">
+                  <td><input type="text" name="li_description[]" class="form-control" placeholder="Describe work or material..." required></td>
+                  <td><input type="number" name="li_qty[]" class="form-control qty-input" value="1" step="0.01" style="text-align:right;"></td>
+                  <td><input type="number" name="li_unit_price[]" class="form-control price-input" value="0" step="0.01" style="text-align:right;"></td>
+                  <td style="text-align:right;font-weight:var(--font-weight-semibold);" class="line-total">$0.00</td>
+                  <td style="text-align:center;"><input type="checkbox" name="li_is_addition[]" value="0" checked style="accent-color:var(--color-accent);"></td>
+                  <td><button type="button" class="btn btn-sm btn-ghost remove-line-item" style="color:var(--color-danger);"><i class="bi bi-x-lg"></i></button></td>
+                </tr>
+                {% endif %}
+              </tbody>
+              <tfoot>
+                <tr><td colspan="3" style="text-align:right;font-weight:var(--font-weight-semibold);">Additions:</td><td style="text-align:right;color:var(--color-success);font-weight:var(--font-weight-bold);" id="additionsTotal">$0.00</td><td colspan="2"></td></tr>
+                <tr><td colspan="3" style="text-align:right;font-weight:var(--font-weight-semibold);">Deductions:</td><td style="text-align:right;color:var(--color-danger);font-weight:var(--font-weight-bold);" id="deductionsTotal">$0.00</td><td colspan="2"></td></tr>
+                <tr style="background:rgba(245,158,11,0.08);"><td colspan="3" style="text-align:right;font-weight:var(--font-weight-bold);">Net Change:</td><td style="text-align:right;font-weight:var(--font-weight-bold);" id="netChange">$0.00</td><td colspan="2"></td></tr>
+              </tfoot>
+            </table>
+          </div>
+          <button type="button" id="addLineItemBtn" class="btn btn-sm btn-ghost" style="margin-bottom:var(--space-4);"><i class="bi bi-plus-lg"></i> Add Line Item</button>
+
+          <!-- Cost Summary -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4);">
+            <div class="form-group" style="margin:0;"><label class="form-label">Original Amount</label><input type="number" name="original_amount" class="form-control" step="0.01" value="{{ co.original_amount if co else (job.estimated_amount or 0) }}"></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Revised Amount</label><input type="number" name="revised_amount" class="form-control" step="0.01" id="revisedAmount" value="{{ co.revised_amount if co else '' }}"></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Labor Hours Impact</label><input type="number" name="labor_hours_impact" class="form-control" step="0.5" value="{{ co.labor_hours_impact if co else 0 }}"></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4);">
+            <div class="form-group" style="margin:0;"><label class="form-label">Cost Type</label>
+              <select name="cost_type" class="form-control">{% for ct in cost_types %}<option value="{{ ct.value }}" {{ 'selected' if co and co.cost_type == ct.value }}>{{ ct.value | replace('_', ' ') | title }}</option>{% endfor %}</select>
+            </div>
+            <div style="display:flex;align-items:center;padding-top:1.5rem;">
+              <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                <input type="checkbox" name="requires_client_approval" value="1" style="accent-color:var(--color-accent);" {{ 'checked' if not co or co.requires_client_approval }}>
+                Requires Client Approval
+              </label>
+            </div>
+          </div>
+
+          <!-- New Phase Option -->
+          <div style="padding:var(--space-3);background:rgba(13,148,136,0.04);border-radius:var(--radius-md);border:1px solid var(--color-border);margin-bottom:var(--space-4);">
+            <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+              <input type="checkbox" name="creates_new_phase" value="1" id="createsNewPhase" style="accent-color:var(--color-accent);" {{ 'checked' if co and co.creates_new_phase }}
+                     onchange="document.getElementById('newPhaseRow').style.display=this.checked?'':'none'">
+              <strong>This change order creates a new phase</strong>
+            </label>
+            <div id="newPhaseRow" style="display:{{ '' if co and co.creates_new_phase else 'none' }};margin-top:var(--space-2);">
+              <input type="text" name="new_phase_title" class="form-control" value="{{ co.new_phase_title if co else '' }}" placeholder="New phase title">
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+            <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-ghost">Cancel</a>
+            <button type="submit" name="action" value="draft" class="btn btn-ghost"><i class="bi bi-floppy"></i> Save Draft</button>
+            <button type="submit" name="action" value="submit" class="btn btn-warning"><i class="bi bi-send"></i> Submit for Approval</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Cost Context -->
+  <div>
+    <div class="card" style="margin-bottom:var(--space-3);">
+      <div class="card-header"><h3 class="card-title" style="font-size:var(--font-size-sm);"><i class="bi bi-calculator"></i> Job Cost Context</h3></div>
+      <div class="card-body" style="font-size:var(--font-size-sm);">
+        <div class="perf-fin-rows">
+          <div class="perf-fin-row"><span>Original Estimate</span><span class="money">${{ "{:,.2f}".format(job.original_estimated_cost or job.estimated_amount or 0) }}</span></div>
+          {% if job.total_change_orders > 0 %}
+          <div class="perf-fin-row"><span>Approved COs ({{ job.total_change_orders }})</span><span class="money {% if job.total_change_order_value >= 0 %}money-green{% else %}money-red{% endif %}">{{ '+' if job.total_change_order_value >= 0 }}${{ "{:,.2f}".format(job.total_change_order_value) }}</span></div>
+          {% endif %}
+          <div class="perf-fin-row" style="border-top:1px solid var(--color-border);padding-top:var(--space-2);"><span style="font-weight:var(--font-weight-semibold);">Current Total</span><span class="money" style="font-weight:var(--font-weight-bold);">${{ "{:,.2f}".format(job.current_contract_value) }}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--color-warning);">
+      <div class="card-header"><h3 class="card-title" style="font-size:var(--font-size-sm);"><i class="bi bi-graph-up-arrow"></i> This CO Impact</h3></div>
+      <div class="card-body" style="font-size:var(--font-size-sm);">
+        <div class="perf-fin-rows">
+          <div class="perf-fin-row"><span>Additions</span><span class="money money-green" id="sideAdditions">$0.00</span></div>
+          <div class="perf-fin-row"><span>Deductions</span><span class="money money-red" id="sideDeductions">$0.00</span></div>
+          <div class="perf-fin-row" style="border-top:1px solid var(--color-border);padding-top:var(--space-2);"><span style="font-weight:var(--font-weight-semibold);">Net Change</span><span style="font-weight:var(--font-weight-bold);" id="sideNetChange">$0.00</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var rowIdx = {{ (co.line_items|length if co and co.line_items else 1) }};
+var JOB_CURRENT_TOTAL = {{ job.current_contract_value }};
+
+function recalcCO() {
+  var additions = 0, deductions = 0;
+  document.querySelectorAll('.line-item-row').forEach(function(row, i) {
+    var qty = parseFloat(row.querySelector('.qty-input') ? row.querySelector('.qty-input').value : 1) || 0;
+    var price = parseFloat(row.querySelector('.price-input') ? row.querySelector('.price-input').value : 0) || 0;
+    var isAdd = row.querySelector('[name="li_is_addition[]"]') ? row.querySelector('[name="li_is_addition[]"]').checked : true;
+    var total = qty * price;
+    var totalEl = row.querySelector('.line-total');
+    if (totalEl) totalEl.textContent = '$' + total.toFixed(2);
+    row.querySelector('[name="li_is_addition[]"]').value = i;
+    if (isAdd) additions += total; else deductions += total;
+  });
+  var net = additions - deductions;
+  setText('additionsTotal', '$' + additions.toFixed(2));
+  setText('deductionsTotal', '-$' + deductions.toFixed(2));
+  setText('netChange', (net >= 0 ? '+' : '') + '$' + net.toFixed(2));
+  setText('sideAdditions', '$' + additions.toFixed(2));
+  setText('sideDeductions', '-$' + deductions.toFixed(2));
+  setText('sideNetChange', (net >= 0 ? '+' : '') + '$' + net.toFixed(2));
+}
+
+function setText(id, text) { var el = document.getElementById(id); if (el) el.textContent = text; }
+
+function addRow() {
+  var tbody = document.getElementById('lineItemsBody');
+  var tr = document.createElement('tr');
+  tr.className = 'line-item-row';
+  tr.innerHTML = '<td><input type="text" name="li_description[]" class="form-control" placeholder="Description" required></td>'
+    + '<td><input type="number" name="li_qty[]" class="form-control qty-input" value="1" step="0.01" style="text-align:right;"></td>'
+    + '<td><input type="number" name="li_unit_price[]" class="form-control price-input" value="0" step="0.01" style="text-align:right;"></td>'
+    + '<td style="text-align:right;font-weight:var(--font-weight-semibold);" class="line-total">$0.00</td>'
+    + '<td style="text-align:center;"><input type="checkbox" name="li_is_addition[]" value="' + rowIdx + '" checked style="accent-color:var(--color-accent);"></td>'
+    + '<td><button type="button" class="btn btn-sm btn-ghost remove-line-item" style="color:var(--color-danger);"><i class="bi bi-x-lg"></i></button></td>';
+  tbody.appendChild(tr);
+  rowIdx++;
+  bindRow(tr);
+}
+
+function bindRow(row) {
+  row.querySelectorAll('input').forEach(function(inp) { inp.addEventListener('input', recalcCO); });
+  var rmBtn = row.querySelector('.remove-line-item');
+  if (rmBtn) rmBtn.addEventListener('click', function() { row.remove(); recalcCO(); });
+}
+
+document.querySelectorAll('.line-item-row').forEach(bindRow);
+document.getElementById('addLineItemBtn').addEventListener('click', addRow);
+recalcCO();
+</script>
+{% endblock %}

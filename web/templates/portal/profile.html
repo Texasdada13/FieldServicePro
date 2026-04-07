@@ -1,0 +1,114 @@
+{% extends "portal/base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <h1>My Profile</h1>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="portal-card">
+            <div class="card-header"><i class="bi bi-person"></i> Profile Information</div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:600;font-size:0.85rem;">First Name</label>
+                            <input type="text" class="form-control" name="first_name" value="{{ user.first_name }}" required
+                                   style="border-radius:var(--portal-radius);">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:600;font-size:0.85rem;">Last Name</label>
+                            <input type="text" class="form-control" name="last_name" value="{{ user.last_name }}" required
+                                   style="border-radius:var(--portal-radius);">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight:600;font-size:0.85rem;">Email</label>
+                        <input type="email" class="form-control" value="{{ user.email }}" disabled
+                               style="background:#f1f5f9;border-radius:var(--portal-radius);">
+                        <div class="form-text">Contact your service provider to change your email.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight:600;font-size:0.85rem;">Phone</label>
+                        <input type="tel" class="form-control" name="phone" value="{{ user.phone or '' }}"
+                               style="border-radius:var(--portal-radius);">
+                    </div>
+
+                    <hr>
+                    <h6 style="font-weight:600;">Change Password</h6>
+                    <p class="text-muted" style="font-size:0.85rem;">Leave blank to keep your current password.</p>
+
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight:600;font-size:0.85rem;">Current Password</label>
+                        <input type="password" class="form-control" name="current_password"
+                               style="border-radius:var(--portal-radius);">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight:600;font-size:0.85rem;">New Password</label>
+                        <input type="password" class="form-control" name="new_password" minlength="8"
+                               style="border-radius:var(--portal-radius);">
+                        <div class="form-text">Min 8 characters, at least one letter and one number.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight:600;font-size:0.85rem;">Confirm New Password</label>
+                        <input type="password" class="form-control" name="confirm_password"
+                               style="border-radius:var(--portal-radius);">
+                    </div>
+
+                    <button type="submit" class="btn btn-portal btn-portal-primary">
+                        <i class="bi bi-check-circle"></i> Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="portal-card">
+            <div class="card-header"><i class="bi bi-info-circle"></i> Account Details</div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0" style="font-size:0.9rem;">
+                    <tr>
+                        <td class="text-muted" style="width:40%;">Organization</td>
+                        <td class="fw-semibold">{{ user.client.display_name if user.client else '' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Role</td>
+                        <td><span class="portal-badge approved">{{ user.role_label }}</span></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Last Login</td>
+                        <td>{{ user.last_login.strftime('%b %d, %Y at %I:%M %p') if user.last_login else 'Never' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Member Since</td>
+                        <td>{{ user.created_at.strftime('%b %d, %Y') if user.created_at else '' }}</td>
+                    </tr>
+                    {% if user.accessible_properties %}
+                    <tr>
+                        <td class="text-muted">Property Access</td>
+                        <td>
+                            {% for prop in user.accessible_properties %}
+                            <span class="badge bg-light text-dark">{{ prop.display_address }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td class="text-muted">Property Access</td>
+                        <td>All Properties</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

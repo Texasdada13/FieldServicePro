@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Portal Users — {{ client.display_name }}{% endblock %}
+{% block page_title %}Portal Users{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-3);">
+    <a href="{{ url_for('client_detail', client_id=client.id) }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);">
+        <i class="bi bi-arrow-left"></i> Back to {{ client.display_name }}
+    </a>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <h2 style="margin:0;">Portal Users — {{ client.display_name }}</h2>
+    <a href="{{ url_for('portal_admin.create_portal_user', client_id=client.id) }}" class="btn btn-accent">
+        <i class="bi bi-plus-circle"></i> Create Portal User
+    </a>
+</div>
+
+{% if portal_users %}
+<div class="card">
+    <div style="overflow-x:auto;">
+        <table class="table" style="width:100%;margin:0;">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Last Login</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pu in portal_users %}
+                <tr>
+                    <td style="font-weight:500;">{{ pu.full_name }}</td>
+                    <td>{{ pu.email }}</td>
+                    <td><span class="badge" style="background:var(--color-surface-raised);color:var(--color-text-secondary);">{{ pu.role_label }}</span></td>
+                    <td>
+                        {% if pu.is_active %}
+                        <span class="badge" style="background:var(--color-success);color:#fff;">Active</span>
+                        {% else %}
+                        <span class="badge" style="background:var(--color-danger);color:#fff;">Disabled</span>
+                        {% endif %}
+                        {% if not pu.invitation_accepted and pu.invitation_token %}
+                        <span class="badge" style="background:var(--color-warning);color:#000;">Pending Setup</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:var(--font-size-sm);">{{ pu.last_login.strftime('%b %d, %Y') if pu.last_login else 'Never' }}</td>
+                    <td>
+                        <div style="display:flex;gap:var(--space-1);">
+                            <form method="POST" action="{{ url_for('portal_admin.toggle_portal_user', user_id=pu.id) }}" style="display:inline;">
+                                <button class="btn btn-ghost" style="font-size:var(--font-size-sm);color:{% if pu.is_active %}var(--color-danger){% else %}var(--color-success){% endif %};">
+                                    {{ 'Disable' if pu.is_active else 'Enable' }}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('portal_admin.reset_portal_user_password', user_id=pu.id) }}" style="display:inline;">
+                                <button class="btn btn-ghost" style="font-size:var(--font-size-sm);">Reset Password</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card" style="padding:var(--space-6);text-align:center;">
+    <p style="color:var(--color-text-muted);">No portal users yet. Create one to give this client access to the portal.</p>
+    <a href="{{ url_for('portal_admin.create_portal_user', client_id=client.id) }}" class="btn btn-accent">
+        <i class="bi bi-plus-circle"></i> Create Portal User
+    </a>
+</div>
+{% endif %}
+{% endblock %}

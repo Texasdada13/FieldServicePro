@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Client Portal Settings{% endblock %}
+{% block page_title %}Client Portal Settings{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+    <form method="POST">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+            <!-- Left: General -->
+            <div>
+                <div class="card" style="margin-bottom:var(--space-3);">
+                    <div class="card-header"><h3 class="card-title">General</h3></div>
+                    <div class="card-body">
+                        <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3);">
+                            <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                                <input type="checkbox" name="portal_enabled" style="accent-color:var(--color-accent);"
+                                       {{ 'checked' if settings.portal_enabled }}>
+                                <strong>Enable Client Portal</strong>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Session Timeout (minutes)</label>
+                            <input type="number" name="session_timeout_minutes" class="form-control"
+                                   value="{{ settings.session_timeout_minutes }}" min="5" max="480" style="max-width:120px;">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Welcome Message</label>
+                            <textarea name="welcome_message" class="form-control" rows="3">{{ settings.welcome_message or '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Payment Instructions</label>
+                            <textarea name="payment_instructions" class="form-control" rows="3">{{ settings.payment_instructions or '' }}</textarea>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">Footer Contact Info</label>
+                            <textarea name="company_contact_info" class="form-control" rows="2">{{ settings.company_contact_info or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Features + Email -->
+            <div>
+                <div class="card" style="margin-bottom:var(--space-3);">
+                    <div class="card-header"><h3 class="card-title">Features</h3></div>
+                    <div class="card-body">
+                        {% for field, label in [
+                            ('allow_service_requests', 'Allow Service Requests'),
+                            ('allow_quote_approval', 'Allow Quote Approval'),
+                            ('allow_change_order_approval', 'Allow Change Order Approval'),
+                            ('auto_convert_approved_quotes', 'Auto-convert Approved Quotes to Jobs'),
+                        ] %}
+                        <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-2);">
+                            <input type="checkbox" name="{{ field }}" style="accent-color:var(--color-accent);"
+                                   {{ 'checked' if settings[field] is defined and settings[field] else 'checked' if getattr(settings, field, False) }}>
+                            {{ label }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">Email Notifications</h3></div>
+                    <div class="card-body">
+                        {% for field, label in [
+                            ('email_on_service_request', 'New Service Request'),
+                            ('email_on_quote_approval', 'Quote Approved/Changed'),
+                            ('email_on_co_approval', 'Change Order Approved/Rejected'),
+                            ('email_on_portal_message', 'New Portal Message'),
+                            ('email_on_job_status_change', 'Job Status Change'),
+                            ('email_on_invoice_issued', 'Invoice Issued'),
+                        ] %}
+                        <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-2);">
+                            <input type="checkbox" name="{{ field }}" style="accent-color:var(--color-accent);"
+                                   {{ 'checked' if getattr(settings, field, False) }}>
+                            {{ label }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:var(--space-4);">
+            <button type="submit" class="btn btn-accent">
+                <i class="bi bi-check-circle"></i> Save Settings
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

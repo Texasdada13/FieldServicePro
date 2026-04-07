@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}PO {{ po.po_number }}{% endblock %}
+{% block page_title %}PO {{ po.po_number }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb" style="margin: 0;">
+    <li class="breadcrumb-item"><a href="{{ url_for('purchase_orders.po_list') }}">Purchase Orders</a></li>
+    <li class="breadcrumb-item active">{{ po.po_number }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="detail-header">
+  <div class="detail-header-left">
+    <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1);">
+      <span class="badge badge-{{ po.status_badge_class }}" style="font-size: var(--font-size-sm);">{{ po.status|upper }}</span>
+    </div>
+    <p style="color: var(--color-text-secondary); margin: 0;">
+      {{ po.client.display_name if po.client else '---' }}
+      {% if po.department %} · <span class="badge badge-draft">{{ po.department }}</span>{% endif %}
+      {% if po.cost_code %} · <code style="font-size: var(--font-size-xs);">{{ po.cost_code }}</code>{% endif %}
+    </p>
+  </div>
+  <div class="detail-header-right">
+    {% if user.role in ('owner', 'admin') %}
+    <a href="{{ url_for('purchase_orders.po_edit', po_id=po.id) }}" class="btn btn-ghost"><i class="bi bi-pencil"></i> Edit</a>
+    {% if po.status != 'cancelled' %}
+    <form method="POST" action="{{ url_for('purchase_orders.po_cancel', po_id=po.id) }}" onsubmit="return confirm('Cancel this PO?');" style="display: inline;">
+      <button type="submit" class="btn btn-ghost" style="color: var(--color-danger);"><i class="bi bi-x-circle"></i> Cancel PO</button>
+    </form>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<div class="detail-grid">
+  <!-- Left: Balance + Details -->
+  <div class="detail-main">
+    <!-- Balance Card -->
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header"><h3 class="card-title"><i class="bi bi-bar-chart" style="color: var(--color-text-secondary);"></i> Balance Summary</h3></div>
+      <div class="card-body">
+        <div style="margin-bottom: var(--space-3);">
+          <div style="display: flex; justify-content: space-between; font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: 4px;">
+            <span>Utilized</span><span>{{ "%.1f"|format(po.utilization_percentage) }}%</span>
+          </div>
+          <div style="height: 10px; background: var(--color-border); border-radius: var(--radius-full); overflow: hidden;">
+            <div style="height: 100%; width: {{ po.utilization_percentage }}%; background: {% if po.utilization_percentage >= 90 %}var(--color-danger){% elif po.utilization_percentage >= 70 %}var(--color-warning){% else %}var(--color-success){% endif %}; border-radius: var(--radius-full);"></div>
+          </div>
+        </div>
+        <div class="perf-fin-rows">
+          <div class="perf-fin-row"><span>Authorized</span><span class="money" style="font-weight: var(--font-weight-semibold);">${{ "{:,.2f}".format(po.amount_authorized) }}</span></div>
+          <div class="perf-fin-row"><span>Used</span><span class="money money-red">${{ "{:,.2f}".format(po.amount_used) }}</span></div>
+          <div class="perf-fin-row" style="border-top: 1px solid var(--color-border); padding-top: var(--space-2); margin-top: var(--space-2);">
+            <span style="font-weight: var(--font-weight-semibold);">Remaining</span>
+            <span class="money {% if po.amount_remaining <= 0 %}money-red{% else %}money-green{% endif %}" style="font-weight: var(--font-weight-bold);">${{ "{:,.2f}".format(po.amount_remaining) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Linked Invoices -->
+    <div class="card" style="margin-bottom: var(--space-4);">
+      <div class="card-header" style="display: flex; justify-content: space-between;">
+        <h3 class="card-title"><i class="bi bi-receipt" style="color: var(--color-text-secondary);"></i> Linked Invoices</h3>
+        <span class="badge badge-draft">{{ linked_invoices|length }}</span>
+      </div>
+      <div class="card-body" style="padding: 0;">
+        {% if linked_invoices %}
+        <div class="fsp-table-wrapper" style="border: none; border-radius: 0;">
+          <table class="fsp-table">
+            <thead>
+              <tr><th>Invoice #</th><th>Date</th><th style="text-align:right;">Amount</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for inv in linked_invoices %}
+              <tr>
+                <td style="font-weight: var(--font-weight-semibold);">
+                  <a href="{{ url_for('invoice_detail', invoice_id=inv.id) }}">{{ inv.invoice_number }}</a>
+                </td>
+                <td style="font-size: var(--font-size-xs);">{{ inv.issued_date.strftime('%b %d, %Y') if inv.issued_date else '---' }}</td>
+                <td class="col-number">${{ "{:,.2f}".format(inv.total or 0) }}</td>
+                <td><span class="badge badge-{{ inv.status }}">{{ inv.status|title }}</span></td>
+                <td><a href="{{ url_for('invoice_detail', invoice_id=inv.id) }}" class="btn btn-sm btn-ghost">View</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr style="background: var(--color-surface-raised);">
+                <td colspan="2" style="text-align: right; font-weight: var(--font-weight-semibold);">Total</td>
+                <td class="col-number" style="font-weight: var(--font-weight-bold);">${{ "{:,.2f}".format(linked_invoices|sum(attribute='total')|float) }}</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding: var(--space-6);"><p style="margin: 0;">No invoices linked to this PO yet.</p></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right sidebar -->
+  <div class="detail-sidebar">
+    <!-- Details -->
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Details</h3></div>
+      <div class="card-body">
+        <div style="font-size: var(--font-size-sm); display: grid; grid-template-columns: auto 1fr; gap: 4px var(--space-3);">
+          <span style="color: var(--color-text-muted);">Client</span>
+          <a href="{{ url_for('client_detail', client_id=po.client_id) }}">{{ po.client.display_name if po.client else '---' }}</a>
+          <span style="color: var(--color-text-muted);">Issue Date</span>
+          <span>{{ po.issue_date.strftime('%b %d, %Y') }}</span>
+          <span style="color: var(--color-text-muted);">Expiry</span>
+          <span style="{% if po.is_expired %}color: var(--color-danger); font-weight: var(--font-weight-semibold);{% endif %}">
+            {{ po.expiry_date.strftime('%b %d, %Y') if po.expiry_date else 'No expiry' }}
+          </span>
+          {% if po.contract %}
+          <span style="color: var(--color-text-muted);">Contract</span>
+          <a href="{{ url_for('contracts.contract_detail', contract_id=po.contract_id) }}">{{ po.contract.title }}</a>
+          {% endif %}
+          <span style="color: var(--color-text-muted);">Created</span>
+          <span>{{ po.created_at.strftime('%b %d, %Y') }}</span>
+        </div>
+      </div>
+    </div>
+
+    {% if po.description %}
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Description</h3></div>
+      <div class="card-body"><p style="margin: 0; white-space: pre-wrap; font-size: var(--font-size-sm);">{{ po.description }}</p></div>
+    </div>
+    {% endif %}
+
+    {% if po.notes %}
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Notes</h3></div>
+      <div class="card-body"><p style="margin: 0; white-space: pre-wrap; font-size: var(--font-size-sm);">{{ po.notes }}</p></div>
+    </div>
+    {% endif %}
+
+    <!-- Attachments -->
+    <div class="card">
+      <div class="card-header" style="display: flex; justify-content: space-between;">
+        <h3 class="card-title">Attachments</h3>
+        {% if user.role in ('owner', 'admin', 'dispatcher') %}
+        <button class="btn btn-sm btn-ghost" onclick="document.getElementById('uploadSection').style.display='block'">
+          <i class="bi bi-upload"></i> Upload
+        </button>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div id="uploadSection" style="display: none; margin-bottom: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border);">
+          <form method="POST" action="{{ url_for('purchase_orders.po_upload_attachment', po_id=po.id) }}" enctype="multipart/form-data">
+            <div class="form-group" style="margin-bottom: var(--space-2);">
+              <input type="file" name="attachment" class="form-control" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff">
+            </div>
+            <div class="form-group" style="margin-bottom: var(--space-2);">
+              <input type="text" name="notes" class="form-control" placeholder="Notes (optional)" style="font-size: var(--font-size-sm);">
+            </div>
+            <button type="submit" class="btn btn-sm btn-accent">Upload</button>
+          </form>
+        </div>
+        {% if po.attachments %}
+        {% for att in po.attachments %}
+        <div style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border-light);">
+          <i class="bi bi-file-earmark" style="color: var(--color-accent);"></i>
+          <div style="flex: 1;">
+            <div style="font-size: var(--font-size-sm); font-weight: var(--font-weight-medium);">{{ att.original_filename }}</div>
+            {% if att.file_size %}<div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">{{ (att.file_size / 1024)|int }} KB{% if att.notes %} · {{ att.notes }}{% endif %}</div>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="color: var(--color-text-muted); font-size: var(--font-size-sm); margin: 0;">No attachments. Upload the original PO document.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

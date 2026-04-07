@@ -1,0 +1,107 @@
+{# web/templates/partials/_invoice_commercial_fields.html #}
+{# Included via {% include 'partials/_invoice_commercial_fields.html' %} #}
+{# Shared by invoice_new.html and invoice_edit.html #}
+{# Expects: invoice (Invoice object or None) from parent template #}
+
+<div id="commercial-fields"
+     {% if not (invoice and invoice.is_commercial) %}style="display: none;"{% endif %}>
+  <div class="card" style="margin-bottom: var(--space-4); background: var(--color-surface-raised);">
+    <div class="card-body">
+      <h6 style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-3);">
+        <i class="bi bi-building" style="color: var(--color-accent);"></i>
+        Purchase Order &amp; Commercial Billing
+      </h6>
+
+      <div id="po-require-warning" style="display: none; padding: var(--space-2) var(--space-3); background: rgba(245,158,11,0.08); border-radius: var(--radius-md); margin-bottom: var(--space-3); font-size: var(--font-size-sm); color: var(--color-warning-dark);">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        This client requires a PO number on all invoices.
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label" style="font-weight: var(--font-weight-semibold);">Purchase Order</label>
+          <select class="form-control" id="po_id" name="po_id"
+                  data-current-po="{{ invoice.po_id if invoice else '' }}">
+            <option value="">-- No PO --</option>
+            {% if invoice and invoice.purchase_order %}
+            <option value="{{ invoice.po_id }}" selected
+                    data-po='{{ invoice.purchase_order.to_selector_dict()|tojson }}'>
+              {{ invoice.purchase_order.po_number }} -- ${{ "%.2f"|format(invoice.purchase_order.amount_remaining) }} remaining
+            </option>
+            {% endif %}
+          </select>
+          <div id="po-balance-warning" style="display: none; padding: var(--space-2); background: rgba(245,158,11,0.08); border-radius: var(--radius-sm); margin-top: var(--space-2); font-size: var(--font-size-xs); color: var(--color-warning-dark);"></div>
+          <div id="po-error-msg" style="display: none; padding: var(--space-2); background: var(--color-danger-light); border-radius: var(--radius-sm); margin-top: var(--space-2); font-size: var(--font-size-xs); color: var(--color-danger-dark);"></div>
+        </div>
+        <div id="po-balance-panel" style="{% if not (invoice and invoice.po_id) %}display: none;{% endif %}">
+          <label class="form-label" style="font-weight: var(--font-weight-semibold);">PO Balance</label>
+          <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); background: var(--color-surface);">
+            <div style="display: flex; justify-content: space-between; font-size: var(--font-size-sm); margin-bottom: 4px;">
+              <span style="color: var(--color-text-muted);">Authorized</span>
+              <strong id="po-authorized">--</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: var(--font-size-sm); margin-bottom: 4px;">
+              <span style="color: var(--color-text-muted);">Used</span>
+              <span id="po-used" style="color: var(--color-danger);">--</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: var(--font-size-sm); margin-bottom: var(--space-2);">
+              <span style="color: var(--color-text-muted);">Remaining</span>
+              <span id="po-remaining" style="font-weight: var(--font-weight-bold); color: var(--color-success);">--</span>
+            </div>
+            <div style="height: 6px; background: var(--color-border); border-radius: var(--radius-full); overflow: hidden;">
+              <div id="po-progress" style="height: 100%; width: 0%; background: var(--color-success); border-radius: var(--radius-full); transition: width 0.3s;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-3); margin-top: var(--space-3);">
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Cost Code / GL Code</label>
+          <input type="text" class="form-control" id="cost_code" name="cost_code"
+                 value="{{ invoice.cost_code if invoice else '' }}" placeholder="e.g. MAINT-2025">
+        </div>
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Department</label>
+          <input type="text" class="form-control" id="department" name="department"
+                 value="{{ invoice.department if invoice else '' }}" placeholder="e.g. Facilities">
+        </div>
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Billing Contact</label>
+          <input type="text" class="form-control" id="billing_contact" name="billing_contact"
+                 value="{{ invoice.billing_contact if invoice else '' }}" placeholder="Name or email">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--space-3); margin-top: var(--space-3); align-items: end;">
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label" style="font-weight: var(--font-weight-semibold);">Payment Terms</label>
+          <select class="form-control" id="payment_terms" name="payment_terms">
+            {% set terms_map = [('due_on_receipt','Due on Receipt'),('net_15','Net 15'),
+                                ('net_30','Net 30'),('net_45','Net 45'),('net_60','Net 60'),
+                                ('net_90','Net 90'),('custom','Custom...')] %}
+            {% for val, lbl in terms_map %}
+            <option value="{{ val }}"
+              {% if invoice and invoice.payment_terms == val %}selected
+              {% elif (not invoice or not invoice.payment_terms) and val == 'net_30' %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div id="custom-days-wrapper" style="{% if not (invoice and invoice.payment_terms == 'custom') %}display: none;{% endif %}">
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Days</label>
+            <input type="number" class="form-control" id="custom_payment_days"
+                   name="custom_payment_days" min="1" max="365" style="width: 80px;"
+                   value="{{ invoice.custom_payment_days if invoice else '' }}">
+          </div>
+        </div>
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Due Date</label>
+          <input type="date" class="form-control" id="due_date" name="due_date"
+                 value="{{ invoice.due_date.isoformat() if invoice and invoice.due_date else '' }}">
+          <div class="form-text">Auto-calculated from invoice date + terms</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

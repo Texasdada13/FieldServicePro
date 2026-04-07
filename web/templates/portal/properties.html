@@ -1,0 +1,111 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Properties{% endblock %}
+
+{% block content %}
+<div class="portal-page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+        <h1>Properties</h1>
+        <p class="text-muted mb-0">{{ properties|length }} propert{{ 'y' if properties|length == 1 else 'ies' }}</p>
+    </div>
+    <div class="btn-group" role="group">
+        <a href="?view=grid" class="btn btn-sm {% if view_mode == 'grid' %}btn-portal-primary{% else %}btn-portal-outline{% endif %}">
+            <i class="bi bi-grid-3x3-gap"></i>
+        </a>
+        <a href="?view=list" class="btn btn-sm {% if view_mode == 'list' %}btn-portal-primary{% else %}btn-portal-outline{% endif %}">
+            <i class="bi bi-list-ul"></i>
+        </a>
+    </div>
+</div>
+
+{% if properties %}
+    {% if view_mode == 'grid' %}
+    <div class="row g-3">
+        {% for prop in properties %}
+        {% set stats = property_stats.get(prop.id, {}) %}
+        <div class="col-md-6 col-xl-4">
+            <a href="{{ url_for('portal.portal_property_detail', property_id=prop.id) }}" class="text-decoration-none">
+                <div class="portal-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1 text-dark">{{ prop.name or 'Property' }}</h6>
+                                <div class="text-muted" style="font-size:0.85rem;">
+                                    <i class="bi bi-geo-alt"></i>
+                                    {% if prop.unit_number %}Unit {{ prop.unit_number }}, {% endif %}{{ prop.address }}
+                                    {% if prop.city %}, {{ prop.city }}{% endif %}
+                                    {% if prop.province %} {{ prop.province }}{% endif %}
+                                    {% if prop.postal_code %} {{ prop.postal_code }}{% endif %}
+                                </div>
+                            </div>
+                            <span class="portal-badge routine" style="text-transform:capitalize;">{{ prop.property_type or 'N/A' }}</span>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between" style="font-size:0.8rem;">
+                            <span class="text-muted">
+                                <i class="bi bi-clipboard"></i>
+                                {{ stats.active_jobs or 0 }} active job{{ 's' if (stats.active_jobs or 0) != 1 else '' }}
+                            </span>
+                            <span class="text-muted">
+                                {% if stats.last_service %}
+                                Last: {{ stats.last_service.strftime('%b %d') }}
+                                {% else %}
+                                No services yet
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="portal-card">
+        <div class="card-body p-0">
+            <table class="portal-table">
+                <thead>
+                    <tr>
+                        <th>Property</th>
+                        <th>Address</th>
+                        <th>Type</th>
+                        <th>Active Jobs</th>
+                        <th>Last Service</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prop in properties %}
+                    {% set stats = property_stats.get(prop.id, {}) %}
+                    <tr class="clickable-row" data-href="{{ url_for('portal.portal_property_detail', property_id=prop.id) }}">
+                        <td class="fw-semibold">{{ prop.name or 'Property' }}</td>
+                        <td>
+                            {% if prop.unit_number %}Unit {{ prop.unit_number }}, {% endif %}{{ prop.address }}
+                            {% if prop.city %}, {{ prop.city }}{% endif %}
+                            {% if prop.province %} {{ prop.province }}{% endif %}
+                        </td>
+                        <td><span class="portal-badge routine" style="text-transform:capitalize;">{{ prop.property_type or 'N/A' }}</span></td>
+                        <td>{{ stats.active_jobs or 0 }}</td>
+                        <td>
+                            {% if stats.last_service %}
+                            {{ stats.last_service.strftime('%b %d, %Y') }}
+                            {% else %}&mdash;{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+{% else %}
+<div class="portal-card">
+    <div class="card-body">
+        <div class="portal-empty-state">
+            <i class="bi bi-building"></i>
+            <h5>No Properties</h5>
+            <p>No properties are associated with your account yet.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "portal/base.html" %}
+
+{% block title %}New Service Request{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="font-size:0.85rem;">
+            <li class="breadcrumb-item"><a href="{{ url_for('portal.portal_service_requests') }}" style="color:var(--portal-text-muted);text-decoration:none;">Service Requests</a></li>
+            <li class="breadcrumb-item active" style="color:var(--portal-text-light);">New Request</li>
+        </ol>
+    </nav>
+    <h1>Request Service</h1>
+    <p class="text-muted">Describe what you need and we'll get back to you promptly.</p>
+</div>
+
+<form method="POST" enctype="multipart/form-data">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="portal-card">
+                <div class="card-header"><i class="bi bi-info-circle"></i> Service Details</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Property <span class="text-danger">*</span></label>
+                        <select name="property_id" class="form-select" required style="border-radius:var(--portal-radius);">
+                            <option value="">Select a property...</option>
+                            {% for prop in properties %}
+                            <option value="{{ prop.id }}"
+                                {{ 'selected' if preselect_property and preselect_property|string == prop.id|string }}>
+                                {{ prop.display_address }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Service Type</label>
+                            <select name="service_type" class="form-select" style="border-radius:var(--portal-radius);">
+                                <option value="">General Service</option>
+                                <option value="plumbing">Plumbing</option>
+                                <option value="hvac">HVAC</option>
+                                <option value="electrical">Electrical</option>
+                                <option value="general">General Maintenance</option>
+                                <option value="emergency_repair">Emergency Repair</option>
+                                <option value="inspection">Inspection</option>
+                                <option value="installation">Installation</option>
+                                <option value="preventive_maintenance">Preventive Maintenance</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Priority</label>
+                            <select name="priority" class="form-select" style="border-radius:var(--portal-radius);">
+                                <option value="low">Low - No rush</option>
+                                <option value="normal" selected>Normal - Within a few days</option>
+                                <option value="high">High - As soon as possible</option>
+                                <option value="urgent">Urgent - Immediate attention needed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Description of Issue <span class="text-danger">*</span></label>
+                        <textarea name="description" class="form-control" rows="5" required
+                                  placeholder="Describe the issue or service needed in detail. Include location within the property, equipment involved, symptoms, etc."
+                                  style="border-radius:var(--portal-radius);"></textarea>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Preferred Date</label>
+                            <input type="date" name="preferred_date" class="form-control"
+                                   style="border-radius:var(--portal-radius);">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Preferred Time</label>
+                            <select name="preferred_time" class="form-select" style="border-radius:var(--portal-radius);">
+                                <option value="anytime">Anytime</option>
+                                <option value="morning">Morning (8 AM - 12 PM)</option>
+                                <option value="afternoon">Afternoon (12 PM - 5 PM)</option>
+                                <option value="evening">Evening (after 5 PM)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 portal-file-upload">
+                        <label class="form-label fw-semibold">Photos</label>
+                        <input type="file" name="photos" class="form-control portal-file-input"
+                               multiple accept="image/*,.pdf" style="border-radius:var(--portal-radius);">
+                        <div class="form-text">Upload photos of the issue (JPG, PNG, PDF - max 10MB each)</div>
+                        <div class="portal-file-list mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="portal-card mb-4">
+                <div class="card-header"><i class="bi bi-person-badge"></i> Site Contact</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Contact on Site</label>
+                        <input type="text" name="contact_name" class="form-control"
+                               placeholder="Name of person to meet technician"
+                               style="border-radius:var(--portal-radius);">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contact Phone</label>
+                        <input type="tel" name="contact_phone" class="form-control"
+                               placeholder="(555) 555-5555"
+                               style="border-radius:var(--portal-radius);">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Access Instructions</label>
+                        <textarea name="access_instructions" class="form-control" rows="3"
+                                  placeholder="Gate codes, parking instructions, elevator access, which entrance to use, etc."
+                                  style="border-radius:var(--portal-radius);"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="portal-card mb-4">
+                <div class="card-header"><i class="bi bi-receipt"></i> Billing Reference</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">PO Number <small class="text-muted">(Optional)</small></label>
+                        <input type="text" name="po_number" class="form-control"
+                               placeholder="Your purchase order number"
+                               style="border-radius:var(--portal-radius);">
+                        <div class="form-text">This will be referenced on any resulting invoice.</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-portal btn-portal-primary w-100" style="padding:0.75rem;">
+                <i class="bi bi-send"></i> Submit Request
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}

@@ -1,88 +1,219 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="FieldServicePro">
-    <title>{% block title %}FieldServicePro{% endblock %}</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="FieldServicePro">
+  <meta name="description" content="FieldServicePro — Field Service Management">
+  <title>{% block title %}FieldServicePro{% endblock %} — FieldServicePro</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    {% block head %}{% endblock %}
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <!-- Bootstrap CSS (grid/utilities, components overridden) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+
+  <!-- FieldServicePro Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  {% block head %}{% endblock %}
 </head>
 <body>
-    <div class="app-container">
-        <!-- Mobile Toggle -->
-        <button class="sidebar-toggle" onclick="toggleSidebar()">
-            <i class="bi bi-list"></i>
+
+<!-- Flash Messages (toast-style) -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-container" role="alert" aria-live="polite">
+    {% for category, message in messages %}
+    <div class="flash-message flash-{{ category }}" role="alert">
+      <i class="bi {% if category == 'success' %}bi-check-circle-fill text-success{% elif category == 'error' or category == 'danger' %}bi-exclamation-circle-fill text-danger{% elif category == 'warning' %}bi-exclamation-triangle-fill text-warning{% else %}bi-info-circle-fill text-accent{% endif %} flash-message__icon" aria-hidden="true"></i>
+      <span class="flash-message__text">{{ message }}</span>
+      <button class="flash-message__close" onclick="this.parentElement.remove()" aria-label="Dismiss">
+        <i class="bi bi-x" aria-hidden="true"></i>
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+
+<!-- App Shell -->
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  {% include 'partials/sidebar.html' %}
+
+  <!-- Main Content -->
+  <div class="main-content" id="mainContent">
+
+    <!-- Top Bar -->
+    <header class="topbar" role="banner">
+      <div class="topbar__left">
+        <!-- Sidebar Toggle -->
+        <button class="sidebar-toggle" aria-label="Toggle sidebar" aria-expanded="true" aria-controls="appSidebar">
+          <i class="bi bi-layout-sidebar" style="font-size: 1.1rem;" aria-hidden="true"></i>
         </button>
 
-        {% include 'partials/sidebar.html' %}
+        <!-- Page Title + Breadcrumbs -->
+        <div>
+          <h1 class="topbar__title">{% block page_title %}Dashboard{% endblock %}</h1>
+          {% block breadcrumbs %}{% endblock %}
+        </div>
+      </div>
 
-        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+      <div class="topbar__right">
+        {% block topbar_search %}{% endblock %}
 
-        <main class="main-content {% if active_page == 'dashboard' %}home-layout{% endif %}">
+        <!-- Notifications -->
+        <button class="topbar-icon-btn" aria-label="Notifications" title="Notifications">
+          <i class="bi bi-bell" aria-hidden="true"></i>
+          <span class="badge-dot" aria-hidden="true"></span>
+        </button>
 
-            <!-- Division Filter Bar — always full-width across the top -->
-            {% if divisions is defined and divisions %}
-            {% set ep_map = {
-                'dashboard': 'dashboard',
-                'schedule': 'schedule_page',
-                'jobs': 'jobs_page',
-                'quotes': 'quotes_page',
-                'clients': 'clients_page',
-                'invoices': 'invoices_page',
-                'settings': 'settings_page',
-            } %}
-            {% set cur_ep = ep_map.get(active_page, 'dashboard') if active_page is defined else 'dashboard' %}
-            <div class="division-bar">
-                <span class="division-bar-label">Division</span>
-                <div class="division-tabs-track">
-                    <a href="{{ url_for(cur_ep) }}" class="division-tab {% if not active_division %}active{% endif %}">
-                        All
-                    </a>
-                    {% for div in divisions %}
-                    <a href="{{ url_for(cur_ep, division=div.id) }}" class="division-tab {% if active_division == div.id %}active{% endif %}">
-                        <span class="div-dot" style="background: {{ div.color }}"></span> {{ div.code }}
-                    </a>
-                    {% endfor %}
-                </div>
+        <!-- User Menu -->
+        <div class="dropdown">
+          <button class="user-menu-trigger" data-bs-toggle="dropdown" aria-expanded="false" aria-label="User menu">
+            <div class="user-avatar" aria-hidden="true">
+              {{ user.first_name[0]|upper if user and user.first_name else 'U' }}
             </div>
-            {% endif %}
+            <span class="user-menu-name d-none d-md-block">
+              {{ user.full_name or user.email if user else 'User' }}
+            </span>
+            <i class="bi bi-chevron-down" style="font-size:0.7rem; color: var(--color-text-muted);" aria-hidden="true"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><h6 class="dropdown-header">
+              {{ user.email if user else '' }}
+            </h6></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item" href="{{ url_for('settings_page') }}">
+                <i class="bi bi-person" aria-hidden="true"></i> Profile
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{{ url_for('settings_page') }}">
+                <i class="bi bi-gear" aria-hidden="true"></i> Settings
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Log out
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </header>
 
-            <!-- Flash Messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="flash-container">
-                        {% for category, message in messages %}
-                            <div class="flash flash-{{ category }}">
-                                {{ message }}
-                                <button onclick="this.parentElement.remove()" class="flash-close">&times;</button>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
-
-            <!-- Content row: two-column flex on home, normal block on other pages -->
-            <div class="home-content-row">
-                <div class="page-body">
-                    {% block content %}{% endblock %}
-                </div>
-                {% include 'partials/chat_panel.html' %}
-            </div>
-
-        </main>
+    <!-- Division Filter Bar -->
+    {% if divisions is defined and divisions %}
+    {% set ep_map = {
+        'dashboard': 'dashboard',
+        'schedule': 'schedule_page',
+        'jobs': 'jobs_page',
+        'quotes': 'quotes_page',
+        'clients': 'clients_page',
+        'invoices': 'invoices_page',
+        'settings': 'settings_page',
+    } %}
+    {% set cur_ep = ep_map.get(active_page, 'dashboard') if active_page is defined else 'dashboard' %}
+    <div class="division-bar">
+      <span class="division-bar-label">Division</span>
+      <div class="division-tabs-track">
+        <a href="{{ url_for(cur_ep) }}" class="division-tab {% if not active_division %}active{% endif %}">
+          All
+        </a>
+        {% for div in divisions %}
+        <a href="{{ url_for(cur_ep, division=div.id) }}" class="division-tab {% if active_division == div.id %}active{% endif %}">
+          <span class="div-dot" style="background: {{ div.color }}"></span> {{ div.code }}
+        </a>
+        {% endfor %}
+      </div>
     </div>
+    {% endif %}
 
-    <script>
-    function toggleSidebar() {
-        document.querySelector('.sidebar').classList.toggle('open');
-        document.querySelector('.sidebar-overlay').classList.toggle('show');
-    }
-    </script>
-    {% block scripts %}{% endblock %}
+    <!-- Page Content -->
+    <main class="page-content" id="pageContent" role="main">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div><!-- /.main-content -->
+
+  <!-- Chat Panel -->
+  {% include 'partials/chat_panel.html' %}
+
+</div><!-- /.app-shell -->
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Sidebar toggle -->
+<script>
+(function() {
+  var sidebar  = document.getElementById('appSidebar');
+  var overlay  = document.getElementById('sidebarOverlay');
+  var mainContent = document.getElementById('mainContent');
+  var toggleBtns  = document.querySelectorAll('.sidebar-toggle');
+
+  if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth > 768) {
+    sidebar.classList.add('is-collapsed');
+    mainContent.style.marginLeft = 'var(--sidebar-width-collapsed)';
+  }
+
+  toggleBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        sidebar.classList.toggle('mobile-open');
+        overlay.classList.toggle('is-visible');
+        var isOpen = sidebar.classList.contains('mobile-open');
+        btn.setAttribute('aria-expanded', isOpen);
+      } else {
+        sidebar.classList.toggle('is-collapsed');
+        var isCollapsed = sidebar.classList.contains('is-collapsed');
+        mainContent.style.marginLeft = isCollapsed
+          ? 'var(--sidebar-width-collapsed)'
+          : 'var(--sidebar-width)';
+        localStorage.setItem('sidebar-collapsed', isCollapsed);
+        btn.setAttribute('aria-expanded', !isCollapsed);
+      }
+    });
+  });
+
+  if (overlay) {
+    overlay.addEventListener('click', function() {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('is-visible');
+    });
+  }
+})();
+</script>
+
+<!-- Flash message auto-dismiss -->
+<script>
+(function() {
+  setTimeout(function() {
+    document.querySelectorAll('.flash-message').forEach(function(el) {
+      el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(1rem)';
+      setTimeout(function() { el.remove(); }, 300);
+    });
+  }, 5000);
+})();
+</script>
+
+{% block scripts %}{% endblock %}
 </body>
 </html>

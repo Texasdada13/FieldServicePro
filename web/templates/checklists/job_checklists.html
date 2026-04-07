@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Checklists — Job #{{ job.id }}{% endblock %}
+{% block page_title %}Job #{{ job.id }} Checklists{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-3);">
+  <a href="{{ url_for('job_detail', job_id=job.id) }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);">
+    <i class="bi bi-arrow-left"></i> Back to Job
+  </a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+  <!-- Available Templates -->
+  <div>
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="bi bi-clipboard-check" style="color:var(--color-accent);"></i> Available Checklists</h3></div>
+      <div class="card-body" style="padding:0;">
+        {% if available_templates %}
+          {% for t in available_templates %}
+          <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-weight:500;">{{ t.name }}</div>
+              <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">
+                {{ t.type_display }} &middot; {{ t.category_display }} &middot; {{ t.item_count }} items
+              </div>
+            </div>
+            <a href="{{ url_for('checklists.complete_checklist', job_id=job.id, template_id=t.id) }}" class="btn btn-accent" style="font-size:var(--font-size-sm);padding:var(--space-1) var(--space-3);">
+              <i class="bi bi-play-fill"></i> Start
+            </a>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">
+            No active checklist templates available.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Completed Checklists -->
+  <div>
+    <div class="card">
+      <div class="card-header"><h3 class="card-title"><i class="bi bi-check-circle" style="color:var(--color-success);"></i> Completed ({{ completed_checklists|length }})</h3></div>
+      <div class="card-body" style="padding:0;">
+        {% if completed_checklists %}
+          {% for c in completed_checklists %}
+          <a href="{{ url_for('checklists.completed_detail', completed_id=c.id) }}" style="display:block;padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);text-decoration:none;color:inherit;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-weight:500;">{{ c.template.name if c.template else 'Unknown' }}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">
+                  {{ c.completed_at.strftime('%b %d, %Y %I:%M %p') if c.completed_at else '' }}
+                  {% if c.completer %} &middot; {{ c.completer.full_name }}{% endif %}
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--space-2);">
+                {% if c.supervisor_reviewed %}
+                <i class="bi bi-patch-check-fill" style="color:var(--color-accent);" title="Supervisor reviewed"></i>
+                {% endif %}
+                <span class="badge" style="background:var(--color-{{ c.status_color }});color:#fff;font-size:var(--font-size-xs);">{{ c.status_display }}</span>
+              </div>
+            </div>
+          </a>
+          {% endfor %}
+        {% else %}
+          <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">
+            No checklists completed for this job yet.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

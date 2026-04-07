@@ -1,0 +1,174 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Quote #{{ quote.quote_number or quote.id }}{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="font-size:0.85rem;">
+            <li class="breadcrumb-item"><a href="{{ url_for('portal.portal_quotes') }}" style="color:var(--portal-text-muted);text-decoration:none;">Quotes</a></li>
+            <li class="breadcrumb-item active" style="color:var(--portal-text-light);">#{{ quote.quote_number or quote.id }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <h1>Quote #{{ quote.quote_number or quote.id }}</h1>
+        {% if quote.status in ('sent', 'pending') %}
+        <span class="portal-badge pending" style="font-size:0.9rem;"><i class="bi bi-clock"></i> Awaiting Your Approval</span>
+        {% elif quote.status == 'approved' %}
+        <span class="portal-badge approved" style="font-size:0.9rem;"><i class="bi bi-check-circle"></i> Approved</span>
+        {% elif quote.status == 'declined' %}
+        <span class="portal-badge in-progress" style="font-size:0.9rem;">Changes Requested</span>
+        {% else %}
+        <span class="portal-badge draft" style="font-size:0.9rem;">{{ quote.status|title }}</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        {# ── Quote Details ── #}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-file-earmark-text"></i> Quote Details</div>
+            <div class="card-body">
+                {% if quote.title %}
+                <h5 class="mb-2">{{ quote.title }}</h5>
+                {% endif %}
+                {% if quote.description %}
+                <p class="mb-3 text-muted">{{ quote.description }}</p>
+                {% endif %}
+
+                {# Line Items #}
+                {% if quote.items %}
+                <table class="portal-table">
+                    <thead>
+                        <tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit Price</th><th class="text-end">Total</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in quote.items %}
+                        <tr>
+                            <td>{{ item.description }}</td>
+                            <td class="text-end">{{ item.quantity }}</td>
+                            <td class="text-end">${{ '{:,.2f}'.format(item.unit_price or 0) }}</td>
+                            <td class="text-end fw-semibold">${{ '{:,.2f}'.format(item.total or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        {% if quote.subtotal %}
+                        <tr>
+                            <td colspan="3" class="text-end text-muted">Subtotal</td>
+                            <td class="text-end">${{ '{:,.2f}'.format(quote.subtotal or 0) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if quote.discount and quote.discount > 0 %}
+                        <tr>
+                            <td colspan="3" class="text-end text-muted">Discount</td>
+                            <td class="text-end text-success">-${{ '{:,.2f}'.format(quote.discount) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if quote.tax_amount %}
+                        <tr>
+                            <td colspan="3" class="text-end text-muted">Tax ({{ quote.tax_rate or 0 }}%)</td>
+                            <td class="text-end">${{ '{:,.2f}'.format(quote.tax_amount or 0) }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr class="fw-bold" style="font-size:1.1rem;">
+                            <td colspan="3" class="text-end">Total</td>
+                            <td class="text-end">${{ '{:,.2f}'.format(quote.total or 0) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                {% else %}
+                <div class="d-flex justify-content-between align-items-center p-3" style="background:var(--portal-bg);border-radius:var(--portal-radius);">
+                    <span class="fw-semibold">Total Amount</span>
+                    <span class="fw-bold" style="font-size:1.5rem;">${{ '{:,.2f}'.format(quote.total or 0) }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Notes / Terms ── #}
+        {% if quote.notes %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-file-text"></i> Notes & Terms</div>
+            <div class="card-body">
+                <div style="white-space:pre-wrap;font-size:0.85rem;">{{ quote.notes }}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        {# ── Approval Actions ── #}
+        {% if quote.status in ('sent', 'pending') and g.portal_user.can_approve_quotes() %}
+        <div class="portal-card mb-4" style="border-color:var(--portal-primary);">
+            <div class="card-header" style="background:var(--portal-primary);color:white;">
+                <i class="bi bi-check2-square"></i> Your Decision
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('portal.portal_approve_quote', quote_id=quote.id) }}" class="mb-3">
+                    <button type="submit" class="btn btn-portal btn-portal-success w-100" style="padding:0.75rem;"
+                            data-confirm="Are you sure you want to approve this quote for ${{ '{:,.2f}'.format(quote.total or 0) }}?">
+                        <i class="bi bi-check-circle"></i> Approve Quote
+                    </button>
+                </form>
+
+                <hr>
+                <form method="POST" action="{{ url_for('portal.portal_request_quote_changes', quote_id=quote.id) }}">
+                    <label class="form-label fw-semibold" style="font-size:0.85rem;">Request Changes</label>
+                    <textarea name="feedback" class="form-control mb-2" rows="3"
+                              placeholder="Describe what changes you'd like..."
+                              style="border-radius:var(--portal-radius);font-size:0.9rem;"></textarea>
+                    <button type="submit" class="btn btn-portal btn-portal-outline w-100">
+                        <i class="bi bi-pencil"></i> Request Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Approval Record ── #}
+        {% if quote.status == 'approved' and quote.portal_approved_at %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-check-circle"></i> Approval Record</div>
+            <div class="card-body">
+                <div class="text-success fw-semibold mb-1">Approved</div>
+                <div class="text-muted" style="font-size:0.85rem;">
+                    {{ quote.portal_approved_at.strftime('%B %d, %Y at %I:%M %p') }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Feedback Sent ── #}
+        {% if quote.portal_approval_note %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-chat-left-text"></i> Your Feedback</div>
+            <div class="card-body">
+                <p style="white-space:pre-wrap;margin:0;font-size:0.9rem;">{{ quote.portal_approval_note }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Quote Info ── #}
+        <div class="portal-card">
+            <div class="card-header"><i class="bi bi-info-circle"></i> Quote Info</div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0" style="font-size:0.85rem;">
+                    <tr><td class="text-muted">Quote #</td><td class="fw-semibold">{{ quote.quote_number or quote.id }}</td></tr>
+                    <tr><td class="text-muted">Date</td><td>{{ quote.created_at.strftime('%b %d, %Y') if quote.created_at else '' }}</td></tr>
+                    {% if quote.valid_until %}
+                    <tr><td class="text-muted">Valid Until</td><td>{{ quote.valid_until.strftime('%b %d, %Y') }}</td></tr>
+                    {% endif %}
+                    {% if quote.property %}
+                    <tr>
+                        <td class="text-muted">Property</td>
+                        <td><a href="{{ url_for('portal.portal_property_detail', property_id=quote.property_id) }}" style="color:var(--portal-primary);">{{ quote.property.display_address }}</a></td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

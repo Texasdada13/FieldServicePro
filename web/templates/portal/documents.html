@@ -1,0 +1,137 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Documents{% endblock %}
+
+{% block content %}
+<div class="portal-page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+        <h1>Documents</h1>
+        <p class="text-muted mb-0">{{ documents|length }} document{{ 's' if documents|length != 1 else '' }}</p>
+    </div>
+    {% if g.portal_user.can_upload_documents() %}
+    <button class="btn btn-portal btn-portal-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+        <i class="bi bi-cloud-arrow-up"></i> Upload Document
+    </button>
+    {% endif %}
+</div>
+
+{# ── Filters ── #}
+<div class="portal-filter-bar">
+    <form method="GET" class="d-flex flex-wrap gap-2 align-items-center w-100">
+        <div class="input-group" style="max-width:300px;">
+            <input type="text" name="search" class="form-control form-control-sm"
+                   placeholder="Search documents..." value="{{ search or '' }}"
+                   style="border-radius:var(--portal-radius) 0 0 var(--portal-radius);">
+            <button type="submit" class="btn btn-sm btn-portal-outline" style="border-radius:0 var(--portal-radius) var(--portal-radius) 0;">
+                <i class="bi bi-search"></i>
+            </button>
+        </div>
+        <select name="category" class="form-select form-select-sm" onchange="this.form.submit()" style="max-width:180px;">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}" {{ 'selected' if selected_category == cat }}>{{ cat|replace('_', ' ')|title }}</option>
+            {% endfor %}
+        </select>
+        {% if search or selected_category %}
+        <a href="{{ url_for('portal.portal_documents') }}" class="btn btn-sm btn-portal-outline">
+            <i class="bi bi-x"></i> Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{% if documents %}
+<div class="portal-card">
+    <div class="card-body p-0">
+        <table class="portal-table">
+            <thead>
+                <tr>
+                    <th>Document</th>
+                    <th>Category</th>
+                    <th>Related To</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td>
+                        <i class="bi {{ doc.icon_class }}"></i>
+                        {{ doc.display_name }}
+                        {% if doc.description %}
+                        <br><small class="text-muted">{{ doc.description[:60] }}{% if doc.description|length > 60 %}...{% endif %}</small>
+                        {% endif %}
+                    </td>
+                    <td><span class="portal-badge routine">{{ doc.category_label }}</span></td>
+                    <td style="font-size:0.85rem;">
+                        {% if doc.entity_type == 'job' and doc.entity_id %}
+                        <a href="{{ url_for('portal.portal_job_detail', job_id=doc.entity_id) }}" style="color:var(--portal-primary);">Job #{{ doc.entity_id }}</a>
+                        {% elif doc.entity_type == 'client_upload' %}
+                        <span class="text-muted">Client Upload</span>
+                        {% else %}
+                        ---
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.85rem;">{{ doc.created_at.strftime('%b %d, %Y') if doc.created_at else '' }}</td>
+                    <td>
+                        <a href="{{ url_for('portal.portal_download_document', document_id=doc.id) }}"
+                           class="btn btn-portal btn-portal-outline btn-portal-sm">
+                            <i class="bi bi-download"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="portal-card">
+    <div class="card-body">
+        <div class="portal-empty-state">
+            <i class="bi bi-folder2-open"></i>
+            <h5>No Documents</h5>
+            <p>{% if search %}No documents match your search.{% else %}No documents are available yet.{% endif %}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ── Upload Modal ── #}
+{% if g.portal_user.can_upload_documents() %}
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius:var(--portal-radius-lg);">
+            <form method="POST" action="{{ url_for('portal.portal_upload_document') }}" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-cloud-arrow-up"></i> Upload Document</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">File</label>
+                        <input type="file" name="file" class="form-control" required
+                               accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                               style="border-radius:var(--portal-radius);">
+                        <div class="form-text">Max 25MB. Allowed: images, PDF, Office docs, CSV, TXT.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Description</label>
+                        <input type="text" name="description" class="form-control"
+                               placeholder="Brief description of the document"
+                               style="border-radius:var(--portal-radius);">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-portal btn-portal-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-portal btn-portal-primary">
+                        <i class="bi bi-upload"></i> Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

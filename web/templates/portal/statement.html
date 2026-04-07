@@ -1,0 +1,112 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Account Statement{% endblock %}
+
+{% block content %}
+<div class="portal-page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+        <h1>Account Statement</h1>
+        <p class="text-muted mb-0">
+            {{ date_from.strftime('%B %d, %Y') }} — {{ date_to.strftime('%B %d, %Y') }}
+        </p>
+    </div>
+    <button onclick="window.print()" class="btn btn-portal btn-portal-outline">
+        <i class="bi bi-printer"></i> Print
+    </button>
+</div>
+
+{# ── Date Range Selector ── #}
+<div class="portal-filter-bar mb-4">
+    <form method="GET" class="d-flex gap-2 align-items-center flex-wrap">
+        <label class="form-label mb-0" style="font-size:0.85rem;">Period:</label>
+        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from.strftime('%Y-%m-%d') }}" style="max-width:160px;">
+        <span class="text-muted">to</span>
+        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to.strftime('%Y-%m-%d') }}" style="max-width:160px;">
+        <button type="submit" class="btn btn-sm btn-portal-primary">Update</button>
+    </form>
+</div>
+
+{# ── Summary ── #}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="portal-stat-card">
+            <div class="stat-value">${{ '{:,.2f}'.format(total_invoiced) }}</div>
+            <div class="stat-label">Total Invoiced</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="portal-stat-card">
+            <div class="stat-value" style="color:var(--portal-success);">${{ '{:,.2f}'.format(total_paid) }}</div>
+            <div class="stat-label">Total Paid</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="portal-stat-card">
+            <div class="stat-value" style="color:{% if total_outstanding > 0 %}var(--portal-danger){% else %}var(--portal-success){% endif %};">
+                ${{ '{:,.2f}'.format(total_outstanding) }}
+            </div>
+            <div class="stat-label">Outstanding Balance</div>
+        </div>
+    </div>
+</div>
+
+{# ── Statement Table ── #}
+{% if invoices %}
+<div class="portal-card">
+    <div class="card-header">
+        <strong>{{ client.display_name if client else '' }}</strong> — Statement of Account
+    </div>
+    <div class="card-body p-0">
+        <table class="portal-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Invoice #</th>
+                    <th>Description</th>
+                    <th class="text-end">Amount</th>
+                    <th class="text-end">Paid</th>
+                    <th class="text-end">Balance</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr>
+                    <td style="font-size:0.85rem;">{{ inv.issued_date.strftime('%b %d, %Y') if inv.issued_date else inv.created_at.strftime('%b %d, %Y') if inv.created_at else '' }}</td>
+                    <td class="fw-semibold">#{{ inv.invoice_number or inv.id }}</td>
+                    <td>{% if inv.job %}Job #{{ inv.job.job_number or inv.job_id }}{% else %}---{% endif %}</td>
+                    <td class="text-end">${{ '{:,.2f}'.format(inv.total or 0) }}</td>
+                    <td class="text-end" style="color:var(--portal-success);">${{ '{:,.2f}'.format(inv.amount_paid or 0) }}</td>
+                    <td class="text-end fw-semibold {% if (inv.balance_due or 0) > 0 %}text-danger{% endif %}">
+                        ${{ '{:,.2f}'.format(inv.balance_due or 0) }}
+                    </td>
+                    <td><span class="portal-badge {{ inv.status }}">{{ inv.status|replace('_', ' ')|title }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="fw-bold" style="font-size:1rem;">
+                    <td colspan="3" class="text-end">Totals</td>
+                    <td class="text-end">${{ '{:,.2f}'.format(total_invoiced) }}</td>
+                    <td class="text-end" style="color:var(--portal-success);">${{ '{:,.2f}'.format(total_paid) }}</td>
+                    <td class="text-end {% if total_outstanding > 0 %}text-danger{% endif %}">
+                        ${{ '{:,.2f}'.format(total_outstanding) }}
+                    </td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="portal-card">
+    <div class="card-body">
+        <div class="portal-empty-state">
+            <i class="bi bi-receipt"></i>
+            <h5>No Invoices</h5>
+            <p>No invoices found for this period.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -46,6 +46,12 @@ class Quote(Base):
     template_name = Column(String(100))  # e.g. "BFP", "Curb Stop Assessment", "Water Softener"
 
     notes = Column(Text)
+
+    # Portal approval
+    portal_approved_by = Column(Integer, ForeignKey('portal_users.id'), nullable=True)
+    portal_approved_at = Column(DateTime, nullable=True)
+    portal_approval_note = Column(Text, nullable=True)
+
     created_by_id = Column(Integer, ForeignKey('users.id'))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

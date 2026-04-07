@@ -26,6 +26,7 @@ class Job(Base):
     client_id = Column(Integer, ForeignKey('clients.id'), nullable=False)
     property_id = Column(Integer, ForeignKey('properties.id'))
     quote_id = Column(Integer, ForeignKey('quotes.id'))
+    contract_id = Column(Integer, ForeignKey('contracts.id'), nullable=True, index=True)
 
     # Job details
     job_number = Column(String(50), unique=True, index=True)
@@ -50,6 +51,27 @@ class Job(Base):
     # Job type
     job_type = Column(String(50))  # service_call, maintenance, installation, repair, inspection, emergency
 
+    # Multi-phase support
+    is_multi_phase         = Column(Boolean, default=False, nullable=False)
+    original_estimated_cost = Column(Float, nullable=True)
+    adjusted_estimated_cost = Column(Float, nullable=True)
+    project_manager_notes  = Column(Text, nullable=True)
+
+    # SLA tracking
+    sla_id                  = Column(Integer, ForeignKey('slas.id'), nullable=True)
+    sla_response_deadline   = Column(DateTime, nullable=True)
+    sla_resolution_deadline = Column(DateTime, nullable=True)
+    actual_response_time    = Column(DateTime, nullable=True)   # when status -> in_progress
+    actual_resolution_time  = Column(DateTime, nullable=True)   # when status -> completed
+    sla_response_met        = Column(Boolean, nullable=True)
+    sla_resolution_met      = Column(Boolean, nullable=True)
+
+    # Portal / source tracking
+    source                   = Column(String(30), nullable=True)  # portal_request, internal, phone, etc.
+    portal_contact_name      = Column(String(200), nullable=True)
+    portal_contact_phone     = Column(String(30), nullable=True)
+    portal_access_instructions = Column(Text, nullable=True)
+
     # Tracking
     created_by_id = Column(Integer, ForeignKey('users.id'))
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -63,6 +85,125 @@ class Job(Base):
     technician = relationship("Technician", back_populates="jobs")
     notes = relationship("JobNote", back_populates="job", cascade="all, delete-orphan")
     invoices = relationship("Invoice", back_populates="job")
+    contract = relationship("Contract", back_populates="jobs", lazy='select')
+    sla = relationship("SLA", lazy='select')
+    phases = relationship("JobPhase", back_populates="job", cascade="all, delete-orphan",
+                          order_by="JobPhase.sort_order, JobPhase.phase_number", lazy='select')
+    change_orders = relationship("ChangeOrder", back_populates="job", cascade="all, delete-orphan",
+                                  order_by="ChangeOrder.created_at", lazy='select')
+
+    # -- Phase helper properties --
+
+    @property
+    def phase_count(self):
+        return len(self.phases)
+
+    @property
+    def completed_phase_count(self):
+        return sum(1 for p in self.phases if p.is_complete)
+
+    @property
+    def percent_complete(self):
+        if not self.phases or self.phase_count == 0:
+            return 0
+        return round((self.completed_phase_count / self.phase_count) * 100)
+
+    @property
+    def phase_progress(self):
+        """Returns (completed_count, total_count, percentage)."""
+        return self.completed_phase_count, self.phase_count, self.percent_complete
+
+    @property
+    def total_change_orders(self):
+        return sum(1 for co in self.change_orders if co.status == 'approved')
+
+    @property
+    def total_change_order_value(self):
+        return sum(co.cost_difference for co in self.change_orders if co.status == 'approved')
+
+    @property
+    def pending_change_orders_count(self):
+        return sum(1 for co in self.change_orders if co.status in ('submitted', 'pending_approval'))
+
+    @property
+    def derived_status_from_phases(self):
+        """Derive job status from phase statuses. Returns None if not multi-phase."""
+        if not self.is_multi_phase or not self.phases:
+            return None
+        statuses = {p.status for p in self.phases}
+        if 'in_progress' in statuses:
+            return 'in_progress'
+        if all(s in ('completed', 'skipped') for s in statuses):
+            return 'completed'
+        if 'on_hold' in statuses:
+            return 'on_hold'
+        if 'scheduled' in statuses:
+            return 'scheduled'
+        return 'scheduled'
+
+    @property
+    def has_on_hold_phase(self):
+        return any(p.status == 'on_hold' for p in self.phases)
+
+    @property
+    def current_contract_value(self):
+        """Original cost + approved change order deltas."""
+        base = float(self.original_estimated_cost or self.estimated_amount or 0)
+        return base + self.total_change_order_value
+
+    # -- SLA helper properties --
+
+    @property
+    def sla_response_at_risk(self):
+        """Response deadline within 80% consumed but not yet met."""
+        if not self.sla_response_deadline or self.actual_response_time:
+            return False
+        now = datetime.utcnow()
+        if now >= self.sla_response_deadline:
+            return False
+        total = (self.sla_response_deadline - self.created_at).total_seconds()
+        elapsed = (now - self.created_at).total_seconds()
+        return total > 0 and (elapsed / total) >= 0.80
+
+    @property
+    def sla_response_breached(self):
+        if not self.sla_response_deadline:
+            return False
+        if self.actual_response_time:
+            return self.actual_response_time > self.sla_response_deadline
+        return datetime.utcnow() > self.sla_response_deadline
+
+    @property
+    def sla_resolution_at_risk(self):
+        if not self.sla_resolution_deadline or self.actual_resolution_time:
+            return False
+        now = datetime.utcnow()
+        if now >= self.sla_resolution_deadline:
+            return False
+        total = (self.sla_resolution_deadline - self.created_at).total_seconds()
+        elapsed = (now - self.created_at).total_seconds()
+        return total > 0 and (elapsed / total) >= 0.80
+
+    @property
+    def sla_resolution_breached(self):
+        if not self.sla_resolution_deadline:
+            return False
+        if self.actual_resolution_time:
+            return self.actual_resolution_time > self.sla_resolution_deadline
+        return datetime.utcnow() > self.sla_resolution_deadline
+
+    @property
+    def sla_status(self):
+        """Returns: 'breached', 'at_risk', 'on_track', 'met', or None"""
+        if not self.sla_id:
+            return None
+        if self.sla_resolution_breached or self.sla_response_breached:
+            return 'breached'
+        if self.sla_resolution_at_risk or self.sla_response_at_risk:
+            return 'at_risk'
+        if self.actual_resolution_time:
+            return 'met'
+        return 'on_track'
 
     def to_dict(self):
         return {
@@ -82,7 +223,27 @@ class Job(Base):
             'assigned_technician_id': self.assigned_technician_id,
             'estimated_amount': self.estimated_amount,
             'actual_amount': self.actual_amount,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'contract_id': self.contract_id,
+            'sla_id': self.sla_id,
+            'sla_response_deadline': self.sla_response_deadline.isoformat() if self.sla_response_deadline else None,
+            'sla_resolution_deadline': self.sla_resolution_deadline.isoformat() if self.sla_resolution_deadline else None,
+            'actual_response_time': self.actual_response_time.isoformat() if self.actual_response_time else None,
+            'actual_resolution_time': self.actual_resolution_time.isoformat() if self.actual_resolution_time else None,
+            'sla_response_met': self.sla_response_met,
+            'sla_resolution_met': self.sla_resolution_met,
+            'sla_status': self.sla_status,
+            'is_multi_phase': self.is_multi_phase,
+            'phase_count': self.phase_count,
+            'completed_phase_count': self.completed_phase_count,
+            'percent_complete': self.percent_complete,
+            'total_change_orders': self.total_change_orders,
+            'total_change_order_value': self.total_change_order_value,
+            'pending_change_orders_count': self.pending_change_orders_count,
+            'current_contract_value': self.current_contract_value,
+            'original_estimated_cost': float(self.original_estimated_cost or 0),
+            'source': self.source,
+            'portal_contact_name': self.portal_contact_name,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
         }
 
 

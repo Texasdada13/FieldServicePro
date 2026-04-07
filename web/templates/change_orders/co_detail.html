@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}{{ co.change_order_number }} — Change Order Detail{% endblock %}
+{% block page_title %}{{ co.change_order_number }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb" style="margin: 0;">
+    <li class="breadcrumb-item"><a href="{{ url_for('jobs_page') }}">Jobs</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('job_detail', job_id=job.id) }}">{{ job.job_number }}</a></li>
+    <li class="breadcrumb-item active">{{ co.change_order_number }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="detail-header">
+  <div class="detail-header-left">
+    <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-1);">
+      <span class="badge badge-{{ co.status_badge_class }}" style="font-size:var(--font-size-sm);">{{ co.status_label }}</span>
+    </div>
+    <h1 class="detail-title">{{ co.title }}</h1>
+    <p class="detail-subtitle">{{ co.reason_label }} &mdash; {{ co.requested_by | replace('_', ' ') | title }}</p>
+  </div>
+  <div class="detail-header-right">
+    {% if co.is_editable and user.role in ('owner', 'admin', 'dispatcher') %}
+    <a href="{{ url_for('change_orders.edit_change_order', job_id=job.id, co_id=co.id) }}" class="btn btn-ghost"><i class="bi bi-pencil"></i> Edit</a>
+    {% endif %}
+    {% if co.status == 'draft' and user.role in ('owner', 'admin', 'dispatcher', 'technician') %}
+    <form method="POST" action="{{ url_for('change_orders.submit_change_order', job_id=job.id, co_id=co.id) }}" style="display:inline;">
+      <button type="submit" class="btn btn-warning"><i class="bi bi-send"></i> Submit</button>
+    </form>
+    {% endif %}
+    {% if user.role in ('owner', 'admin') and co.status not in ('voided', 'approved') %}
+    <form method="POST" action="{{ url_for('change_orders.void_change_order', job_id=job.id, co_id=co.id) }}" style="display:inline;" onsubmit="return confirm('Void this change order?')">
+      <button type="submit" class="btn btn-sm btn-ghost" style="color:var(--color-text-muted);"><i class="bi bi-slash-circle"></i> Void</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="detail-grid">
+  <!-- Left Column -->
+  <div class="detail-main">
+    <!-- Metadata -->
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:var(--space-3);">
+          <div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Reason</div><div style="font-weight:var(--font-weight-semibold);">{{ co.reason_label }}</div></div>
+          <div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Requested By</div><div style="font-weight:var(--font-weight-semibold);">{{ co.requested_by | replace('_', ' ') | title }}</div></div>
+          <div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Date</div><div style="font-weight:var(--font-weight-semibold);">{{ co.requested_date.strftime('%b %d, %Y') if co.requested_date else '---' }}</div></div>
+          <div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Phase</div><div style="font-weight:var(--font-weight-semibold);">{% if co.phase %}Phase {{ co.phase.phase_number }}: {{ co.phase.title }}{% else %}Whole job{% endif %}</div></div>
+        </div>
+        {% if co.description %}
+        <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--color-border);">
+          <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-bottom:var(--space-1);">Description</div>
+          <p style="margin:0;white-space:pre-wrap;">{{ co.description }}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Line Items -->
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h3 class="card-title"><i class="bi bi-list-ul" style="color:var(--color-text-secondary);"></i> Line Items</h3></div>
+      <div class="card-body" style="padding:0;">
+        {% if co.line_items %}
+        <div class="fsp-table-wrapper" style="border:none;border-radius:0;">
+          <table class="fsp-table">
+            <thead><tr><th>Description</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Total</th><th style="text-align:center;">Type</th></tr></thead>
+            <tbody>
+              {% for item in co.line_items %}
+              <tr style="{% if item.is_addition %}background:rgba(16,185,129,0.03){% else %}background:rgba(239,68,68,0.03){% endif %};">
+                <td>{{ item.description }}</td>
+                <td style="text-align:center;">{{ item.quantity }}</td>
+                <td class="col-number">${{ "{:,.2f}".format(item.unit_price) }}</td>
+                <td class="col-number" style="font-weight:var(--font-weight-semibold);color:{% if item.is_addition %}var(--color-success){% else %}var(--color-danger){% endif %};">{{ '+' if item.is_addition else '-' }}${{ "{:,.2f}".format(item.line_total) }}</td>
+                <td style="text-align:center;"><span class="badge badge-{% if item.is_addition %}completed{% else %}danger{% endif %}">{{ 'Addition' if item.is_addition else 'Deduction' }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr style="background:var(--color-surface-raised);"><td colspan="3" style="text-align:right;font-weight:var(--font-weight-bold);">Net Change</td><td class="col-number" style="font-weight:var(--font-weight-bold);color:{% if co.cost_difference >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">{{ '+' if co.cost_difference >= 0 }}${{ "{:,.2f}".format(co.cost_difference) }}</td><td></td></tr>
+            </tfoot>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:var(--space-4);"><p style="margin:0;">No line items.</p></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Approval Status -->
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h3 class="card-title"><i class="bi bi-check-square" style="color:var(--color-text-secondary);"></i> Approval Status</h3></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+          <!-- Internal -->
+          <div>
+            <h6 style="font-size:var(--font-size-xs);text-transform:uppercase;color:var(--color-text-muted);margin-bottom:var(--space-2);">Internal</h6>
+            {% if co.internal_approved_by %}
+            <div style="padding:var(--space-2) var(--space-3);background:var(--color-success-light);border-radius:var(--radius-sm);">
+              <i class="bi bi-check-circle" style="color:var(--color-success);"></i>
+              Approved by <strong>{{ co.internal_approved_by.full_name }}</strong>
+              {% if co.internal_approved_date %}<br><span style="font-size:var(--font-size-xs);">{{ co.internal_approved_date.strftime('%b %d, %Y %H:%M') }}</span>{% endif %}
+            </div>
+            {% elif co.status == 'rejected' %}
+            <div style="padding:var(--space-2) var(--space-3);background:var(--color-danger-light);border-radius:var(--radius-sm);">
+              <i class="bi bi-x-circle" style="color:var(--color-danger);"></i> Rejected
+            </div>
+            {% else %}
+            <div style="padding:var(--space-2) var(--space-3);background:var(--color-surface-raised);border-radius:var(--radius-sm);color:var(--color-text-secondary);">
+              <i class="bi bi-hourglass"></i> Pending
+            </div>
+            {% endif %}
+          </div>
+          <!-- Client -->
+          <div>
+            <h6 style="font-size:var(--font-size-xs);text-transform:uppercase;color:var(--color-text-muted);margin-bottom:var(--space-2);">Client</h6>
+            {% if not co.requires_client_approval %}
+            <div style="padding:var(--space-2) var(--space-3);background:var(--color-surface-raised);border-radius:var(--radius-sm);color:var(--color-text-muted);"><i class="bi bi-dash-circle"></i> Not required</div>
+            {% elif co.client_approved == true %}
+            <div style="padding:var(--space-2) var(--space-3);background:var(--color-success-light);border-radius:var(--radius-sm);"><i class="bi bi-check-circle" style="color:var(--color-success);"></i> Approved by <strong>{{ co.client_approved_by or 'Client' }}</strong></div>
+            {% elif co.client_approved == false %}
+            <div style="padding:var(--space-2) var(--space-3);background:var(--color-danger-light);border-radius:var(--radius-sm);"><i class="bi bi-x-circle" style="color:var(--color-danger);"></i> Rejected by client</div>
+            {% else %}
+            <div style="padding:var(--space-2) var(--space-3);background:rgba(245,158,11,0.08);border-radius:var(--radius-sm);color:var(--color-warning-dark);"><i class="bi bi-hourglass"></i> Awaiting client approval</div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if co.rejection_reason %}
+        <div style="margin-top:var(--space-3);padding:var(--space-3);background:var(--color-danger-light);border-radius:var(--radius-md);border-left:3px solid var(--color-danger);">
+          <strong style="color:var(--color-danger-dark);">Rejection Reason:</strong>
+          <p style="margin:var(--space-1) 0 0;color:var(--color-danger-dark);">{{ co.rejection_reason }}</p>
+        </div>
+        {% endif %}
+
+        {% if can_approve and co.awaiting_approval %}
+        <hr style="margin:var(--space-3) 0;">
+        <div style="display:flex;gap:var(--space-2);">
+          <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#approveModal"><i class="bi bi-check-lg"></i> Approve</button>
+          <button class="btn btn-ghost" style="color:var(--color-danger);" data-bs-toggle="modal" data-bs-target="#rejectModal"><i class="bi bi-x-lg"></i> Reject</button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Sidebar -->
+  <div class="detail-sidebar">
+    <div class="card" style="margin-bottom:var(--space-3);">
+      <div class="card-header"><h3 class="card-title" style="font-size:var(--font-size-sm);"><i class="bi bi-currency-dollar"></i> Cost Impact</h3></div>
+      <div class="card-body" style="font-size:var(--font-size-sm);">
+        <div class="perf-fin-rows">
+          <div class="perf-fin-row"><span>Original</span><span class="money">${{ "{:,.2f}".format(co.original_amount or 0) }}</span></div>
+          <div class="perf-fin-row"><span>Revised</span><span class="money">${{ "{:,.2f}".format(co.revised_amount or 0) }}</span></div>
+          <div class="perf-fin-row" style="border-top:1px solid var(--color-border);padding-top:var(--space-2);">
+            <span style="font-weight:var(--font-weight-semibold);">Difference</span>
+            <span class="money {% if co.cost_difference >= 0 %}money-green{% else %}money-red{% endif %}" style="font-weight:var(--font-weight-bold);">{{ '+' if co.cost_difference >= 0 }}${{ "{:,.2f}".format(co.cost_difference) }}</span>
+          </div>
+          {% if co.labor_hours_impact %}<div class="perf-fin-row"><span>Labor Hours</span><span>{{ '+' if co.labor_hours_impact > 0 }}{{ co.labor_hours_impact }}h</span></div>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3 class="card-title" style="font-size:var(--font-size-sm);"><i class="bi bi-info-circle"></i> Job Context</h3></div>
+      <div class="card-body" style="font-size:var(--font-size-sm);">
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px var(--space-3);">
+          <span style="color:var(--color-text-muted);">Job</span><a href="{{ url_for('job_detail', job_id=job.id) }}">{{ job.job_number }}</a>
+          <span style="color:var(--color-text-muted);">Client</span><span>{{ job.client.display_name if job.client else '---' }}</span>
+          <span style="color:var(--color-text-muted);">Original Est.</span><span>${{ "{:,.2f}".format(job.original_estimated_cost or job.estimated_amount or 0) }}</span>
+          <span style="color:var(--color-text-muted);">Approved COs</span><span>{{ job.total_change_orders }}</span>
+          <span style="color:var(--color-text-muted);">Current Total</span><span style="font-weight:var(--font-weight-bold);color:var(--color-accent);">${{ "{:,.2f}".format(job.current_contract_value) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('change_orders.approve_change_order', job_id=job.id, co_id=co.id) }}">
+        <div class="modal-header" style="background:var(--color-success);color:#fff;">
+          <h5 class="modal-title" style="color:#fff;">Approve Change Order</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:invert(1);"></button>
+        </div>
+        <div class="modal-body">
+          <p>Approving <strong>{{ co.change_order_number }}</strong> will update the job total by
+            <strong style="color:{% if co.cost_difference >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">{{ '+' if co.cost_difference >= 0 }}${{ "{:,.2f}".format(co.cost_difference) }}</strong>.
+          </p>
+          {% if co.requires_client_approval %}
+          <div class="form-group"><label class="form-label">Client Approved By</label><input type="text" name="client_approved_by" class="form-control" placeholder="Client contact name"></div>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">Confirm Approval</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('change_orders.reject_change_order', job_id=job.id, co_id=co.id) }}">
+        <div class="modal-header" style="background:var(--color-danger);color:#fff;">
+          <h5 class="modal-title" style="color:#fff;">Reject Change Order</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" style="filter:invert(1);"></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group"><label class="form-label">Rejection Reason <span style="color:var(--color-danger);">*</span></label>
+            <textarea name="rejection_reason" class="form-control" rows="3" required placeholder="Explain why..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Reject</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

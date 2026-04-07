@@ -1,0 +1,29 @@
+{# Document grid card partial — expects: doc (Document object) #}
+<div class="card" style="height:100%;{% if doc.is_confidential %}border-color:var(--color-warning);{% endif %}">
+  <div class="card-body" style="display:flex;flex-direction:column;padding:var(--space-3);">
+    <div style="text-align:center;margin-bottom:var(--space-2);">
+      {% if doc.is_image %}
+      <img src="{{ url_for('documents.download_document', doc_id=doc.id) }}" style="max-height:80px;object-fit:cover;border-radius:var(--radius-sm);" alt="{{ doc.display_name }}" loading="lazy">
+      {% else %}
+      <i class="bi {{ doc.icon_class }}" style="font-size:2.5rem;"></i>
+      {% endif %}
+    </div>
+    <p style="font-size:var(--font-size-sm);font-weight:var(--font-weight-semibold);margin-bottom:var(--space-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ doc.display_name }}">{{ doc.display_name }}</p>
+    <span class="badge badge-draft" style="align-self:flex-start;margin-bottom:var(--space-1);">{{ doc.category_label }}</span>
+    {% if doc.is_confidential %}<span class="badge badge-pending" style="align-self:flex-start;margin-bottom:var(--space-1);font-size:0.6rem;"><i class="bi bi-lock"></i> Confidential</span>{% endif %}
+    {% if doc.expiry_date %}
+      {% if doc.is_expired %}<span class="badge badge-danger" style="align-self:flex-start;font-size:0.6rem;">Expired</span>
+      {% elif doc.days_until_expiry <= 14 %}<span class="badge badge-pending" style="align-self:flex-start;font-size:0.6rem;">Expires {{ doc.days_until_expiry }}d</span>{% endif %}
+    {% endif %}
+    <div style="margin-top:auto;font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ doc.file_size_display }} · v{{ doc.version }}</div>
+  </div>
+  <div style="padding:var(--space-2) var(--space-3);border-top:1px solid var(--color-border-light);display:flex;gap:var(--space-1);justify-content:center;">
+    <a href="{{ url_for('documents.download_document', doc_id=doc.id) }}" class="btn btn-sm btn-ghost" title="Download"><i class="bi bi-download"></i></a>
+    <a href="{{ url_for('documents.document_detail', doc_id=doc.id) }}" class="btn btn-sm btn-ghost" title="Details"><i class="bi bi-info-circle"></i></a>
+    {% if user.role in ('owner', 'admin') %}
+    <form method="POST" action="{{ url_for('documents.delete_document_view', doc_id=doc.id) }}" onsubmit="return confirm('Delete?');" style="display:inline;">
+      <button type="submit" class="btn btn-sm btn-ghost" style="color:var(--color-danger);" title="Delete"><i class="bi bi-trash"></i></button>
+    </form>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Permit {{ permit.permit_number or '#' ~ permit.id|string }}{% endblock %}
+{% block page_title %}{{ permit.type_display }} Permit{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb" style="margin:0;">
+  <li class="breadcrumb-item"><a href="{{ url_for('permits.permit_list') }}">Permits</a></li>
+  <li class="breadcrumb-item active">{{ permit.permit_number or '#' ~ permit.id|string }}</li>
+</ol></nav>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="detail-header">
+  <div class="detail-header-left">
+    <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-1);">
+      <span class="badge badge-{{ permit.status_color }}" style="font-size:var(--font-size-sm);">{{ permit.status_display }}</span>
+      {% if permit.is_expiring_soon %}<span class="badge badge-pending"><i class="bi bi-exclamation-triangle"></i> Expiring</span>{% endif %}
+      {% if permit.is_expired %}<span class="badge badge-danger"><i class="bi bi-x-circle"></i> Expired</span>{% endif %}
+    </div>
+    <p class="detail-subtitle">{{ permit.permit_number or 'No number' }} &mdash; <a href="{{ url_for('job_detail', job_id=permit.job_id) }}">{{ permit.job.job_number if permit.job else 'Job #' ~ permit.job_id }}</a></p>
+  </div>
+  <div class="detail-header-right">
+    {% if user.role in ('owner', 'admin', 'dispatcher') %}
+    <a href="{{ url_for('permits.permit_edit', permit_id=permit.id) }}" class="btn btn-ghost"><i class="bi bi-pencil"></i> Edit</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="detail-main">
+    <!-- Details -->
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h3 class="card-title">Permit Details</h3></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);font-size:var(--font-size-sm);">
+          <div><span style="color:var(--color-text-muted);">Job</span><br><a href="{{ url_for('job_detail', job_id=permit.job_id) }}">{{ permit.job.job_number if permit.job else '#' ~ permit.job_id }}{% if permit.job %} -- {{ permit.job.title }}{% endif %}</a></div>
+          {% if permit.phase %}<div><span style="color:var(--color-text-muted);">Phase</span><br>Phase {{ permit.phase.phase_number }}: {{ permit.phase.title }}</div>{% endif %}
+          <div><span style="color:var(--color-text-muted);">Issuing Authority</span><br><strong>{{ permit.issuing_authority or '---' }}</strong></div>
+          <div><span style="color:var(--color-text-muted);">Cost</span><br><strong>{% if permit.cost %}${{ "{:,.2f}".format(permit.cost) }}{% else %}---{% endif %}</strong></div>
+          <div><span style="color:var(--color-text-muted);">Application Date</span><br>{{ permit.application_date.strftime('%b %d, %Y') if permit.application_date else '---' }}</div>
+          <div><span style="color:var(--color-text-muted);">Issue Date</span><br>{{ permit.issue_date.strftime('%b %d, %Y') if permit.issue_date else '---' }}</div>
+          <div><span style="color:var(--color-text-muted);">Expiry</span><br><span style="{% if permit.is_expired %}color:var(--color-danger);font-weight:var(--font-weight-bold);{% elif permit.is_expiring_soon %}color:var(--color-warning);font-weight:var(--font-weight-bold);{% endif %}">{{ permit.expiry_date.strftime('%b %d, %Y') if permit.expiry_date else '---' }}</span></div>
+        </div>
+        {% if permit.description %}<div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--color-border);"><span style="color:var(--color-text-muted);font-size:var(--font-size-xs);">Description</span><p style="margin:var(--space-1) 0 0;">{{ permit.description }}</p></div>{% endif %}
+        {% if permit.conditions %}<div style="margin-top:var(--space-2);"><span style="color:var(--color-text-muted);font-size:var(--font-size-xs);">Conditions</span><p style="margin:var(--space-1) 0 0;white-space:pre-wrap;">{{ permit.conditions }}</p></div>{% endif %}
+        {% if permit.notes %}<div style="margin-top:var(--space-2);"><span style="color:var(--color-text-muted);font-size:var(--font-size-xs);">Notes</span><p style="margin:var(--space-1) 0 0;">{{ permit.notes }}</p></div>{% endif %}
+      </div>
+    </div>
+
+    {% if permit.inspector_name or permit.inspector_phone %}
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h3 class="card-title">Inspector</h3></div>
+      <div class="card-body" style="font-size:var(--font-size-sm);">
+        {% if permit.inspector_name %}<div><strong>Name:</strong> {{ permit.inspector_name }}</div>{% endif %}
+        {% if permit.inspector_phone %}<div><strong>Phone:</strong> {{ permit.inspector_phone }}</div>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Inspection History -->
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 class="card-title">Inspection History</h3>
+        {% if user.role in ('owner', 'admin', 'dispatcher') %}
+        <button class="btn btn-sm btn-ghost" data-bs-toggle="collapse" data-bs-target="#addInspection"><i class="bi bi-plus"></i> Add</button>
+        {% endif %}
+      </div>
+
+      <div class="collapse" id="addInspection">
+        <div class="card-body" style="background:var(--color-surface-raised);border-bottom:1px solid var(--color-border);">
+          <form method="POST" action="{{ url_for('permits.permit_add_inspection', permit_id=permit.id) }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:var(--space-2);align-items:end;">
+            <div class="form-group" style="margin:0;"><label class="form-label">Date *</label><input type="date" name="inspection_date" class="form-control" required></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Result *</label><select name="result" class="form-control" required><option value="passed">Passed</option><option value="failed">Failed</option><option value="partial">Partial</option></select></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Inspector</label><input type="text" name="inspector" class="form-control" value="{{ permit.inspector_name or '' }}"></div>
+            <div><button type="submit" class="btn btn-sm btn-accent" style="width:100%;">Record</button></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card-body" style="padding:0;">
+        {% if permit.inspection_history %}
+        {% for insp in permit.inspection_history|reverse %}
+        <div style="padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-border-light);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <span class="badge badge-{% if insp.result == 'passed' %}completed{% elif insp.result == 'failed' %}danger{% else %}pending{% endif %}">{{ insp.result|upper }}</span>
+              <strong style="margin-left:var(--space-2);">{{ insp.date }}</strong>
+              {% if insp.inspector %}<span style="color:var(--color-text-muted);margin-left:var(--space-2);font-size:var(--font-size-xs);">Inspector: {{ insp.inspector }}</span>{% endif %}
+            </div>
+          </div>
+          {% if insp.notes %}<div style="font-size:var(--font-size-xs);color:var(--color-text-secondary);margin-top:2px;">{{ insp.notes }}</div>{% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="text-align:center;padding:var(--space-4);color:var(--color-text-muted);">No inspections recorded yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-sidebar">
+    <!-- Documents Widget -->
+    {% set widget_entity_type = 'permit' %}
+    {% set widget_entity_id = permit.id %}
+    {% set widget_category = 'permit' %}
+    {% set widget_documents = documents %}
+    {% set widget_title = 'Permit Documents' %}
+    {% include 'partials/_document_widget.html' %}
+
+    {% if user.role in ('owner', 'admin') %}
+    <div class="card" style="border-color:var(--color-danger);">
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('permits.permit_delete', permit_id=permit.id) }}" onsubmit="return confirm('Delete this permit?');">
+          <button type="submit" class="btn btn-sm btn-ghost" style="width:100%;color:var(--color-danger);"><i class="bi bi-trash"></i> Delete Permit</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

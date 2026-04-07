@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Purchase Orders{% endblock %}
+{% block page_title %}Purchase Orders{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--success"><i class="bi bi-file-earmark-check-fill"></i></div>
+      <p class="metric-card__label">Active POs</p>
+      <p class="metric-card__value">{{ active_count }}</p>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--primary"><i class="bi bi-cash-stack"></i></div>
+      <p class="metric-card__label">Total Authorized</p>
+      <p class="metric-card__value">${{ "{:,.0f}".format(total_authorized) }}</p>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--accent"><i class="bi bi-piggy-bank"></i></div>
+      <p class="metric-card__label">Total Remaining</p>
+      <p class="metric-card__value">${{ "{:,.0f}".format(total_remaining) }}</p>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+  <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">
+    Manage client-issued POs and spending authorizations
+  </p>
+  {% if user.role in ('owner', 'admin', 'dispatcher') %}
+  <a href="{{ url_for('purchase_orders.po_new') }}" class="btn btn-accent">
+    <i class="bi bi-plus-circle"></i> New Purchase Order
+  </a>
+  {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-body" style="padding: var(--space-3) var(--space-4);">
+    <form method="GET" style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end;">
+      <div style="flex: 1; min-width: 160px;">
+        <input type="text" name="q" class="form-control" style="font-size: var(--font-size-sm);"
+               placeholder="PO#, department, cost code..." value="{{ search }}">
+      </div>
+      <div style="min-width: 140px;">
+        <select name="client_id" class="form-control" style="font-size: var(--font-size-sm);">
+          <option value="">All Clients</option>
+          {% for c in clients %}
+          <option value="{{ c.id }}" {{ 'selected' if client_filter == c.id|string }}>{{ c.display_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="min-width: 120px;">
+        <select name="status" class="form-control" style="font-size: var(--font-size-sm);">
+          <option value="">All</option>
+          <option value="active" {{ 'selected' if status_filter == 'active' }}>Active</option>
+          <option value="exhausted" {{ 'selected' if status_filter == 'exhausted' }}>Exhausted</option>
+          <option value="expired" {{ 'selected' if status_filter == 'expired' }}>Expired</option>
+          <option value="cancelled" {{ 'selected' if status_filter == 'cancelled' }}>Cancelled</option>
+        </select>
+      </div>
+      <div>
+        <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
+          <input type="checkbox" name="expiring_soon" value="1" style="accent-color: var(--color-accent);"
+                 {{ 'checked' if expiring_soon }}>
+          Expiring 30d
+        </label>
+      </div>
+      <div style="display: flex; gap: var(--space-1);">
+        <button type="submit" class="btn btn-sm btn-accent">Filter</button>
+        <a href="{{ url_for('purchase_orders.po_list') }}" class="btn btn-sm btn-ghost">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+{% if pos %}
+<div class="fsp-table-wrapper">
+  <table class="fsp-table">
+    <thead>
+      <tr>
+        <th>PO Number</th>
+        <th>Client</th>
+        <th>Department</th>
+        <th style="text-align:right;">Authorized</th>
+        <th style="text-align:right;">Used</th>
+        <th style="text-align:right;">Remaining</th>
+        <th>Utilization</th>
+        <th>Expiry</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for po in pos %}
+      <tr class="clickable-row" onclick="window.location.href='{{ url_for('purchase_orders.po_detail', po_id=po.id) }}'">
+        <td style="font-weight: var(--font-weight-semibold);">{{ po.po_number }}</td>
+        <td>{{ po.client.display_name if po.client else '---' }}</td>
+        <td>
+          {% if po.department %}<span class="badge badge-draft">{{ po.department }}</span>{% endif %}
+          {% if po.cost_code %}<span style="font-size: var(--font-size-xs); color: var(--color-text-muted); font-family: monospace;">{{ po.cost_code }}</span>{% endif %}
+        </td>
+        <td class="col-number">${{ "{:,.2f}".format(po.amount_authorized) }}</td>
+        <td class="col-number">${{ "{:,.2f}".format(po.amount_used) }}</td>
+        <td class="col-number" style="font-weight: var(--font-weight-semibold); color: {% if po.amount_remaining <= 0 %}var(--color-danger){% elif po.amount_remaining < (po.amount_authorized or 1) * 0.2 %}var(--color-warning){% else %}var(--color-success){% endif %};">
+          ${{ "{:,.2f}".format(po.amount_remaining) }}
+        </td>
+        <td style="min-width: 100px;">
+          <div style="height: 6px; background: var(--color-border); border-radius: var(--radius-full); overflow: hidden;">
+            <div style="height: 100%; width: {{ po.utilization_percentage }}%; background: {% if po.utilization_percentage >= 90 %}var(--color-danger){% elif po.utilization_percentage >= 70 %}var(--color-warning){% else %}var(--color-success){% endif %}; border-radius: var(--radius-full);"></div>
+          </div>
+          <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">{{ "%.0f"|format(po.utilization_percentage) }}%</span>
+        </td>
+        <td style="font-size: var(--font-size-xs);">
+          {% if po.expiry_date %}
+          <span style="{% if po.is_expired %}color: var(--color-danger);{% endif %}">{{ po.expiry_date.strftime('%b %d, %Y') }}</span>
+          {% else %}<span style="color: var(--color-text-muted);">No expiry</span>{% endif %}
+        </td>
+        <td><span class="badge badge-{{ po.status_badge_class }}">{{ po.status|title }}</span></td>
+        <td style="text-align: right;">
+          <a href="{{ url_for('purchase_orders.po_detail', po_id=po.id) }}" class="btn btn-sm btn-ghost" onclick="event.stopPropagation();">View</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-file-earmark-x" style="display: block;"></i>
+  <h3>No purchase orders found</h3>
+  <p>Create your first PO to start tracking client spending authorizations.</p>
+  {% if user.role in ('owner', 'admin', 'dispatcher') %}
+  <a href="{{ url_for('purchase_orders.po_new') }}" class="btn btn-accent"><i class="bi bi-plus-circle"></i> Create First PO</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

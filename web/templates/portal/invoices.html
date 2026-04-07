@@ -1,0 +1,123 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Invoices{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <h1>Invoices</h1>
+</div>
+
+{# ── Account Summary ── #}
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="portal-stat-card">
+            <div class="stat-icon {% if outstanding_total > 0 %}red{% else %}green{% endif %}">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="stat-value">${{ '{:,.2f}'.format(outstanding_total) }}</div>
+            <div class="stat-label">Total Outstanding</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="portal-stat-card">
+            <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
+            <div class="stat-value">${{ '{:,.2f}'.format(aging.current) }}</div>
+            <div class="stat-label">Current</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="portal-stat-card">
+            <div class="stat-icon amber"><i class="bi bi-clock"></i></div>
+            <div class="stat-value">${{ '{:,.2f}'.format(aging.thirty) }}</div>
+            <div class="stat-label">30 Days</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="portal-stat-card">
+            <div class="stat-icon amber"><i class="bi bi-exclamation-triangle"></i></div>
+            <div class="stat-value">${{ '{:,.2f}'.format(aging.sixty) }}</div>
+            <div class="stat-label">60 Days</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="portal-stat-card">
+            <div class="stat-icon red"><i class="bi bi-x-octagon"></i></div>
+            <div class="stat-value">${{ '{:,.2f}'.format(aging.ninety_plus) }}</div>
+            <div class="stat-label">90+ Days</div>
+        </div>
+    </div>
+</div>
+
+{# ── Filters ── #}
+<div class="portal-filter-bar">
+    <form method="GET" class="d-flex flex-wrap gap-2 align-items-center w-100">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="max-width:180px;">
+            <option value="">All</option>
+            <option value="outstanding" {{ 'selected' if selected_status == 'outstanding' }}>Outstanding</option>
+            <option value="overdue" {{ 'selected' if selected_status == 'overdue' }}>Overdue</option>
+            <option value="paid" {{ 'selected' if selected_status == 'paid' }}>Paid</option>
+        </select>
+        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from or '' }}"
+               onchange="this.form.submit()" style="max-width:160px;">
+        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to or '' }}"
+               onchange="this.form.submit()" style="max-width:160px;">
+        {% if selected_status or date_from or date_to %}
+        <a href="{{ url_for('portal.portal_invoices') }}" class="btn btn-sm btn-portal-outline">
+            <i class="bi bi-x"></i> Clear
+        </a>
+        {% endif %}
+        <a href="{{ url_for('portal.portal_generate_statement') }}" class="btn btn-sm btn-portal-outline ms-auto">
+            <i class="bi bi-file-earmark-pdf"></i> Generate Statement
+        </a>
+    </form>
+</div>
+
+{% if invoices %}
+<div class="portal-card">
+    <div class="card-body p-0">
+        <table class="portal-table">
+            <thead>
+                <tr>
+                    <th>Invoice #</th>
+                    <th>Job</th>
+                    <th>Amount</th>
+                    <th>Balance Due</th>
+                    <th>Due Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr class="clickable-row" data-href="{{ url_for('portal.portal_invoice_detail', invoice_id=inv.id) }}">
+                    <td class="fw-semibold">#{{ inv.invoice_number or inv.id }}</td>
+                    <td style="font-size:0.85rem;">
+                        {% if inv.job %}Job #{{ inv.job.job_number or inv.job_id }}{% else %}---{% endif %}
+                    </td>
+                    <td class="fw-semibold">${{ '{:,.2f}'.format(inv.total or 0) }}</td>
+                    <td {% if inv.balance_due and inv.balance_due > 0 %}style="color:var(--portal-danger);font-weight:600;"{% endif %}>
+                        ${{ '{:,.2f}'.format(inv.balance_due or 0) }}
+                    </td>
+                    <td style="font-size:0.85rem;">{{ inv.due_date.strftime('%b %d, %Y') if inv.due_date else '---' }}</td>
+                    <td>
+                        <span class="portal-badge {{ inv.status }}">
+                            {{ inv.status|replace('_', ' ')|title }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="portal-card">
+    <div class="card-body">
+        <div class="portal-empty-state">
+            <i class="bi bi-receipt"></i>
+            <h5>No Invoices</h5>
+            <p>No invoices found for the selected criteria.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

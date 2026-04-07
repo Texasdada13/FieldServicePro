@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Create' if mode == 'create' else 'Edit' }} Portal User — {{ client.display_name }}{% endblock %}
+{% block page_title %}{{ 'Create' if mode == 'create' else 'Edit' }} Portal User{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-3);">
+    <a href="{{ url_for('portal_admin.list_portal_users', client_id=client.id) }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);">
+        <i class="bi bi-arrow-left"></i> Back to Portal Users
+    </a>
+</div>
+
+<div style="max-width:800px;">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><i class="bi bi-person-plus" style="color:var(--color-accent);"></i> {{ 'Create' if mode == 'create' else 'Edit' }} Portal User — {{ client.display_name }}</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" class="form-control" required placeholder="user@company.com">
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                            <div class="form-group">
+                                <label class="form-label">First Name *</label>
+                                <input type="text" name="first_name" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Last Name *</label>
+                                <input type="text" name="last_name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" name="phone" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Role</label>
+                            <select name="role" class="form-control">
+                                <option value="primary">Primary Contact — Full access, manage other portal users</option>
+                                <option value="manager">Manager — Full access, no user management</option>
+                                <option value="standard" selected>Standard — Service requests, jobs, documents</option>
+                                <option value="billing_only">Billing Only — Invoices and billing documents</option>
+                                <option value="view_only">View Only — Read-only access</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">Property Access</label>
+                            <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-bottom:var(--space-2);">Leave unchecked to grant access to all properties.</p>
+                            {% for prop in properties %}
+                            <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-1);">
+                                <input type="checkbox" name="properties" value="{{ prop.id }}" style="accent-color:var(--color-accent);">
+                                {{ prop.display_address }}
+                            </label>
+                            {% endfor %}
+                            {% if not properties %}
+                            <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);">No properties found for this client.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:var(--space-2);justify-content:flex-end;margin-top:var(--space-4);">
+                    <a href="{{ url_for('portal_admin.list_portal_users', client_id=client.id) }}" class="btn btn-ghost">Cancel</a>
+                    <button type="submit" class="btn btn-accent">
+                        <i class="bi bi-person-plus"></i> Create & Send Invitation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

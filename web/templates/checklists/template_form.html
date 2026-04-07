@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Template' if template else 'New Checklist Template' }}{% endblock %}
+{% block page_title %}{{ 'Edit Template' if template else 'New Checklist Template' }}{% endblock %}
+
+{% block content %}
+<div style="max-width:960px;">
+  <div class="card">
+    <div class="card-header">
+      <h4 style="margin:0;">
+        <i class="bi bi-clipboard-check" style="color:var(--color-accent);margin-right:var(--space-2);"></i>
+        {{ 'Edit Template' if template else 'New Checklist Template' }}
+      </h4>
+    </div>
+    <div class="card-body">
+      <form method="POST" id="checklistForm">
+        <!-- Template Details -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+          <div class="form-group" style="grid-column:span 2;">
+            <label class="form-label">Template Name *</label>
+            <input type="text" name="name" class="form-control" required
+                   value="{{ template.name if template else '' }}"
+                   placeholder="e.g., Confined Space Entry Checklist">
+          </div>
+          <div></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea name="description" class="form-control" rows="2">{{ template.description if template else '' }}</textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Type *</label>
+            <select name="checklist_type" class="form-control" required>
+              {% for val, label in type_choices %}
+              <option value="{{ val }}" {% if template and template.checklist_type == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <select name="category" class="form-control" required>
+              {% for val, label in category_choices %}
+              <option value="{{ val }}" {% if template and template.category == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Division</label>
+            <select name="division_id" class="form-control">
+              <option value="">Company-wide</option>
+              {% for div in divisions %}
+              <option value="{{ div.id }}" {% if template and template.division_id == div.id %}selected{% endif %}>{{ div.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group">
+            <label class="form-label">Required for Job Types (comma-separated)</label>
+            <input type="text" name="required_for_job_types" class="form-control"
+                   value="{{ template.required_job_types_list|join(', ') if template else '' }}"
+                   placeholder="Leave blank for all job types">
+          </div>
+          <div style="display:flex;align-items:end;padding-bottom:var(--space-2);">
+            <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+              <input type="checkbox" name="is_active" style="accent-color:var(--color-accent);"
+                     {% if not template or template.is_active %}checked{% endif %}>
+              Active
+            </label>
+          </div>
+        </div>
+
+        <hr style="border-color:var(--color-border);margin:var(--space-4) 0;">
+
+        <!-- Checklist Items -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+          <h5 style="margin:0;">Checklist Items</h5>
+          <button type="button" class="btn btn-ghost" onclick="addItem()" style="font-size:var(--font-size-sm);">
+            <i class="bi bi-plus"></i> Add Item
+          </button>
+        </div>
+
+        <div id="itemsContainer">
+          {% if template and template.items %}
+          {% for item in template.items %}
+          <div class="card checklist-item" data-index="{{ loop.index0 }}" style="margin-bottom:var(--space-3);">
+            <div class="card-body" style="padding:var(--space-3);">
+              <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-2);">
+                <span class="badge" style="background:var(--color-surface-raised);color:var(--color-text-secondary);">Item {{ loop.index }}</span>
+                <button type="button" class="btn btn-ghost" style="color:var(--color-danger);padding:0;font-size:1rem;" onclick="removeItem(this)">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+              <div style="display:grid;grid-template-columns:3fr 1fr 1fr 1fr;gap:var(--space-2);margin-bottom:var(--space-2);">
+                <input type="text" name="items[{{ loop.index0 }}][question]" class="form-control"
+                       placeholder="Question *" value="{{ item.question }}" required>
+                <select name="items[{{ loop.index0 }}][type]" class="form-control">
+                  {% for val, label in item_types %}
+                  <option value="{{ val }}" {% if item.item_type == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <select name="items[{{ loop.index0 }}][failure_action]" class="form-control">
+                  {% for val, label in failure_actions %}
+                  <option value="{{ val }}" {% if item.failure_action == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <div style="display:flex;align-items:center;">
+                  <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:var(--font-size-sm);">
+                    <input type="checkbox" name="items[{{ loop.index0 }}][required]"
+                           style="accent-color:var(--color-accent);" {% if item.is_required %}checked{% endif %}>
+                    Required
+                  </label>
+                </div>
+              </div>
+              <input type="text" name="items[{{ loop.index0 }}][help_text]" class="form-control"
+                     style="font-size:var(--font-size-sm);"
+                     placeholder="Help text (optional)" value="{{ item.help_text or '' }}">
+            </div>
+          </div>
+          {% endfor %}
+          {% endif %}
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-4);">
+          <a href="{{ url_for('checklists.template_list') }}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-accent">
+            {{ 'Update Template' if template else 'Create Template' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+let itemCount = {{ template.items|length if template else 0 }};
+
+function addItem() {
+  const container = document.getElementById('itemsContainer');
+  const idx = itemCount;
+  const html = `
+  <div class="card checklist-item" data-index="${idx}" style="margin-bottom:var(--space-3);">
+    <div class="card-body" style="padding:var(--space-3);">
+      <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-2);">
+        <span class="badge" style="background:var(--color-surface-raised);color:var(--color-text-secondary);">Item ${idx + 1}</span>
+        <button type="button" class="btn btn-ghost" style="color:var(--color-danger);padding:0;font-size:1rem;" onclick="removeItem(this)">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:3fr 1fr 1fr 1fr;gap:var(--space-2);margin-bottom:var(--space-2);">
+        <input type="text" name="items[${idx}][question]" class="form-control" placeholder="Question *" required>
+        <select name="items[${idx}][type]" class="form-control">
+          <option value="yes_no">Yes / No</option>
+          <option value="pass_fail">Pass / Fail</option>
+          <option value="text">Text</option>
+          <option value="number">Number</option>
+          <option value="photo">Photo</option>
+          <option value="signature">Signature</option>
+        </select>
+        <select name="items[${idx}][failure_action]" class="form-control">
+          <option value="warning">Warning</option>
+          <option value="block_work">Block Work</option>
+          <option value="notify_supervisor">Notify Supervisor</option>
+        </select>
+        <div style="display:flex;align-items:center;">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:var(--font-size-sm);">
+            <input type="checkbox" name="items[${idx}][required]" style="accent-color:var(--color-accent);" checked>
+            Required
+          </label>
+        </div>
+      </div>
+      <input type="text" name="items[${idx}][help_text]" class="form-control"
+             style="font-size:var(--font-size-sm);" placeholder="Help text (optional)">
+    </div>
+  </div>`;
+  container.insertAdjacentHTML('beforeend', html);
+  itemCount++;
+}
+
+function removeItem(btn) {
+  btn.closest('.checklist-item').remove();
+  reindexItems();
+}
+
+function reindexItems() {
+  const items = document.querySelectorAll('.checklist-item');
+  items.forEach((item, idx) => {
+    item.dataset.index = idx;
+    item.querySelector('.badge').textContent = `Item ${idx + 1}`;
+    item.querySelectorAll('[name]').forEach(el => {
+      el.name = el.name.replace(/items\[\d+\]/, `items[${idx}]`);
+    });
+  });
+  itemCount = items.length;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Bulk Statement Generation{% endblock %}
+{% block page_title %}Bulk Statements{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb" style="margin: 0;">
+    <li class="breadcrumb-item"><a href="{{ url_for('invoices_page') }}">Invoices</a></li>
+    <li class="breadcrumb-item active">Bulk Statements</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+  <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">
+    {{ client_totals|length }} client{{ 's' if client_totals|length != 1 }} with outstanding balances
+  </p>
+</div>
+
+<!-- Date range -->
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-body" style="padding: var(--space-3) var(--space-4);">
+    <form method="GET" style="display: flex; align-items: end; gap: var(--space-3);">
+      <div>
+        <label class="form-label" style="font-size: var(--font-size-xs);">Statement Period</label>
+        <div style="display: flex; gap: var(--space-2); align-items: center;">
+          <input type="date" name="start_date" class="form-control" value="{{ start_date.isoformat() }}" style="width: auto;">
+          <span style="font-size: var(--font-size-sm);">to</span>
+          <input type="date" name="end_date" class="form-control" value="{{ end_date.isoformat() }}" style="width: auto;">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-sm btn-accent">Update</button>
+    </form>
+  </div>
+</div>
+
+{% if not client_totals %}
+<div class="empty-state">
+  <i class="bi bi-check-circle" style="display: block; color: var(--color-success);"></i>
+  <h3>No Outstanding Balances</h3>
+  <p>All clients have a zero balance.</p>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-header" style="display: flex; justify-content: space-between;">
+    <h3 class="card-title">Clients with Outstanding Balances</h3>
+    <button class="btn btn-sm btn-success" id="emailAllBtn"><i class="bi bi-send"></i> Email All Statements</button>
+  </div>
+  <div class="card-body" style="padding: 0;">
+    <div class="fsp-table-wrapper" style="border: none; border-radius: 0;">
+      <table class="fsp-table">
+        <thead>
+          <tr>
+            <th style="width: 30px;"><input type="checkbox" id="selectAll" style="accent-color: var(--color-accent);"></th>
+            <th>Client</th>
+            <th style="text-align: right;">Outstanding</th>
+            <th>Billing Email</th>
+            <th style="text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in client_totals %}
+          <tr>
+            <td><input type="checkbox" class="client-check" value="{{ row.client.id }}" style="accent-color: var(--color-accent);"></td>
+            <td style="font-weight: var(--font-weight-semibold);">{{ row.client.display_name }}</td>
+            <td class="col-number" style="{% if row.outstanding > 0 %}color: var(--color-danger); font-weight: var(--font-weight-bold);{% endif %}">
+              ${{ "{:,.2f}".format(row.outstanding) }}
+            </td>
+            <td>
+              {% if row.billing_email %}
+              <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">{{ row.billing_email }}</span>
+              {% else %}
+              <span class="badge badge-pending" style="font-size: var(--font-size-xs);">No billing email</span>
+              {% endif %}
+            </td>
+            <td style="text-align: right;">
+              <div style="display: flex; gap: 4px; justify-content: flex-end;">
+                <a href="{{ url_for('client_statement', client_id=row.client.id, start_date=start_date.isoformat(), end_date=end_date.isoformat()) }}"
+                   target="_blank" class="btn btn-sm btn-ghost"><i class="bi bi-eye"></i> View</a>
+                <a href="{{ url_for('client_statement', client_id=row.client.id, start_date=start_date.isoformat(), end_date=end_date.isoformat(), format='pdf') }}"
+                   class="btn btn-sm btn-ghost" style="color: var(--color-danger);"><i class="bi bi-file-pdf"></i></a>
+                {% if row.billing_email %}
+                <button class="btn btn-sm btn-ghost btn-email-one" style="color: var(--color-success);"
+                        data-client="{{ row.client.id }}" data-email="{{ row.billing_email }}">
+                  <i class="bi bi-envelope"></i>
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+var START_DATE = '{{ start_date.isoformat() }}';
+var END_DATE = '{{ end_date.isoformat() }}';
+
+document.getElementById('selectAll')?.addEventListener('change', function () {
+  document.querySelectorAll('.client-check').forEach(function (cb) { cb.checked = this.checked; }.bind(this));
+});
+
+document.querySelectorAll('.btn-email-one').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    if (!confirm('Send statement to ' + btn.dataset.email + '?')) return;
+    btn.disabled = true;
+    fetch('/clients/' + btn.dataset.client + '/statement/email', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start_date: START_DATE, end_date: END_DATE }),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      btn.disabled = false;
+      alert(data.success ? 'Sent to ' + data.sent_to : (data.error || 'Send failed'));
+    });
+  });
+});
+
+document.getElementById('emailAllBtn')?.addEventListener('click', function () {
+  var selected = [];
+  document.querySelectorAll('.client-check:checked').forEach(function (cb) { selected.push(cb.value); });
+  if (!selected.length) { alert('Select at least one client.'); return; }
+  if (!confirm('Send statements to ' + selected.length + ' client(s)?')) return;
+
+  var promises = selected.map(function (clientId) {
+    return fetch('/clients/' + clientId + '/statement/email', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start_date: START_DATE, end_date: END_DATE }),
+    });
+  });
+  Promise.all(promises).then(function () { alert('All statements sent.'); });
+});
+</script>
+{% endblock %}

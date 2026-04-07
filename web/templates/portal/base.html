@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Client Portal{% endblock %} — FieldServicePro</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/portal.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="portal-body">
+
+    {# ── Top Navigation ── #}
+    <nav class="navbar navbar-expand-lg portal-navbar">
+        <div class="container-fluid px-3">
+            <a class="navbar-brand" href="{{ url_for('portal.portal_dashboard') }}">
+                <i class="bi bi-tools"></i> Client Portal
+            </a>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#portalNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="portalNav">
+                <ul class="navbar-nav me-auto">
+                    {% if g.portal_user.can_view_dashboard() %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}"
+                           href="{{ url_for('portal.portal_dashboard') }}">
+                            <i class="bi bi-house-door"></i> Dashboard
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if g.portal_user.can_view_properties() %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'properties' %}active{% endif %}"
+                           href="{{ url_for('portal.portal_properties') }}">
+                            <i class="bi bi-building"></i> Properties
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if g.portal_user.can_create_service_requests() %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'service_requests' %}active{% endif %}"
+                           href="{{ url_for('portal.portal_service_requests') }}">
+                            <i class="bi bi-wrench"></i> Service Requests
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if g.portal_user.can_view_jobs() %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'jobs' %}active{% endif %}"
+                           href="{{ url_for('portal.portal_jobs') }}">
+                            <i class="bi bi-clipboard-check"></i> Jobs
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if g.portal_user.can_view_quotes() %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'quotes' %}active{% endif %}"
+                           href="{{ url_for('portal.portal_quotes') }}">
+                            <i class="bi bi-file-earmark-text"></i> Quotes
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if g.portal_user.can_view_invoices() %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'invoices' %}active{% endif %}"
+                           href="{{ url_for('portal.portal_invoices') }}">
+                            <i class="bi bi-receipt"></i> Invoices
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if g.portal_user.can_view_documents() %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'documents' %}active{% endif %}"
+                           href="{{ url_for('portal.portal_documents') }}">
+                            <i class="bi bi-folder2-open"></i> Documents
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if g.portal_user.can_view_reports() %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'reports' %}active{% endif %}"
+                           href="{{ url_for('portal.portal_reports') }}">
+                            <i class="bi bi-graph-up"></i> Reports
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                {# ── User Menu ── #}
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown portal-user-menu">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="user-avatar">
+                                {{ g.portal_user.first_name[0]|upper }}{{ g.portal_user.last_name[0]|upper }}
+                            </span>
+                            <span class="d-none d-lg-inline">{{ g.portal_user.first_name }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text">
+                                <strong>{{ g.portal_user.full_name }}</strong><br>
+                                <small class="text-muted">{{ g.portal_user.client.display_name if g.portal_user.client else '' }}</small>
+                            </span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% if g.portal_user.can_manage_portal_users() %}
+                            <li><a class="dropdown-item" href="{{ url_for('portal.portal_manage_users') }}">
+                                <i class="bi bi-people"></i> Manage Users
+                            </a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{{ url_for('portal.portal_profile') }}">
+                                <i class="bi bi-person"></i> My Profile
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('portal_auth.portal_logout') }}">
+                                <i class="bi bi-box-arrow-right"></i> Log Out
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    {# ── Flash Messages ── #}
+    <div class="portal-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mb-3">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show"
+                 role="alert" style="border-radius: var(--portal-radius);">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {# ── Page Content ── #}
+        {% block content %}{% endblock %}
+    </div>
+
+    {# ── Footer ── #}
+    <footer class="portal-footer">
+        <div class="container">
+            <p class="mb-0">Powered by FieldServicePro</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/portal.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}{{ modal_title }}{% endblock %}
+{% block page_title %}{{ modal_title }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb" style="margin: 0;">
+    <li class="breadcrumb-item"><a href="{{ url_for('jobs_page') }}">Jobs</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('job_detail', job_id=job.id) }}">{{ job.job_number }}</a></li>
+    <li class="breadcrumb-item active">{{ 'Edit Phase' if phase else 'New Phase' }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px;">
+
+  <!-- Job context -->
+  <div class="card" style="margin-bottom: var(--space-3); background: var(--color-surface-raised);">
+    <div class="card-body" style="padding: var(--space-2) var(--space-4); display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <span style="color: var(--color-text-muted); font-size: var(--font-size-sm);">Job:</span>
+        <strong style="margin-left: 4px;">{{ job.job_number }}</strong>
+        <span style="margin-left: var(--space-2); color: var(--color-text-secondary);">{{ job.title }}</span>
+      </div>
+      <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-sm btn-ghost"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header" style="background: var(--color-accent); color: #fff;">
+      <h3 class="card-title" style="color: #fff; margin: 0;"><i class="bi bi-layers"></i> {{ modal_title }}</h3>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{{ form_action }}" id="phaseForm">
+        <div style="display: grid; gap: var(--space-3);">
+
+          <!-- Title -->
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Phase Title <span style="color: var(--color-danger);">*</span></label>
+            <input type="text" name="title" class="form-control" value="{{ phase.title if phase else '' }}"
+                   placeholder="e.g., Phase 1: Demo & Site Prep" required>
+          </div>
+
+          <!-- Description -->
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Scope Description</label>
+            <textarea name="description" class="form-control" rows="3"
+                      placeholder="Detailed scope of work for this phase...">{{ phase.description or '' if phase else '' }}</textarea>
+          </div>
+
+          <!-- Dates -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Scheduled Start</label>
+              <input type="date" name="scheduled_start_date" class="form-control"
+                     value="{{ phase.scheduled_start_date.isoformat() if phase and phase.scheduled_start_date else '' }}">
+            </div>
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Scheduled End</label>
+              <input type="date" name="scheduled_end_date" class="form-control"
+                     value="{{ phase.scheduled_end_date.isoformat() if phase and phase.scheduled_end_date else '' }}">
+            </div>
+          </div>
+
+          <!-- Technician + Hours + Cost -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-3);">
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Assigned Technician</label>
+              <select name="assigned_technician_id" class="form-control">
+                <option value="">-- Unassigned --</option>
+                {% for tech in technicians %}
+                <option value="{{ tech.id }}" {{ 'selected' if phase and phase.assigned_technician_id == tech.id }}>
+                  {{ tech.full_name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Est. Hours</label>
+              <input type="number" name="estimated_hours" class="form-control" step="0.5" min="0"
+                     value="{{ phase.estimated_hours or '' if phase else '' }}" placeholder="0">
+            </div>
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Est. Cost ($)</label>
+              <input type="number" name="estimated_cost" class="form-control" step="0.01" min="0"
+                     value="{{ phase.estimated_cost or '' if phase else '' }}" placeholder="0.00">
+            </div>
+          </div>
+
+          <!-- Materials -->
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Materials / Equipment Needed</label>
+            <textarea name="materials" class="form-control" rows="2"
+                      placeholder="List materials, tools, or equipment...">{{ phase.materials or '' if phase else '' }}</textarea>
+          </div>
+
+          <!-- Notes -->
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2">{{ phase.notes or '' if phase else '' }}</textarea>
+          </div>
+
+          <!-- Inspection toggle -->
+          <div>
+            <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+              <input type="checkbox" name="requires_inspection" value="1"
+                     style="width: 1rem; height: 1rem; accent-color: var(--color-accent);"
+                     {{ 'checked' if phase and phase.requires_inspection }}>
+              <span style="font-weight: var(--font-weight-semibold);">Requires Inspection</span>
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">-- Phase completion blocked until inspection passes</span>
+            </label>
+          </div>
+
+          <!-- Actuals (edit mode only) -->
+          {% if phase %}
+          <hr style="margin: var(--space-1) 0;">
+          <h6 style="color: var(--color-text-muted); font-size: var(--font-size-sm);">Actuals (filled by technician)</h6>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-3);">
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Actual Hours</label>
+              <input type="number" name="actual_hours" class="form-control" step="0.25" min="0"
+                     value="{{ phase.actual_hours or '' }}">
+            </div>
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Actual Cost ($)</label>
+              <input type="number" name="actual_cost" class="form-control" step="0.01" min="0"
+                     value="{{ phase.actual_cost or '' }}">
+            </div>
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Actual Start Date</label>
+              <input type="date" name="actual_start_date" class="form-control"
+                     value="{{ phase.actual_start_date.isoformat() if phase.actual_start_date else '' }}">
+            </div>
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Completion Notes</label>
+            <textarea name="completion_notes" class="form-control" rows="2"
+                      placeholder="What was completed, any issues...">{{ phase.completion_notes or '' }}</textarea>
+          </div>
+          {% endif %}
+
+        </div>
+
+        <!-- Actions -->
+        <div style="display: flex; gap: var(--space-2); justify-content: flex-end; margin-top: var(--space-4);">
+          <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-accent">
+            <i class="bi bi-check-lg"></i> {{ 'Save Changes' if phase else 'Add Phase' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

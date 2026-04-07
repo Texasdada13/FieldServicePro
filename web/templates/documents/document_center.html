@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Document Center{% endblock %}
+{% block page_title %}Document Center{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/compliance.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <div>
+    <span style="font-size:var(--font-size-sm);color:var(--color-text-secondary);">{{ total_count }} documents stored</span>
+  </div>
+  <a href="{{ url_for('documents.upload_document') }}" class="btn btn-accent"><i class="bi bi-upload"></i> Upload Document</a>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="metric-card" style="padding:var(--space-3);text-align:center;">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-accent);">{{ total_count }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Documents</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-card" style="padding:var(--space-3);text-align:center;">
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:{% if expiring_soon_count > 0 %}var(--color-warning){% else %}var(--color-success){% endif %};">{{ expiring_soon_count }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Expiring Soon</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:var(--space-4);">
+  <div class="card-body" style="padding:var(--space-3) var(--space-4);">
+    <form method="GET" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:var(--space-2);align-items:end;">
+      <div>
+        <label class="form-label" style="font-size:var(--font-size-xs);">Search</label>
+        <input type="text" name="q" class="form-control" placeholder="Name, description, tags..." value="{{ filters.q }}" style="font-size:var(--font-size-sm);">
+      </div>
+      <div>
+        <label class="form-label" style="font-size:var(--font-size-xs);">Category</label>
+        <select name="category" class="form-control" style="font-size:var(--font-size-sm);">
+          <option value="">All</option>
+          {% for val, label in categories.items() %}<option value="{{ val }}" {{ 'selected' if filters.category == val }}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label" style="font-size:var(--font-size-xs);">Entity</label>
+        <select name="entity_type" class="form-control" style="font-size:var(--font-size-sm);">
+          <option value="">All</option>
+          <option value="job" {{ 'selected' if filters.entity_type == 'job' }}>Job</option>
+          <option value="permit" {{ 'selected' if filters.entity_type == 'permit' }}>Permit</option>
+          <option value="contract" {{ 'selected' if filters.entity_type == 'contract' }}>Contract</option>
+          <option value="technician" {{ 'selected' if filters.entity_type == 'technician' }}>Technician</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label" style="font-size:var(--font-size-xs);">From</label>
+        <input type="date" name="date_from" class="form-control" value="{{ filters.date_from }}" style="font-size:var(--font-size-sm);">
+      </div>
+      <div>
+        <label class="form-label" style="font-size:var(--font-size-xs);">To</label>
+        <input type="date" name="date_to" class="form-control" value="{{ filters.date_to }}" style="font-size:var(--font-size-sm);">
+      </div>
+      <div style="display:flex;gap:var(--space-1);">
+        <button type="submit" class="btn btn-sm btn-accent">Filter</button>
+        <a href="{{ url_for('documents.document_center') }}" class="btn btn-sm btn-ghost">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- View Toggle -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+  <span style="font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ documents|length }} result{{ 's' if documents|length != 1 }}</span>
+  <div style="display:flex;gap:2px;">
+    <a href="?view=grid&q={{ filters.q }}&category={{ filters.category }}" class="btn btn-sm {% if view_mode == 'grid' %}btn-accent{% else %}btn-ghost{% endif %}"><i class="bi bi-grid"></i></a>
+    <a href="?view=list&q={{ filters.q }}&category={{ filters.category }}" class="btn btn-sm {% if view_mode == 'list' %}btn-accent{% else %}btn-ghost{% endif %}"><i class="bi bi-list"></i></a>
+  </div>
+</div>
+
+{% if documents %}
+  {% if view_mode == 'grid' %}
+  <!-- Grid View -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:var(--space-3);">
+    {% for doc in documents %}
+    {% include 'documents/_document_card.html' %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <!-- List View -->
+  <div class="fsp-table-wrapper">
+    <table class="fsp-table">
+      <thead><tr><th>Name</th><th>Category</th><th>Entity</th><th>Size</th><th>Uploaded</th><th>Expires</th><th></th></tr></thead>
+      <tbody>
+        {% for doc in documents %}
+        {% include 'documents/_document_list_row.html' %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-folder2" style="display:block;"></i>
+  <h3>No documents found</h3>
+  <p><a href="{{ url_for('documents.upload_document') }}">Upload one</a></p>
+</div>
+{% endif %}
+{% endblock %}

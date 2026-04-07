@@ -1,0 +1,86 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Quotes{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <h1>Quotes</h1>
+    <p class="text-muted mb-0">Review and approve service quotes</p>
+</div>
+
+<div class="portal-filter-bar">
+    <form method="GET" class="d-flex flex-wrap gap-2 align-items-center">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="max-width:200px;">
+            <option value="">All Statuses</option>
+            <option value="sent" {{ 'selected' if selected_status == 'sent' }}>Awaiting Approval</option>
+            <option value="approved" {{ 'selected' if selected_status == 'approved' }}>Approved</option>
+            <option value="declined" {{ 'selected' if selected_status == 'declined' }}>Changes Requested</option>
+            <option value="expired" {{ 'selected' if selected_status == 'expired' }}>Expired</option>
+        </select>
+        {% if selected_status %}
+        <a href="{{ url_for('portal.portal_quotes') }}" class="btn btn-sm btn-portal-outline">
+            <i class="bi bi-x"></i> Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{% if quotes %}
+<div class="portal-card">
+    <div class="card-body p-0">
+        <table class="portal-table">
+            <thead>
+                <tr>
+                    <th>Quote #</th>
+                    <th>Title</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for quote in quotes %}
+                <tr class="clickable-row" data-href="{{ url_for('portal.portal_quote_detail', quote_id=quote.id) }}">
+                    <td class="fw-semibold">#{{ quote.quote_number or quote.id }}</td>
+                    <td>{{ quote.title[:50] }}{% if quote.title|length > 50 %}...{% endif %}</td>
+                    <td class="fw-semibold">${{ '{:,.2f}'.format(quote.total or 0) }}</td>
+                    <td>
+                        {% if quote.status in ('sent', 'pending') %}
+                        <span class="portal-badge pending"><i class="bi bi-clock"></i> Awaiting Approval</span>
+                        {% elif quote.status == 'approved' %}
+                        <span class="portal-badge approved"><i class="bi bi-check-circle"></i> Approved</span>
+                        {% elif quote.status == 'declined' %}
+                        <span class="portal-badge in-progress">Changes Requested</span>
+                        {% elif quote.status == 'expired' %}
+                        <span class="portal-badge overdue">Expired</span>
+                        {% elif quote.status == 'converted' %}
+                        <span class="portal-badge completed">Converted</span>
+                        {% else %}
+                        <span class="portal-badge draft">{{ quote.status|title }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.85rem;">{{ quote.created_at.strftime('%b %d, %Y') if quote.created_at else '' }}</td>
+                    <td>
+                        {% if quote.status in ('sent', 'pending') %}
+                        <span class="btn btn-portal btn-portal-primary btn-portal-sm">Review</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="portal-card">
+    <div class="card-body">
+        <div class="portal-empty-state">
+            <i class="bi bi-file-earmark-text"></i>
+            <h5>No Quotes</h5>
+            <p>No quotes have been sent to you yet.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

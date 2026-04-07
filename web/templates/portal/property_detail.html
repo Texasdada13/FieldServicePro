@@ -1,0 +1,164 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{{ property.name or property.address }}{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="font-size:0.85rem;">
+            <li class="breadcrumb-item"><a href="{{ url_for('portal.portal_properties') }}" style="color:var(--portal-text-muted);text-decoration:none;">Properties</a></li>
+            <li class="breadcrumb-item active" style="color:var(--portal-text-light);">{{ property.name or 'Property' }}</li>
+        </ol>
+    </nav>
+    <h1>{{ property.name or 'Property' }}</h1>
+</div>
+
+<div class="row g-4">
+    {# ── Property Info ── #}
+    <div class="col-lg-4">
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-building"></i> Property Details</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <small class="text-muted">Address</small><br>
+                    <strong>
+                        {% if property.unit_number %}Unit {{ property.unit_number }}, {% endif %}{{ property.address }}
+                    </strong><br>
+                    {% if property.city %}{{ property.city }}, {% endif %}
+                    {% if property.province %}{{ property.province }} {% endif %}
+                    {% if property.postal_code %}{{ property.postal_code }}{% endif %}
+                </div>
+                {% if property.property_type %}
+                <div class="mb-2">
+                    <small class="text-muted">Type</small><br>
+                    <span class="portal-badge routine" style="text-transform:capitalize;">{{ property.property_type }}</span>
+                </div>
+                {% endif %}
+                {% if property.notes %}
+                <div class="mb-2">
+                    <small class="text-muted">Notes</small><br>
+                    <span style="white-space:pre-wrap;">{{ property.notes }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if g.portal_user.can_create_service_requests() %}
+        <a href="{{ url_for('portal.portal_new_service_request', property_id=property.id) }}"
+           class="btn btn-portal btn-portal-primary w-100 mb-4">
+            <i class="bi bi-plus-circle"></i> Request Service for This Property
+        </a>
+        {% endif %}
+    </div>
+
+    {# ── Jobs & Activity ── #}
+    <div class="col-lg-8">
+        {# Upcoming Services #}
+        {% if upcoming %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-calendar-event"></i> Upcoming Services</div>
+            <div class="card-body p-0">
+                <table class="portal-table">
+                    <thead><tr><th>Date</th><th>Job</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for job in upcoming %}
+                    <tr class="clickable-row" data-href="{{ url_for('portal.portal_job_detail', job_id=job.id) }}">
+                        <td>{{ job.scheduled_date.strftime('%b %d, %Y') if job.scheduled_date else 'TBD' }}</td>
+                        <td>{{ job.title or ('Job #' ~ job.id) }}</td>
+                        <td><span class="portal-badge scheduled">Scheduled</span></td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Active Jobs #}
+        {% if active_jobs %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-clipboard-check"></i> Active Jobs ({{ active_jobs|length }})</div>
+            <div class="card-body p-0">
+                <table class="portal-table">
+                    <thead><tr><th>Job #</th><th>Title</th><th>Status</th><th>Scheduled</th></tr></thead>
+                    <tbody>
+                    {% for job in active_jobs %}
+                    <tr class="clickable-row" data-href="{{ url_for('portal.portal_job_detail', job_id=job.id) }}">
+                        <td class="fw-semibold">#{{ job.job_number or job.id }}</td>
+                        <td>{{ job.title or '---' }}</td>
+                        <td><span class="portal-badge {{ job.status|replace('_', '-') }}">{{ job.status|replace('_', ' ')|title }}</span></td>
+                        <td>{{ job.scheduled_date.strftime('%b %d') if job.scheduled_date else 'TBD' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Completed Jobs #}
+        {% if completed_jobs %}
+        <div class="portal-card mb-4">
+            <div class="card-header"><i class="bi bi-check-circle"></i> Completed Jobs ({{ completed_jobs|length }})</div>
+            <div class="card-body p-0">
+                <table class="portal-table">
+                    <thead><tr><th>Job #</th><th>Title</th><th>Completed</th></tr></thead>
+                    <tbody>
+                    {% for job in completed_jobs %}
+                    <tr class="clickable-row" data-href="{{ url_for('portal.portal_job_detail', job_id=job.id) }}">
+                        <td class="fw-semibold">#{{ job.job_number or job.id }}</td>
+                        <td>{{ job.title or '---' }}</td>
+                        <td>{{ job.completed_at.strftime('%b %d, %Y') if job.completed_at else job.updated_at.strftime('%b %d, %Y') if job.updated_at else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Documents #}
+        {% if documents and g.portal_user.can_view_documents() %}
+        <div class="portal-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-folder2-open"></i> Documents</span>
+                <a href="{{ url_for('portal.portal_documents') }}" class="btn btn-portal btn-portal-outline btn-portal-sm">
+                    View All
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <table class="portal-table">
+                    <thead><tr><th>Document</th><th>Category</th><th>Date</th></tr></thead>
+                    <tbody>
+                    {% for doc in documents[:10] %}
+                    <tr>
+                        <td><i class="bi {{ doc.icon_class }}" style="color:var(--portal-text-muted);margin-right:4px;"></i> {{ doc.display_name }}</td>
+                        <td><span class="portal-badge routine">{{ doc.category_label }}</span></td>
+                        <td style="font-size:0.85rem;color:var(--portal-text-muted);">{{ doc.created_at.strftime('%b %d, %Y') if doc.created_at else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# No data state #}
+        {% if not active_jobs and not completed_jobs and not upcoming %}
+        <div class="portal-card">
+            <div class="portal-empty-state">
+                <i class="bi bi-clipboard"></i>
+                <h5>No Jobs Yet</h5>
+                <p>No jobs have been created for this property yet.</p>
+                {% if g.portal_user.can_create_service_requests() %}
+                <a href="{{ url_for('portal.portal_new_service_request', property_id=property.id) }}"
+                   class="btn btn-portal btn-portal-primary">
+                    <i class="bi bi-plus-circle"></i> Request Service
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

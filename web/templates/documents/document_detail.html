@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.display_name }}{% endblock %}
+{% block page_title %}{{ doc.display_name }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb" style="margin:0;">
+  <li class="breadcrumb-item"><a href="{{ url_for('documents.document_list') }}">Documents</a></li>
+  <li class="breadcrumb-item active">{{ doc.display_name }}</li>
+</ol></nav>
+{% endblock %}
+
+{% block content %}
+<div class="detail-grid">
+  <div class="detail-main">
+    <!-- Preview -->
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 class="card-title">{{ doc.display_name }}</h3>
+        <a href="{{ url_for('documents.document_download', doc_id=doc.id) }}" class="btn btn-sm btn-success"><i class="bi bi-download"></i> Download</a>
+      </div>
+      <div class="card-body" style="text-align:center;">
+        {% if doc.is_image %}
+        <img src="{{ url_for('documents.document_download', doc_id=doc.id) }}" style="max-width:100%;max-height:500px;border-radius:var(--radius-md);" alt="{{ doc.display_name }}">
+        {% elif doc.is_pdf %}
+        <iframe src="{{ url_for('documents.document_download', doc_id=doc.id) }}" style="width:100%;height:600px;border:none;"></iframe>
+        {% else %}
+        <div style="padding:var(--space-8);">
+          <i class="bi bi-file-earmark" style="font-size:4rem;color:var(--color-text-muted);"></i>
+          <p style="margin-top:var(--space-3);color:var(--color-text-muted);">Preview not available. Click Download to view.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Version History -->
+    {% if versions or newer %}
+    <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card-header"><h3 class="card-title">Version History</h3></div>
+      <div class="card-body" style="padding:0;">
+        {% for n in newer %}
+        <a href="{{ url_for('documents.document_detail', doc_id=n.id) }}" style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-4);border-bottom:1px solid var(--color-border-light);text-decoration:none;">
+          <span><span class="badge badge-active">v{{ n.version }}</span> {{ n.display_name }}</span>
+          <span class="badge badge-completed">Newer</span>
+        </a>
+        {% endfor %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-4);border-bottom:1px solid var(--color-border-light);background:rgba(13,148,136,0.04);">
+          <span><span class="badge badge-active">v{{ doc.version }}</span> {{ doc.display_name }}</span>
+          <span class="badge badge-pending">Current</span>
+        </div>
+        {% for v in versions %}
+        <a href="{{ url_for('documents.document_detail', doc_id=v.id) }}" style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-4);border-bottom:1px solid var(--color-border-light);text-decoration:none;">
+          <span><span class="badge badge-draft">v{{ v.version }}</span> {{ v.display_name }}</span>
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ v.uploaded_at.strftime('%b %d, %Y') if v.uploaded_at else '' }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="detail-sidebar">
+    <!-- Metadata -->
+    <div class="card" style="margin-bottom:var(--space-3);">
+      <div class="card-header"><h3 class="card-title">Details</h3></div>
+      <div class="card-body" style="font-size:var(--font-size-sm);">
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px var(--space-3);">
+          <span style="color:var(--color-text-muted);">Filename</span><span>{{ doc.filename }}</span>
+          <span style="color:var(--color-text-muted);">Type</span><span>{{ doc.file_type }}</span>
+          <span style="color:var(--color-text-muted);">Size</span><span>{{ doc.file_size_display }}</span>
+          <span style="color:var(--color-text-muted);">Category</span><span class="badge badge-draft">{{ doc.category_label }}</span>
+          <span style="color:var(--color-text-muted);">Version</span><span>v{{ doc.version }}</span>
+          {% if doc.entity_type %}<span style="color:var(--color-text-muted);">Linked To</span><span>{{ doc.entity_type|title }} #{{ doc.entity_id }}</span>{% endif %}
+          {% if doc.uploaded_at %}<span style="color:var(--color-text-muted);">Uploaded</span><span>{{ doc.uploaded_at.strftime('%b %d, %Y %H:%M') }}</span>{% endif %}
+          {% if doc.uploader %}<span style="color:var(--color-text-muted);">By</span><span>{{ doc.uploader.full_name }}</span>{% endif %}
+          {% if doc.expiry_date %}<span style="color:var(--color-text-muted);">Expires</span><span style="{% if doc.is_expired %}color:var(--color-danger);font-weight:var(--font-weight-bold);{% endif %}">{{ doc.expiry_date.strftime('%b %d, %Y') }}{% if doc.is_expired %} <i class="bi bi-exclamation-triangle"></i>{% endif %}</span>{% endif %}
+        </div>
+        {% if doc.is_confidential %}<div style="margin-top:var(--space-2);"><span class="badge badge-danger"><i class="bi bi-lock"></i> Confidential</span></div>{% endif %}
+      </div>
+    </div>
+
+    {% if doc.tags_list %}
+    <div class="card" style="margin-bottom:var(--space-3);">
+      <div class="card-header"><h3 class="card-title">Tags</h3></div>
+      <div class="card-body">{% for tag in doc.tags_list %}<span class="badge badge-active" style="margin-right:4px;">{{ tag }}</span>{% endfor %}</div>
+    </div>
+    {% endif %}
+
+    {% if doc.description or doc.notes %}
+    <div class="card" style="margin-bottom:var(--space-3);">
+      <div class="card-header"><h3 class="card-title">Notes</h3></div>
+      <div class="card-body">
+        {% if doc.description %}<p style="margin:0 0 var(--space-2);">{{ doc.description }}</p>{% endif %}
+        {% if doc.notes %}<p style="margin:0;color:var(--color-text-secondary);">{{ doc.notes }}</p>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Upload New Version -->
+    <div class="card" style="margin-bottom:var(--space-3);">
+      <div class="card-header"><h3 class="card-title">New Version</h3></div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('documents.document_new_version', doc_id=doc.id) }}" enctype="multipart/form-data">
+          <div class="form-group" style="margin-bottom:var(--space-2);"><input type="file" name="file" class="form-control" required></div>
+          <button type="submit" class="btn btn-sm btn-ghost" style="width:100%;"><i class="bi bi-arrow-up-circle"></i> Upload v{{ doc.version + 1 }}</button>
+        </form>
+      </div>
+    </div>
+
+    {% if user.role in ('owner', 'admin') %}
+    <div class="card" style="border-color:var(--color-danger);">
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('documents.document_delete', doc_id=doc.id) }}" onsubmit="return confirm('Delete permanently?');">
+          <button type="submit" class="btn btn-sm btn-ghost" style="width:100%;color:var(--color-danger);"><i class="bi bi-trash"></i> Delete Document</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

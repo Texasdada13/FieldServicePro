@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Policy' if policy else 'New Insurance Policy' }}{% endblock %}
+{% block page_title %}{{ 'Edit Policy' if policy else 'New Insurance Policy' }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb" style="margin:0;">
+  <li class="breadcrumb-item"><a href="{{ url_for('insurance.insurance_list') }}">Insurance</a></li>
+  <li class="breadcrumb-item active">{{ 'Edit' if policy else 'New' }}</li>
+</ol></nav>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-shield-check" style="color:var(--color-accent);"></i> {{ 'Edit Policy' if policy else 'New Insurance Policy' }}</h3></div>
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Policy Type <span style="color:var(--color-danger);">*</span></label>
+            <select name="policy_type" class="form-control" required>{% for val, label in policy_types %}<option value="{{ val }}" {{ 'selected' if policy and policy.policy_type == val }}>{{ label }}</option>{% endfor %}</select></div>
+          <div class="form-group"><label class="form-label">Policy Number <span style="color:var(--color-danger);">*</span></label><input type="text" name="policy_number" class="form-control" required value="{{ policy.policy_number if policy else '' }}"></div>
+          <div class="form-group"><label class="form-label">Provider <span style="color:var(--color-danger);">*</span></label><input type="text" name="provider" class="form-control" required value="{{ policy.provider if policy else '' }}" placeholder="Insurance company"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Coverage Amount <span style="color:var(--color-danger);">*</span></label><input type="number" name="coverage_amount" class="form-control" step="0.01" required value="{{ policy.coverage_amount if policy else '' }}"></div>
+          <div class="form-group"><label class="form-label">Deductible</label><input type="number" name="deductible" class="form-control" step="0.01" value="{{ policy.deductible if policy and policy.deductible else '' }}"></div>
+          <div class="form-group"><label class="form-label">Annual Premium</label><input type="number" name="premium" class="form-control" step="0.01" value="{{ policy.premium if policy and policy.premium else '' }}"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Start Date <span style="color:var(--color-danger);">*</span></label><input type="date" name="start_date" class="form-control" required value="{{ policy.start_date.isoformat() if policy and policy.start_date else '' }}"></div>
+          <div class="form-group"><label class="form-label">End Date <span style="color:var(--color-danger);">*</span></label><input type="date" name="end_date" class="form-control" required value="{{ policy.end_date.isoformat() if policy and policy.end_date else '' }}"></div>
+          <div class="form-group"><label class="form-label">Division</label>
+            <select name="division_id" class="form-control"><option value="">Company-wide</option>{% for div in all_divisions %}<option value="{{ div.id }}" {{ 'selected' if policy and policy.division_id == div.id }}>{{ div.name }}</option>{% endfor %}</select></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="form-group"><label class="form-label">Renewal Reminder (days before expiry)</label><input type="number" name="renewal_reminder_days" class="form-control" value="{{ policy.renewal_reminder_days if policy else 30 }}"></div>
+          <div style="display:flex;align-items:center;padding-top:var(--space-5);">
+            <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;"><input type="checkbox" name="auto_renew" style="accent-color:var(--color-accent);" {{ 'checked' if policy and policy.auto_renew }}> Auto-Renew</label>
+          </div>
+        </div>
+
+        <div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2">{{ policy.notes if policy else '' }}</textarea></div>
+        <div class="form-group" style="margin-bottom:0;"><label class="form-label">Attach Documents (Policy, COI, etc.)</label><input type="file" name="documents" class="form-control" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"></div>
+
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;margin-top:var(--space-4);">
+          <a href="{{ url_for('insurance.insurance_list') }}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-accent">{{ 'Update Policy' if policy else 'Create Policy' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

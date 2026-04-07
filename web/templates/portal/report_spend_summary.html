@@ -1,0 +1,126 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Spend Summary Report{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="font-size:0.85rem;">
+            <li class="breadcrumb-item"><a href="{{ url_for('portal.portal_reports') }}" style="color:var(--portal-text-muted);text-decoration:none;">Reports</a></li>
+            <li class="breadcrumb-item active" style="color:var(--portal-text-light);">Spend Summary</li>
+        </ol>
+    </nav>
+    <h1>Spend Summary Report</h1>
+</div>
+
+<div class="portal-filter-bar mb-4">
+    <form method="GET" class="d-flex flex-wrap gap-2 align-items-center w-100">
+        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from.strftime('%Y-%m-%d') }}" style="max-width:160px;">
+        <span class="text-muted">to</span>
+        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to.strftime('%Y-%m-%d') }}" style="max-width:160px;">
+        <button type="submit" class="btn btn-sm btn-portal-primary">Apply</button>
+        <a href="{{ url_for('portal.portal_report_spend_summary', date_from=date_from.strftime('%Y-%m-%d'), date_to=date_to.strftime('%Y-%m-%d'), format='csv') }}"
+           class="btn btn-sm btn-portal-outline ms-auto">
+            <i class="bi bi-download"></i> Export CSV
+        </a>
+    </form>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="portal-stat-card">
+            <div class="stat-value">${{ '{:,.2f}'.format(total_spend) }}</div>
+            <div class="stat-label">Total Invoiced</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="portal-stat-card">
+            <div class="stat-value" style="color:var(--portal-success);">${{ '{:,.2f}'.format(total_paid) }}</div>
+            <div class="stat-label">Total Paid</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="portal-stat-card">
+            <div class="stat-value" style="color:{% if total_spend - total_paid > 0 %}var(--portal-danger){% else %}var(--portal-success){% endif %};">
+                ${{ '{:,.2f}'.format(total_spend - total_paid) }}
+            </div>
+            <div class="stat-label">Outstanding</div>
+        </div>
+    </div>
+</div>
+
+{# ── Monthly Breakdown Chart ── #}
+{% if monthly_data %}
+<div class="portal-card mb-4">
+    <div class="card-header"><i class="bi bi-bar-chart"></i> Monthly Spend</div>
+    <div class="card-body">
+        {% set max_amount = monthly_data|map(attribute='amount')|max %}
+        {% for m in monthly_data %}
+        <div class="d-flex align-items-center gap-3 mb-2">
+            <div style="width:80px;font-size:0.8rem;color:var(--portal-text-muted);">{{ m.label }}</div>
+            <div class="flex-grow-1">
+                <div class="progress" style="height:24px;border-radius:var(--portal-radius);">
+                    <div class="progress-bar" role="progressbar"
+                         style="width:{{ (m.amount / max_amount * 100) if max_amount > 0 else 0 }}%;background:var(--portal-primary);border-radius:var(--portal-radius);">
+                        <span class="px-2" style="font-size:0.75rem;">${{ '{:,.0f}'.format(m.amount) }}</span>
+                    </div>
+                </div>
+            </div>
+            <div style="width:50px;text-align:right;font-size:0.8rem;color:var(--portal-text-muted);">
+                {{ m.count }} inv.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{# ── Monthly Detail Table ── #}
+<div class="portal-card mb-4">
+    <div class="card-header"><i class="bi bi-table"></i> Monthly Detail</div>
+    <div class="card-body p-0">
+        <table class="portal-table">
+            <thead><tr><th>Month</th><th class="text-end">Invoices</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+                {% for m in monthly_data %}
+                <tr>
+                    <td class="fw-semibold">{{ m.label }}</td>
+                    <td class="text-end">{{ m.count }}</td>
+                    <td class="text-end">${{ '{:,.2f}'.format(m.amount) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="fw-bold">
+                    <td>Total</td>
+                    <td class="text-end">{{ invoices|length }}</td>
+                    <td class="text-end">${{ '{:,.2f}'.format(total_spend) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{# ── Invoice List ── #}
+{% if invoices %}
+<div class="portal-card">
+    <div class="card-header">All Invoices in Period</div>
+    <div class="card-body p-0">
+        <table class="portal-table">
+            <thead><tr><th>Invoice #</th><th>Date</th><th class="text-end">Amount</th><th class="text-end">Paid</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr class="clickable-row" data-href="{{ url_for('portal.portal_invoice_detail', invoice_id=inv.id) }}">
+                    <td class="fw-semibold">#{{ inv.invoice_number or inv.id }}</td>
+                    <td style="font-size:0.85rem;">{{ inv.created_at.strftime('%b %d, %Y') if inv.created_at else '' }}</td>
+                    <td class="text-end">${{ '{:,.2f}'.format(inv.total or 0) }}</td>
+                    <td class="text-end" style="color:var(--portal-success);">${{ '{:,.2f}'.format(inv.amount_paid or 0) }}</td>
+                    <td><span class="portal-badge {{ inv.status }}">{{ inv.status|replace('_', ' ')|title }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

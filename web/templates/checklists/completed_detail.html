@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Completed Checklist #{{ completed.id }}{% endblock %}
+{% block page_title %}Completed Checklist{% endblock %}
+
+{% block content %}
+<div style="max-width:800px;">
+  <!-- Back link -->
+  <div style="margin-bottom:var(--space-3);">
+    <a href="{{ url_for('checklists.job_checklists', job_id=completed.job_id) }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);">
+      <i class="bi bi-arrow-left"></i> Back to Job Checklists
+    </a>
+  </div>
+
+  <!-- Header -->
+  <div class="card" style="margin-bottom:var(--space-3);">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <h3 class="card-title"><i class="bi bi-clipboard-check" style="color:var(--color-accent);"></i> {{ completed.template.name if completed.template else 'Checklist' }}</h3>
+      <span class="badge" style="background:var(--color-{{ completed.status_color }});color:#fff;">{{ completed.status_display }}</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-3);">
+        <div>
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Job</span>
+          <a href="{{ url_for('job_detail', job_id=completed.job_id) }}" style="font-weight:500;">#{{ completed.job_id }}</a>
+        </div>
+        <div>
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Completed By</span>
+          <strong>{{ completed.completer.full_name if completed.completer else 'Unknown' }}</strong>
+        </div>
+        <div>
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Date</span>
+          <strong>{{ completed.completed_at.strftime('%b %d, %Y %I:%M %p') if completed.completed_at else 'N/A' }}</strong>
+        </div>
+        {% if completed.location %}
+        <div>
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Location</span>
+          <strong>{{ completed.location }}</strong>
+        </div>
+        {% endif %}
+        {% if completed.weather_conditions %}
+        <div>
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Weather</span>
+          <strong>{{ completed.weather_conditions }}</strong>
+        </div>
+        {% endif %}
+        {% if completed.phase %}
+        <div>
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Phase</span>
+          <strong>{{ completed.phase.name }}</strong>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Supervisor Review -->
+      <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--color-border);">
+        {% if completed.supervisor_reviewed %}
+        <div style="display:flex;align-items:center;gap:var(--space-2);color:var(--color-accent);">
+          <i class="bi bi-patch-check-fill"></i>
+          <span style="font-size:var(--font-size-sm);">
+            Reviewed by {{ completed.supervisor.full_name if completed.supervisor else 'Supervisor' }}
+            {% if completed.supervisor_reviewed_at %}
+            on {{ completed.supervisor_reviewed_at.strftime('%b %d, %Y %I:%M %p') }}
+            {% endif %}
+          </span>
+        </div>
+        {% else %}
+        <form method="POST" action="{{ url_for('checklists.review_checklist', completed_id=completed.id) }}" style="display:inline;">
+          <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">
+            <i class="bi bi-patch-check"></i> Mark as Reviewed
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Responses -->
+  <div class="card" style="margin-bottom:var(--space-3);">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-list-check" style="color:var(--color-accent);"></i> Responses</h3></div>
+    <div class="card-body" style="padding:0;">
+      {% for ci in completed.items %}
+      <div style="padding:var(--space-3);border-bottom:1px solid var(--color-border);{% if not ci.is_compliant %}background:rgba(var(--color-danger-rgb, 220,38,38),0.05);{% endif %}">
+        <div style="display:flex;gap:var(--space-3);align-items:flex-start;">
+          <span style="font-weight:600;color:var(--color-text-muted);min-width:24px;">{{ loop.index }}.</span>
+          <div style="flex:1;">
+            <div style="font-weight:500;">{{ ci.template_item.question if ci.template_item else 'Item' }}</div>
+            <div style="margin-top:var(--space-1);display:flex;align-items:center;gap:var(--space-2);">
+              {% if ci.is_compliant %}
+              <span style="color:var(--color-success);font-weight:600;font-size:var(--font-size-sm);">
+                <i class="bi bi-check-circle-fill"></i> {{ ci.response or 'Compliant' }}
+              </span>
+              {% else %}
+              <span style="color:var(--color-danger);font-weight:600;font-size:var(--font-size-sm);">
+                <i class="bi bi-x-circle-fill"></i> {{ ci.response or 'Non-compliant' }}
+              </span>
+              {% endif %}
+            </div>
+            {% if ci.notes %}
+            <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin-top:var(--space-1);">
+              <i class="bi bi-chat-left-text"></i> {{ ci.notes }}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Overall Notes -->
+  {% if completed.notes %}
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">Notes</h3></div>
+    <div class="card-body">
+      <p style="margin:0;white-space:pre-wrap;">{{ completed.notes }}</p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

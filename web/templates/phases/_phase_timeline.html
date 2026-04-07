@@ -1,0 +1,95 @@
+{# Phase timeline partial — include in job_detail.html #}
+{# Expects: job_obj (Job SQLAlchemy object), user, can_edit_phases (bool) #}
+
+{% if job_obj.is_multi_phase %}
+
+{# Progress Header #}
+<div class="phases-progress-header">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); align-items: center;">
+    <div style="display: flex; align-items: center; gap: var(--space-3);">
+      <div>
+        <div style="font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--color-accent);">{{ job_obj.percent_complete }}%</div>
+        <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Complete</div>
+      </div>
+      <div style="flex: 1;">
+        <div class="phase-progress-bar" style="height: 10px;">
+          <div class="fill" style="width: {{ job_obj.percent_complete }}%;"></div>
+        </div>
+        <div style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-top: 4px;">
+          {{ job_obj.completed_phase_count }} of {{ job_obj.phase_count }} phases completed
+        </div>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); text-align: center;">
+      {% set ns_count = job_obj.phases|selectattr('status', 'equalto', 'not_started')|list|length %}
+      {% set ip_count = job_obj.phases|selectattr('status', 'equalto', 'in_progress')|list|length %}
+      {% set oh_count = job_obj.phases|selectattr('status', 'equalto', 'on_hold')|list|length %}
+      <div>
+        <div style="font-weight: var(--font-weight-bold); color: var(--color-text-muted);">{{ ns_count }}</div>
+        <div class="tiny" style="color: var(--color-text-muted);">Not Started</div>
+      </div>
+      <div>
+        <div style="font-weight: var(--font-weight-bold); color: var(--color-accent);">{{ ip_count }}</div>
+        <div class="tiny" style="color: var(--color-text-muted);">In Progress</div>
+      </div>
+      <div>
+        <div style="font-weight: var(--font-weight-bold); color: var(--color-warning);">{{ oh_count }}</div>
+        <div class="tiny" style="color: var(--color-text-muted);">On Hold</div>
+      </div>
+      <div>
+        <div style="font-weight: var(--font-weight-bold); color: var(--color-success);">{{ job_obj.completed_phase_count }}</div>
+        <div class="tiny" style="color: var(--color-text-muted);">Done</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Add Phase Button #}
+{% if can_edit_phases %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+  <h6 style="margin: 0; color: var(--color-text-muted); font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm);">
+    <i class="bi bi-layers"></i> Phases
+    <span style="font-weight: var(--font-weight-normal); font-size: var(--font-size-xs);">(drag to reorder)</span>
+  </h6>
+  <a href="{{ url_for('phases.new_phase', job_id=job_obj.id) }}" class="btn btn-sm btn-accent">
+    <i class="bi bi-plus-lg"></i> Add Phase
+  </a>
+</div>
+{% endif %}
+
+{# Phases List #}
+<div class="phase-timeline" id="phaseTimeline" data-job-id="{{ job_obj.id }}">
+  {% if job_obj.phases %}
+    {% for phase in job_obj.phases %}
+      {% set job = job_obj %}
+      {% set can_edit = can_edit_phases %}
+      {% include 'phases/_phase_card.html' %}
+    {% endfor %}
+  {% else %}
+  <div style="text-align: center; padding: var(--space-8); color: var(--color-text-muted);">
+    <i class="bi bi-layers" style="font-size: 2.5rem; display: block; margin-bottom: var(--space-2); opacity: 0.25;"></i>
+    <p>No phases defined yet.</p>
+    {% if can_edit_phases %}
+    <a href="{{ url_for('phases.new_phase', job_id=job_obj.id) }}" class="btn btn-sm btn-ghost">
+      <i class="bi bi-plus-lg"></i> Add First Phase
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% elif user.role in ('owner', 'admin', 'dispatcher') %}
+{# Convert to multi-phase prompt #}
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card-body" style="text-align: center; padding: var(--space-6);">
+    <i class="bi bi-layers" style="font-size: 2rem; color: var(--color-text-muted); display: block; margin-bottom: var(--space-3);"></i>
+    <h3 style="font-size: var(--font-size-base);">Multi-Phase Job</h3>
+    <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-3);">
+      Break this job into tracked phases with individual scheduling, assignments, and inspections.
+    </p>
+    <form method="POST" action="{{ url_for('phases.convert_to_multiphase', job_id=job_obj.id) }}" style="display: inline;">
+      <button type="submit" class="btn btn-accent"><i class="bi bi-layers"></i> Convert to Multi-Phase</button>
+    </form>
+  </div>
+</div>
+{% endif %}

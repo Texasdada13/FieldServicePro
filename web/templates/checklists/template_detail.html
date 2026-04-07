@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}{{ template.name }}{% endblock %}
+{% block page_title %}{{ template.name }}{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<nav style="margin-bottom:var(--space-3);font-size:var(--font-size-sm);">
+  <a href="{{ url_for('checklists.template_list') }}" style="color:var(--color-text-muted);text-decoration:none;">Checklists</a>
+  <span style="color:var(--color-text-muted);margin:0 var(--space-1);">/</span>
+  <span style="color:var(--color-text-secondary);">{{ template.name }}</span>
+</nav>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+  <div>
+    <h2 style="margin:0 0 var(--space-1);">{{ template.name }}</h2>
+    <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
+      <span class="badge" style="background:var(--color-info);color:#fff;">{{ template.type_display }}</span>
+      <span class="badge" style="background:var(--color-surface-raised);color:var(--color-text-secondary);">{{ template.category_display }}</span>
+      {% if not template.is_active %}
+      <span class="badge" style="background:var(--color-text-muted);color:#fff;">Inactive</span>
+      {% endif %}
+    </div>
+  </div>
+  <div style="display:flex;gap:var(--space-2);">
+    <form method="POST" action="{{ url_for('checklists.template_toggle', template_id=template.id) }}" style="display:inline;">
+      <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">
+        <i class="bi bi-{{ 'pause-circle' if template.is_active else 'play-circle' }}"></i>
+        {{ 'Deactivate' if template.is_active else 'Activate' }}
+      </button>
+    </form>
+    <a href="{{ url_for('checklists.template_edit', template_id=template.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">
+      <i class="bi bi-pencil"></i> Edit
+    </a>
+    <form method="POST" action="{{ url_for('checklists.template_delete', template_id=template.id) }}" onsubmit="return confirm('Delete this template and all its completions?')" style="display:inline;">
+      <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);color:var(--color-danger);">
+        <i class="bi bi-trash"></i> Delete
+      </button>
+    </form>
+  </div>
+</div>
+
+{% if template.description %}
+<p style="color:var(--color-text-muted);margin-bottom:var(--space-4);">{{ template.description }}</p>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+  <!-- Left: Items -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <h5 style="margin:0;">Checklist Items ({{ template.item_count }})</h5>
+      </div>
+      <div style="padding:0;">
+        {% for item in template.items %}
+        <div style="padding:var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <strong>{{ loop.index }}.</strong> {{ item.question }}
+            {% if item.help_text %}
+            <br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);"><i class="bi bi-info-circle"></i> {{ item.help_text }}</span>
+            {% endif %}
+          </div>
+          <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;justify-content:flex-end;min-width:180px;">
+            <span class="badge" style="background:var(--color-info);color:#fff;font-size:var(--font-size-xs);">{{ item.type_display }}</span>
+            {% if item.is_required %}
+            <span class="badge" style="background:var(--color-accent);color:#fff;font-size:var(--font-size-xs);">Required</span>
+            {% endif %}
+            {% if item.failure_action == 'block_work' %}
+            <span class="badge" style="background:var(--color-danger);color:#fff;font-size:var(--font-size-xs);">Blocks Work</span>
+            {% elif item.failure_action == 'notify_supervisor' %}
+            <span class="badge" style="background:var(--color-warning);color:#000;font-size:var(--font-size-xs);">Notifies Supervisor</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Stats + Recent -->
+  <div>
+    <!-- Stats -->
+    <div class="card" style="margin-bottom:var(--space-3);">
+      <div class="card-header"><h5 style="margin:0;">Completion Stats</h5></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);text-align:center;">
+          <div>
+            <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ total_completions }}</div>
+            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total</div>
+          </div>
+          <div>
+            <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-success);">{{ passed_count }}</div>
+            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Passed</div>
+          </div>
+          <div>
+            <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-danger);">{{ failed_count }}</div>
+            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Failed</div>
+          </div>
+          <div>
+            {% set pass_rate = ((passed_count / total_completions * 100)|round|int) if total_completions > 0 else 0 %}
+            <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ pass_rate }}%</div>
+            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Pass Rate</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Completions -->
+    {% if completions %}
+    <div class="card">
+      <div class="card-header"><h5 style="margin:0;">Recent Completions</h5></div>
+      <div style="padding:0;">
+        {% for c in completions %}
+        <a href="{{ url_for('checklists.completed_detail', completed_id=c.id) }}" style="display:block;padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);text-decoration:none;color:inherit;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:var(--font-size-sm);font-weight:500;">
+                <a href="{{ url_for('job_detail', job_id=c.job_id) }}" style="color:var(--color-accent);">Job #{{ c.job_id }}</a>
+              </div>
+              <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">
+                {{ c.completer.full_name if c.completer else 'Unknown' }} &middot;
+                {{ c.completed_at.strftime('%b %d, %Y %H:%M') if c.completed_at else '' }}
+              </div>
+            </div>
+            <span class="badge" style="background:var(--color-{{ c.status_color }});color:#fff;font-size:var(--font-size-xs);">{{ c.status_display }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

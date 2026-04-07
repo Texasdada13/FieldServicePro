@@ -1,0 +1,7 @@
+{# Permit badge partial — for inline display on job detail, etc. #}
+{# Expects: permit (Permit object) #}
+<span class="badge badge-{{ permit.status_color }}" title="{{ permit.permit_type_label }}: {{ permit.status_label }}">
+  <i class="bi bi-clipboard-check"></i>
+  {{ permit.permit_type_label }}
+  {% if permit.is_blocking %}<i class="bi bi-exclamation-triangle" style="margin-left:2px;"></i>{% endif %}
+</span>

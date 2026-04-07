@@ -1,0 +1,98 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Service Requests{% endblock %}
+
+{% block content %}
+<div class="portal-page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+        <h1>Service Requests</h1>
+        <p class="text-muted mb-0">Track and manage your service requests</p>
+    </div>
+    <a href="{{ url_for('portal.portal_new_service_request') }}" class="btn btn-portal btn-portal-primary">
+        <i class="bi bi-plus-circle"></i> New Request
+    </a>
+</div>
+
+{# ── Filters ── #}
+<div class="portal-filter-bar">
+    <form method="GET" class="d-flex flex-wrap gap-2 align-items-center w-100">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="max-width:180px;">
+            <option value="">All Statuses</option>
+            <option value="draft" {{ 'selected' if selected_status == 'draft' }}>Submitted</option>
+            <option value="scheduled" {{ 'selected' if selected_status == 'scheduled' }}>Scheduled</option>
+            <option value="in_progress" {{ 'selected' if selected_status == 'in_progress' }}>In Progress</option>
+            <option value="completed" {{ 'selected' if selected_status == 'completed' }}>Completed</option>
+        </select>
+        <select name="property" class="form-select form-select-sm" onchange="this.form.submit()" style="max-width:220px;">
+            <option value="">All Properties</option>
+            {% for prop in properties %}
+            <option value="{{ prop.id }}" {{ 'selected' if selected_property == prop.id|string }}>
+                {{ prop.display_address }}
+            </option>
+            {% endfor %}
+        </select>
+        {% if selected_status or selected_property %}
+        <a href="{{ url_for('portal.portal_service_requests') }}" class="btn btn-sm btn-portal-outline">
+            <i class="bi bi-x"></i> Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{# ── Request List ── #}
+{% if requests %}
+<div class="portal-card">
+    <div class="card-body p-0">
+        <table class="portal-table">
+            <thead>
+                <tr>
+                    <th>Request #</th>
+                    <th>Property</th>
+                    <th>Description</th>
+                    <th>Priority</th>
+                    <th>Submitted</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requests %}
+                <tr class="clickable-row" data-href="{{ url_for('portal.portal_service_request_detail', job_id=req.id) }}">
+                    <td class="fw-semibold">#{{ req.job_number or req.id }}</td>
+                    <td>{{ req.property.name if req.property else '---' }}</td>
+                    <td>{{ req.title[:50] }}{% if req.title|length > 50 %}...{% endif %}</td>
+                    <td>
+                        <span class="portal-badge {{ req.priority or 'routine' }}">
+                            {{ (req.priority or 'normal')|title }}
+                        </span>
+                    </td>
+                    <td style="font-size:0.85rem;">{{ req.created_at.strftime('%b %d, %Y') if req.created_at else '' }}</td>
+                    <td>
+                        {% if req.status == 'draft' %}
+                        <span class="portal-badge pending">Submitted</span>
+                        {% else %}
+                        <span class="portal-badge {{ req.status|replace('_', '-') }}">
+                            {{ req.status|replace('_', ' ')|title }}
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="portal-card">
+    <div class="card-body">
+        <div class="portal-empty-state">
+            <i class="bi bi-wrench"></i>
+            <h5>No Service Requests</h5>
+            <p>You haven't submitted any service requests yet.</p>
+            <a href="{{ url_for('portal.portal_new_service_request') }}" class="btn btn-portal btn-portal-primary">
+                <i class="bi bi-plus-circle"></i> Submit a Request
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

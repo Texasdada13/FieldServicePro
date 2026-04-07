@@ -1,0 +1,87 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Jobs{% endblock %}
+
+{% block content %}
+<div class="portal-page-header">
+    <h1>Jobs</h1>
+    <p class="text-muted mb-0">View and track all your service jobs</p>
+</div>
+
+{# ── Filters ── #}
+<div class="portal-filter-bar">
+    <form method="GET" class="d-flex flex-wrap gap-2 align-items-center w-100">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="max-width:180px;">
+            <option value="">All Statuses</option>
+            <option value="scheduled" {{ 'selected' if selected_status == 'scheduled' }}>Scheduled</option>
+            <option value="in_progress" {{ 'selected' if selected_status == 'in_progress' }}>In Progress</option>
+            <option value="completed" {{ 'selected' if selected_status == 'completed' }}>Completed</option>
+        </select>
+        <select name="property" class="form-select form-select-sm" onchange="this.form.submit()" style="max-width:220px;">
+            <option value="">All Properties</option>
+            {% for prop in properties %}
+            <option value="{{ prop.id }}" {{ 'selected' if selected_property == prop.id|string }}>
+                {{ prop.display_address }}
+            </option>
+            {% endfor %}
+        </select>
+        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from or '' }}"
+               placeholder="From" onchange="this.form.submit()" style="max-width:160px;">
+        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to or '' }}"
+               placeholder="To" onchange="this.form.submit()" style="max-width:160px;">
+        {% if selected_status or selected_property or date_from or date_to %}
+        <a href="{{ url_for('portal.portal_jobs') }}" class="btn btn-sm btn-portal-outline">
+            <i class="bi bi-x"></i> Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{% if jobs %}
+<div class="portal-card">
+    <div class="card-body p-0">
+        <table class="portal-table">
+            <thead>
+                <tr>
+                    <th>Job #</th>
+                    <th>Property</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Scheduled</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr class="clickable-row" data-href="{{ url_for('portal.portal_job_detail', job_id=job.id) }}">
+                    <td class="fw-semibold">#{{ job.job_number or job.id }}</td>
+                    <td>{{ job.property.name if job.property else '---' }}</td>
+                    <td>
+                        {{ job.title[:60] }}{% if job.title|length > 60 %}...{% endif %}
+                        {% if job.source == 'portal_request' %}
+                        <span class="portal-badge draft" style="font-size:0.65rem;margin-left:4px;">Portal</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="portal-badge {{ job.status|replace('_', '-') }}">
+                            {{ job.status|replace('_', ' ')|title }}
+                        </span>
+                    </td>
+                    <td style="font-size:0.85rem;">{{ job.scheduled_date.strftime('%b %d, %Y') if job.scheduled_date else '---' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="portal-card">
+    <div class="card-body">
+        <div class="portal-empty-state">
+            <i class="bi bi-clipboard-check"></i>
+            <h5>No Jobs Found</h5>
+            <p>{% if selected_status or selected_property %}No jobs match your filters.{% else %}No jobs have been created for your account yet.{% endif %}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

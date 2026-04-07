@@ -1,0 +1,73 @@
+/* ============================================================
+   FieldServicePro — Compliance & Document Management Styles
+   ============================================================ */
+
+/* Document card */
+.doc-card {
+  transition: box-shadow var(--transition-base);
+}
+
+.doc-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+/* Upload dropzone */
+.upload-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.upload-dropzone:hover,
+.upload-dropzone.dragover {
+  border-color: var(--color-accent);
+  background: rgba(13,148,136,0.04);
+}
+
+.upload-dropzone__icon {
+  font-size: 2.5rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+/* Expiry indicators */
+.expiry-badge--expired {
+  background: var(--color-danger-light);
+  color: var(--color-danger-dark);
+  font-size: var(--font-size-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+.expiry-badge--warning {
+  background: rgba(245,158,11,0.1);
+  color: var(--color-warning-dark);
+  font-size: var(--font-size-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+/* Compliance status card */
+.compliance-status-card {
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.compliance-status-card--green {
+  background: var(--color-success-light);
+  border: 1px solid rgba(16,185,129,0.2);
+}
+
+.compliance-status-card--yellow {
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.2);
+}
+
+.compliance-status-card--red {
+  background: var(--color-danger-light);
+  border: 1px solid rgba(239,68,68,0.2);
+}

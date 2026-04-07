@@ -1,0 +1,53 @@
+{#
+  Reusable document attachment widget for any entity detail page.
+  Include with: {% include 'partials/_document_widget.html' %}
+  Required context:
+    - widget_entity_type: str (e.g., 'permit', 'job', 'contract')
+    - widget_entity_id: int
+    - widget_category: str (default category for uploads, default 'other')
+    - widget_documents: list of Document objects
+    - widget_title: str (optional, default "Attached Documents")
+#}
+{% set title = widget_title|default("Attached Documents") %}
+{% set docs = widget_documents|default([]) %}
+
+<div class="card" style="margin-bottom:var(--space-3);">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <h3 class="card-title" style="font-size:var(--font-size-sm);"><i class="bi bi-paperclip" style="color:var(--color-text-secondary);"></i> {{ title }}</h3>
+    <button type="button" class="btn btn-sm btn-ghost"
+            onclick="document.getElementById('docUpload_{{ widget_entity_type }}_{{ widget_entity_id }}').click()">
+      <i class="bi bi-plus"></i> Add
+    </button>
+  </div>
+
+  <form id="docUploadForm_{{ widget_entity_type }}_{{ widget_entity_id }}"
+        method="POST" action="{{ url_for('documents.document_upload') }}"
+        enctype="multipart/form-data" style="display:none;">
+    <input type="hidden" name="entity_type" value="{{ widget_entity_type }}">
+    <input type="hidden" name="entity_id" value="{{ widget_entity_id }}">
+    <input type="hidden" name="category" value="{{ widget_category|default('other') }}">
+    <input type="hidden" name="next" value="{{ request.url }}">
+    <input type="file" name="files" multiple
+           id="docUpload_{{ widget_entity_type }}_{{ widget_entity_id }}"
+           onchange="this.form.submit()">
+  </form>
+
+  {% if docs %}
+  <div class="card-body" style="padding:0;">
+    {% for doc in docs %}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-4);border-bottom:1px solid var(--color-border-light);">
+      <div style="display:flex;align-items:center;gap:var(--space-2);min-width:0;">
+        <i class="bi {{ doc.icon_class }}"></i>
+        <a href="{{ url_for('documents.document_detail', doc_id=doc.id) }}" style="font-size:var(--font-size-sm);font-weight:var(--font-weight-medium);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ doc.display_name }}</a>
+        <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);flex-shrink:0;">{{ doc.file_size_display }}</span>
+      </div>
+      <a href="{{ url_for('documents.document_download', doc_id=doc.id) }}" class="btn btn-sm btn-ghost" title="Download"><i class="bi bi-download"></i></a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card-body" style="text-align:center;padding:var(--space-3);color:var(--color-text-muted);font-size:var(--font-size-sm);">
+    No documents attached yet.
+  </div>
+  {% endif %}
+</div>

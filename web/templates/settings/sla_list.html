@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}SLA Templates — Settings{% endblock %}
+{% block page_title %}SLA Templates{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb" style="margin: 0;">
+    <li class="breadcrumb-item"><a href="{{ url_for('settings_page') }}">Settings</a></li>
+    <li class="breadcrumb-item active">SLA Templates</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-6);">
+  <div>
+    <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+      Define response &amp; resolution time commitments by priority level.
+    </p>
+  </div>
+  <a href="{{ url_for('sla.sla_new') }}" class="btn btn-accent">
+    <i class="bi bi-plus-circle"></i> New SLA Template
+  </a>
+</div>
+
+{% set priority_order = ['emergency','high','medium','low'] %}
+{% set priority_labels = {
+  'emergency': ('danger',   'bi-lightning-fill',  'Emergency'),
+  'high':      ('warning',  'bi-exclamation-triangle-fill', 'High'),
+  'medium':    ('primary',  'bi-info-circle-fill','Medium'),
+  'low':       ('secondary','bi-arrow-down-circle','Low'),
+} %}
+
+{% for prio in priority_order %}
+  {% set prio_enum = PriorityLevel(prio) %}
+  {% set prio_slas = slas | selectattr('priority_level', 'equalto', prio_enum) | list %}
+  {% if prio_slas %}
+  {% set badge_info = priority_labels[prio] %}
+  <div class="card" style="margin-bottom: var(--space-4); border-left: 3px solid var(--color-{{ badge_info[0] }});">
+    <div class="card-header" style="display: flex; align-items: center; gap: var(--space-2);">
+      <i class="bi {{ badge_info[1] }}" style="color: var(--color-{{ badge_info[0] }});"></i>
+      <strong>{{ badge_info[2] }} Priority SLAs</strong>
+      <span class="badge badge-{{ badge_info[0] }}" style="margin-left: var(--space-2);">{{ prio_slas|length }}</span>
+    </div>
+    <div class="card-body" style="padding: 0;">
+      <div class="fsp-table-wrapper" style="border: none; border-radius: 0;">
+        <table class="fsp-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Response</th>
+              <th>Resolution</th>
+              <th>Hours</th>
+              <th>Business Days</th>
+              <th>Status</th>
+              <th>Contracts</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sla in prio_slas %}
+            <tr {% if not sla.is_active %}style="opacity: 0.5;"{% endif %}>
+              <td>
+                <strong>{{ sla.sla_name }}</strong>
+                {% if sla.penalties %}
+                <i class="bi bi-info-circle" style="color: var(--color-text-muted); margin-left: 4px;"
+                   title="{{ sla.penalties }}"></i>
+                {% endif %}
+              </td>
+              <td>
+                <span style="font-weight: var(--font-weight-semibold); color: var(--color-{{ badge_info[0] }});">
+                  {{ sla.response_time_hours }}h
+                </span>
+              </td>
+              <td>
+                {% if sla.resolution_time_hours %}
+                  {{ sla.resolution_time_hours }}h
+                {% else %}
+                  <span style="color: var(--color-text-muted);">Best effort</span>
+                {% endif %}
+              </td>
+              <td style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">
+                {{ sla.business_hours_start }}–{{ sla.business_hours_end }}
+              </td>
+              <td style="font-size: var(--font-size-xs);">
+                {% if sla.business_hours_only %}
+                  {{ sla.business_days.replace(',', ' · ').upper() }}
+                {% else %}
+                  <span class="badge badge-active">24/7</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if sla.is_active %}
+                  <span class="badge badge-completed">Active</span>
+                {% else %}
+                  <span class="badge badge-draft">Inactive</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge badge-draft">{{ sla.contracts|length }}</span>
+              </td>
+              <td style="text-align: right;">
+                <div style="display: flex; gap: 4px; justify-content: flex-end;">
+                  <a href="{{ url_for('sla.sla_edit', sla_id=sla.id) }}"
+                     class="btn btn-sm btn-ghost" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <form method="POST" action="{{ url_for('sla.sla_toggle', sla_id=sla.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-ghost"
+                            title="{{ 'Deactivate' if sla.is_active else 'Activate' }}">
+                      <i class="bi {{ 'bi-toggle-on' if sla.is_active else 'bi-toggle-off' }}"
+                         style="{% if sla.is_active %}color: var(--color-success);{% endif %}"></i>
+                    </button>
+                  </form>
+                  {% if sla.contracts|length == 0 %}
+                  <form method="POST" action="{{ url_for('sla.sla_delete', sla_id=sla.id) }}"
+                        style="display: inline;"
+                        onsubmit="return confirm('Delete this SLA template?')">
+                    <button type="submit" class="btn btn-sm btn-ghost" title="Delete"
+                            style="color: var(--color-danger);">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+{% endfor %}
+
+{% if not slas %}
+<div class="empty-state">
+  <i class="bi bi-shield-check" style="display: block;"></i>
+  <h3>No SLA templates defined yet</h3>
+  <p>Define response and resolution time commitments for your service contracts.</p>
+  <a href="{{ url_for('sla.sla_new') }}" class="btn btn-accent">
+    <i class="bi bi-plus-circle"></i> Create Your First SLA
+  </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+    new bootstrap.Tooltip(el);
+  });
+</script>
+{% endblock %}

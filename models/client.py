@@ -1,9 +1,20 @@
 """Client, Property, and Contact models."""
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
+import enum
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, Float
 from sqlalchemy.orm import relationship
 from .database import Base
+
+
+class PaymentTerms(str, enum.Enum):
+    due_on_receipt = "due_on_receipt"
+    net_15         = "net_15"
+    net_30         = "net_30"
+    net_45         = "net_45"
+    net_60         = "net_60"
+    net_90         = "net_90"
+    custom         = "custom"
 
 
 class Client(Base):
@@ -36,6 +47,17 @@ class Client(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Commercial billing fields
+    default_payment_terms = Column(String(20), nullable=True, default=PaymentTerms.net_30.value)
+    custom_payment_days   = Column(Integer, nullable=True)
+    credit_limit          = Column(Float, nullable=True)
+    tax_exempt            = Column(Boolean, default=False)
+    tax_exempt_number     = Column(String(100), nullable=True)
+    billing_email         = Column(String(255), nullable=True)
+    billing_contact_name  = Column(String(200), nullable=True)
+    billing_contact_phone = Column(String(50), nullable=True)
+    require_po            = Column(Boolean, default=False)
+
     properties = relationship("Property", back_populates="client", cascade="all, delete-orphan")
     contacts = relationship("ClientContact", back_populates="client", cascade="all, delete-orphan")
     client_notes = relationship("ClientNote", back_populates="client", cascade="all, delete-orphan")
@@ -43,6 +65,19 @@ class Client(Base):
     jobs = relationship("Job", back_populates="client")
     quotes = relationship("Quote", back_populates="client")
     invoices = relationship("Invoice", back_populates="client")
+    contracts = relationship("Contract", back_populates="client",
+                             order_by="Contract.start_date.desc()", lazy='select')
+    purchase_orders = relationship("PurchaseOrder", back_populates="client", lazy='select')
+
+    @property
+    def payment_terms_days(self):
+        """Returns integer days for this client's payment terms."""
+        mapping = {
+            'due_on_receipt': 0, 'net_15': 15, 'net_30': 30,
+            'net_45': 45, 'net_60': 60, 'net_90': 90,
+            'custom': self.custom_payment_days or 30,
+        }
+        return mapping.get(self.default_payment_terms, 30)
 
     @property
     def display_name(self):
@@ -87,6 +122,7 @@ class Property(Base):
     client = relationship("Client", back_populates="properties")
     jobs = relationship("Job", back_populates="property")
     quotes = relationship("Quote", back_populates="property")
+    contracts = relationship("Contract", secondary="contract_property", back_populates="properties")
 
     @property
     def display_address(self):

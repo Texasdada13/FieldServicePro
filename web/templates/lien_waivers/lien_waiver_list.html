@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Lien Waivers — Job #{{ job.id }}{% endblock %}
+{% block page_title %}Lien Waivers{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<nav style="margin-bottom:var(--space-3);font-size:var(--font-size-sm);">
+  <a href="{{ url_for('job_detail', job_id=job.id) }}" style="color:var(--color-text-muted);text-decoration:none;">Job #{{ job.id }}</a>
+  <span style="color:var(--color-text-muted);margin:0 var(--space-1);">/</span>
+  <span style="color:var(--color-text-secondary);">Lien Waivers</span>
+</nav>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <h2 style="margin:0;"><i class="bi bi-file-earmark-medical" style="margin-right:var(--space-2);"></i>Lien Waivers</h2>
+  <a href="{{ url_for('lien_waivers.lien_waiver_new', job_id=job.id) }}" class="btn btn-accent">
+    <i class="bi bi-plus-lg"></i> Add Waiver
+  </a>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-warning);">{{ pending_count }}</div>
+    <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">Pending</div>
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-success);">{{ accepted_count }}</div>
+    <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">Accepted</div>
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:var(--font-size-2xl);font-weight:700;">${{ "{:,.2f}".format(total_amount) }}</div>
+    <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">Total Waived</div>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card">
+  <div style="overflow-x:auto;">
+    <table class="table" style="width:100%;margin:0;">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Party</th>
+          <th>Amount</th>
+          <th>Through Date</th>
+          <th>Status</th>
+          <th>Invoice</th>
+          <th style="width:60px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for waiver in waivers %}
+        <tr>
+          <td>{{ waiver.type_display }}</td>
+          <td>
+            <a href="{{ url_for('lien_waivers.lien_waiver_detail', waiver_id=waiver.id) }}" style="font-weight:500;">
+              {{ waiver.party_name }}
+            </a>
+            <br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ waiver.party_type_display }}</span>
+          </td>
+          <td>{{ "${:,.2f}".format(waiver.amount) if waiver.amount else '—' }}</td>
+          <td>{{ waiver.through_date.strftime('%b %d, %Y') if waiver.through_date else '—' }}</td>
+          <td><span class="badge" style="background:var(--color-{{ waiver.status_color }});color:#fff;">{{ waiver.status_display }}</span></td>
+          <td>
+            {% if waiver.invoice_id %}
+            <a href="{{ url_for('invoice_detail', invoice_id=waiver.invoice_id) }}" style="font-size:var(--font-size-sm);">Inv #{{ waiver.invoice_id }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('lien_waivers.lien_waiver_edit', waiver_id=waiver.id) }}" class="btn btn-ghost" style="padding:2px 6px;font-size:var(--font-size-sm);" title="Edit">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not waivers %}
+        <tr><td colspan="7" style="text-align:center;color:var(--color-text-muted);padding:var(--space-6);">No lien waivers for this job.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

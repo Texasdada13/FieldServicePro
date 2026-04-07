@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Certificate of Insurance -- {{ policy.policy_number }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; }
+        .header { text-align: center; border-bottom: 3px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h1 { font-size: 24px; margin: 0; }
+        .header h2 { font-size: 18px; color: #666; margin: 5px 0; }
+        .details { margin: 20px 0; }
+        .details table { width: 100%; border-collapse: collapse; }
+        .details td { padding: 8px 12px; border: 1px solid #ddd; font-size: 14px; }
+        .details td:first-child { font-weight: bold; background: #f5f5f5; width: 200px; }
+        .footer { margin-top: 40px; font-size: 12px; color: #666; text-align: center; }
+        @media print { body { margin: 20px; } .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:right;margin-bottom:1rem;">
+        <button onclick="window.print()" style="padding:0.5rem 1rem;background:#0d9488;color:#fff;border:none;border-radius:4px;cursor:pointer;">Print</button>
+        <a href="{{ url_for('insurance.insurance_detail', policy_id=policy.id) }}" style="margin-left:0.5rem;color:#666;text-decoration:none;">Back</a>
+    </div>
+
+    <div class="header">
+        <h1>CERTIFICATE OF INSURANCE</h1>
+        <h2>{{ policy.type_display }}</h2>
+    </div>
+
+    <div class="details">
+        <table>
+            <tr><td>Policy Number</td><td>{{ policy.policy_number }}</td></tr>
+            <tr><td>Insurance Provider</td><td>{{ policy.provider }}</td></tr>
+            <tr><td>Policy Type</td><td>{{ policy.type_display }}</td></tr>
+            <tr><td>Coverage Amount</td><td>${{ "{:,.2f}".format(policy.coverage_amount) }}</td></tr>
+            {% if policy.deductible %}<tr><td>Deductible</td><td>${{ "{:,.2f}".format(policy.deductible) }}</td></tr>{% endif %}
+            <tr><td>Effective Date</td><td>{{ policy.start_date.strftime('%B %d, %Y') }}</td></tr>
+            <tr><td>Expiration Date</td><td>{{ policy.end_date.strftime('%B %d, %Y') }}</td></tr>
+            <tr><td>Status</td><td>{{ policy.status_display }}</td></tr>
+            {% if policy.division %}<tr><td>Division</td><td>{{ policy.division.name }}</td></tr>{% endif %}
+        </table>
+    </div>
+
+    {% if policy.notes %}
+    <div class="details"><h3>Additional Notes</h3><p>{{ policy.notes }}</p></div>
+    {% endif %}
+
+    <div class="footer">
+        <p>This certificate is issued as a matter of information only and confers no rights upon the certificate holder.</p>
+        <p>Generated {{ now().strftime('%B %d, %Y') if now is defined else '' }}</p>
+    </div>
+
+    <script>window.onload = function() { window.print(); }</script>
+</body>
+</html>

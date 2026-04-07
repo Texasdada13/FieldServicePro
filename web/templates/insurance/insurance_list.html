@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Insurance Policies{% endblock %}
+{% block page_title %}Insurance Policies{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <div></div>
+  {% if user.role in ('owner', 'admin') %}
+  <a href="{{ url_for('insurance.insurance_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> Add Policy</a>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="metric-card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-success);">{{ active_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Active</div></div></div>
+  <div class="col-6 col-md-3"><div class="metric-card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--color-warning);">{{ expiring_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Expiring</div></div></div>
+  <div class="col-6 col-md-3"><div class="metric-card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);">${{ "{:,.0f}".format(total_coverage) }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Coverage</div></div></div>
+  <div class="col-6 col-md-3"><div class="metric-card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);">${{ "{:,.0f}".format(total_premium) }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Annual Premium</div></div></div>
+</div>
+
+{% if policies %}
+<div class="fsp-table-wrapper">
+  <table class="fsp-table">
+    <thead><tr><th>Type</th><th>Policy #</th><th>Provider</th><th style="text-align:right;">Coverage</th><th style="text-align:right;">Premium</th><th>Period</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for p in policies %}
+      <tr class="clickable-row" onclick="window.location.href='{{ url_for('insurance.insurance_detail', policy_id=p.id) }}'">
+        <td>{{ p.type_display }}</td>
+        <td style="font-weight:var(--font-weight-semibold);"><a href="{{ url_for('insurance.insurance_detail', policy_id=p.id) }}" onclick="event.stopPropagation();">{{ p.policy_number }}</a></td>
+        <td>{{ p.provider }}</td>
+        <td class="col-number">${{ "{:,.0f}".format(p.coverage_amount) }}</td>
+        <td class="col-number">{% if p.premium %}${{ "{:,.0f}".format(p.premium) }}{% else %}---{% endif %}</td>
+        <td style="font-size:var(--font-size-xs);">{{ p.start_date.strftime('%b %d, %Y') }} -- {{ p.end_date.strftime('%b %d, %Y') }}{% if p.days_until_expiry is not none and p.days_until_expiry >= 0 %}<br><span style="color:var(--color-text-muted);">{{ p.days_until_expiry }}d left</span>{% endif %}</td>
+        <td><span class="badge badge-{{ p.status_color }}">{{ p.status_display }}</span>{% if p.auto_renew %} <i class="bi bi-arrow-repeat" style="color:var(--color-accent);" title="Auto-renew"></i>{% endif %}</td>
+        <td style="text-align:right;">
+          <a href="{{ url_for('insurance.insurance_coi', policy_id=p.id) }}" class="btn btn-sm btn-ghost" onclick="event.stopPropagation();" title="COI" target="_blank"><i class="bi bi-printer"></i></a>
+          {% if user.role in ('owner', 'admin') %}<a href="{{ url_for('insurance.insurance_edit', policy_id=p.id) }}" class="btn btn-sm btn-ghost" onclick="event.stopPropagation();" title="Edit"><i class="bi bi-pencil"></i></a>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state"><i class="bi bi-shield-check" style="display:block;"></i><h3>No insurance policies</h3></div>
+{% endif %}
+{% endblock %}

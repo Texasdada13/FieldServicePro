@@ -1,0 +1,176 @@
+{# Phase card partial — expects: phase (JobPhase obj), job (Job obj or dict), can_edit (bool) #}
+{% set s = phase.status %}
+{% set job_id = job.id if job.id is defined else job %}
+
+<div class="phase-item" data-phase-id="{{ phase.id }}" id="phase-item-{{ phase.id }}">
+
+  {# Drag handle + number badge #}
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    {% if can_edit %}
+    <span class="drag-handle" title="Drag to reorder">&#x2807;</span>
+    {% endif %}
+    <div class="phase-number-badge status-{{ s }}">
+      {% if s == 'completed' %}
+        <i class="bi bi-check-lg"></i>
+      {% elif s == 'skipped' %}
+        <i class="bi bi-skip-forward-fill"></i>
+      {% else %}
+        {{ phase.phase_number }}
+      {% endif %}
+    </div>
+  </div>
+
+  {# Phase Card #}
+  <div class="phase-card status-{{ s }}" style="width: 100%;">
+
+    {# Header #}
+    <div class="phase-card-header"
+         data-bs-toggle="collapse"
+         data-bs-target="#phase-body-{{ phase.id }}"
+         aria-expanded="false">
+
+      <div style="display: flex; align-items: center; gap: var(--space-2); flex: 1;">
+        <span style="font-weight: var(--font-weight-semibold);">{{ phase.title }}</span>
+
+        {# Status pill with dropdown #}
+        {% if can_edit %}
+        <div class="dropdown" onclick="event.stopPropagation()">
+          <button class="status-pill badge-{{ phase.status_badge_class }}" style="background: rgba(13,148,136,0.1); color: var(--color-{{ phase.status_badge_class }});"
+                  data-bs-toggle="dropdown">
+            {{ phase.status_label }} <i class="bi bi-chevron-down" style="font-size: 0.6rem;"></i>
+          </button>
+          <ul class="dropdown-menu" style="font-size: var(--font-size-sm);">
+            {% set transitions = {
+              'not_started': ['scheduled', 'skipped'],
+              'scheduled': ['in_progress', 'on_hold', 'not_started'],
+              'in_progress': ['on_hold', 'completed', 'skipped'],
+              'on_hold': ['in_progress', 'scheduled'],
+              'completed': ['in_progress'],
+              'skipped': ['not_started']
+            } %}
+            {% for next_status in transitions.get(s, []) %}
+            <li>
+              <a class="dropdown-item phase-status-change" href="#"
+                 data-phase-id="{{ phase.id }}"
+                 data-job-id="{{ job_id }}"
+                 data-new-status="{{ next_status }}">
+                &rarr; {{ next_status | replace('_', ' ') | title }}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% else %}
+        <span class="badge badge-{{ phase.status_badge_class }}">{{ phase.status_label }}</span>
+        {% endif %}
+
+        {# Inspection indicator #}
+        {% if phase.requires_inspection %}
+          {% if phase.inspection_status == 'passed' %}
+          <span class="inspection-badge" style="background: var(--color-success-light); color: var(--color-success-dark);"><i class="bi bi-clipboard-check"></i> Inspected</span>
+          {% elif phase.inspection_status == 'failed' %}
+          <span class="inspection-badge" style="background: var(--color-danger-light); color: var(--color-danger-dark);"><i class="bi bi-clipboard-x"></i> Failed</span>
+          {% elif phase.inspection_status == 'pending' %}
+          <span class="inspection-badge" style="background: rgba(245,158,11,0.1); color: var(--color-warning-dark);"><i class="bi bi-clipboard-pulse"></i> Inspection Pending</span>
+          {% else %}
+          <span class="inspection-badge" style="background: rgba(13,148,136,0.06); color: var(--color-accent-dark);"><i class="bi bi-clipboard"></i> Req. Inspection</span>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      {# Right: dates + actions #}
+      <div style="display: flex; align-items: center; gap: var(--space-3); margin-left: var(--space-2);">
+        {% if phase.scheduled_start_date %}
+        <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+          <i class="bi bi-calendar3"></i>
+          {{ phase.scheduled_start_date.strftime('%b %d') }}{% if phase.scheduled_end_date %} &rarr; {{ phase.scheduled_end_date.strftime('%b %d') }}{% endif %}
+        </span>
+        {% endif %}
+        {% if phase.assigned_technician %}
+        <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+          <i class="bi bi-person"></i> {{ phase.assigned_technician.full_name }}
+        </span>
+        {% endif %}
+
+        {% if can_edit %}
+        <div style="display: flex; gap: 2px;" onclick="event.stopPropagation()">
+          <a href="{{ url_for('phases.edit_phase', job_id=job_id, phase_id=phase.id) }}"
+             class="btn btn-sm btn-ghost" title="Edit"><i class="bi bi-pencil"></i></a>
+          <button class="btn btn-sm btn-ghost phase-delete-btn" style="color: var(--color-danger);"
+                  data-phase-id="{{ phase.id }}" data-job-id="{{ job_id }}"
+                  data-phase-title="{{ phase.title }}" title="Delete"><i class="bi bi-trash"></i></button>
+        </div>
+        {% endif %}
+
+        <i class="bi bi-chevron-down" style="color: var(--color-text-muted); font-size: 0.7rem;"></i>
+      </div>
+    </div>
+
+    {# Collapsible Body #}
+    <div class="collapse" id="phase-body-{{ phase.id }}">
+      <div class="phase-card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-3);">
+          {% if phase.description %}
+          <div style="grid-column: 1 / -1;">
+            <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">{{ phase.description }}</p>
+          </div>
+          {% endif %}
+          <div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Est. Hours</div>
+            <div style="font-weight: var(--font-weight-semibold);">{{ phase.estimated_hours or '---' }}</div>
+          </div>
+          <div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Actual Hours</div>
+            <div style="font-weight: var(--font-weight-semibold);">{{ phase.actual_hours or '---' }}</div>
+          </div>
+          <div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Est. Cost</div>
+            <div style="font-weight: var(--font-weight-semibold);">{% if phase.estimated_cost %}${{ "{:,.2f}".format(phase.estimated_cost) }}{% else %}---{% endif %}</div>
+          </div>
+          <div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Actual Cost</div>
+            <div style="font-weight: var(--font-weight-semibold);">{% if phase.actual_cost %}${{ "{:,.2f}".format(phase.actual_cost) }}{% else %}---{% endif %}</div>
+          </div>
+        </div>
+
+        {% if phase.materials %}
+        <div style="margin-top: var(--space-2);">
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Materials</div>
+          <div style="font-size: var(--font-size-sm);">{{ phase.materials }}</div>
+        </div>
+        {% endif %}
+
+        {% if phase.notes %}
+        <div style="margin-top: var(--space-2);">
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Notes</div>
+          <div style="font-size: var(--font-size-sm);">{{ phase.notes }}</div>
+        </div>
+        {% endif %}
+
+        {% if phase.completion_notes %}
+        <div style="margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--color-success-light); border-radius: var(--radius-sm); font-size: var(--font-size-sm);">
+          <i class="bi bi-check-circle" style="color: var(--color-success);"></i>
+          <strong>Completion:</strong> {{ phase.completion_notes }}
+        </div>
+        {% endif %}
+
+        {# Inspection panel #}
+        {% if phase.requires_inspection and can_edit %}
+        <div style="margin-top: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--color-surface-raised); border-radius: var(--radius-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);">Inspection Required</span>
+            {% if phase.inspection_status != 'passed' %}
+            <div style="display: flex; gap: 4px;">
+              <button class="btn btn-sm btn-success record-inspection" data-phase-id="{{ phase.id }}" data-job-id="{{ job_id }}" data-passed="true"><i class="bi bi-check-lg"></i> Pass</button>
+              <button class="btn btn-sm btn-danger record-inspection" data-phase-id="{{ phase.id }}" data-job-id="{{ job_id }}" data-passed="false"><i class="bi bi-x-lg"></i> Fail</button>
+            </div>
+            {% endif %}
+          </div>
+          {% if phase.inspection_notes %}<p style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin: var(--space-1) 0 0;">{{ phase.inspection_notes }}</p>{% endif %}
+          {% if phase.inspection_date %}<p style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin: 0;">Recorded: {{ phase.inspection_date.strftime('%b %d, %Y') }}</p>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ technician.full_name }} — Certifications{% endblock %}
+{% block page_title %}{{ technician.full_name }} Certifications{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb" style="margin:0;">
+  <li class="breadcrumb-item"><a href="{{ url_for('certifications.certification_matrix') }}">Certifications</a></li>
+  <li class="breadcrumb-item active">{{ technician.full_name }}</li>
+</ol></nav>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <div></div>
+  {% if user.role in ('owner', 'admin') %}
+  <a href="{{ url_for('certifications.certification_new', tech_id=technician.id) }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> Add Certification</a>
+  {% endif %}
+</div>
+
+{% if certifications %}
+<div class="fsp-table-wrapper">
+  <table class="fsp-table">
+    <thead><tr><th>Type</th><th>Name</th><th>Number</th><th>Issuer</th><th>Issue Date</th><th>Expiry</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for c in certifications %}
+      <tr {% if c.is_expired %}style="background:var(--color-danger-light);"{% elif c.is_expiring_soon %}style="background:rgba(245,158,11,0.04);"{% endif %}>
+        <td>{{ c.type_display }}</td>
+        <td style="font-weight:var(--font-weight-semibold);">{{ c.certification_name }}{% if c.is_required %} <span class="badge badge-danger" style="font-size:0.55rem;">Required</span>{% endif %}</td>
+        <td style="font-size:var(--font-size-xs);">{{ c.certificate_number or '---' }}</td>
+        <td style="font-size:var(--font-size-xs);">{{ c.issuing_body or '---' }}</td>
+        <td style="font-size:var(--font-size-xs);">{{ c.issue_date.strftime('%b %d, %Y') if c.issue_date else '---' }}</td>
+        <td style="font-size:var(--font-size-xs);">{% if c.expiry_date %}<span style="{% if c.is_expired %}color:var(--color-danger);font-weight:var(--font-weight-bold);{% elif c.is_expiring_soon %}color:var(--color-warning);{% endif %}">{{ c.expiry_date.strftime('%b %d, %Y') }}</span>{% else %}No expiry{% endif %}</td>
+        <td><span class="badge badge-{{ c.status_color }}">{{ c.status_display }}</span></td>
+        <td>{% if user.role in ('owner', 'admin') %}<a href="{{ url_for('certifications.certification_edit', cert_id=c.id) }}" class="btn btn-sm btn-ghost"><i class="bi bi-pencil"></i></a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state"><i class="bi bi-award" style="display:block;"></i><h3>No certifications</h3></div>
+{% endif %}
+{% endblock %}

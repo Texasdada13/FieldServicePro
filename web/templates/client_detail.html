@@ -93,6 +93,20 @@
                 <button class="detail-tab" data-tab="communications">
                     Communications <span class="tab-count">{{ comm_total }}</span>
                 </button>
+                <button class="detail-tab" data-tab="contracts">
+                    Contracts <span class="tab-count">{{ contracts|length }}</span>
+                </button>
+                {% if user.role in ('owner', 'admin', 'dispatcher', 'viewer') %}
+                <button class="detail-tab" data-tab="billing">
+                    Billing {% if aging.total > 0 %}<span class="tab-count" style="background: var(--color-danger); color: #fff;">${{ "{:,.0f}".format(aging.total) }}</span>{% endif %}
+                </button>
+                <button class="detail-tab" data-tab="purchase-orders">
+                    Purchase Orders {% if purchase_orders %}<span class="tab-count">{{ purchase_orders|length }}</span>{% endif %}
+                </button>
+                <button class="detail-tab" data-tab="statements">
+                    Statements
+                </button>
+                {% endif %}
             </div>
 
             <!-- Tab: Active Work -->
@@ -391,6 +405,212 @@
                     <p>Log your first email, phone call, or text with this client.</p>
                 </div>
                 {% endif %}
+            </div>
+
+            <!-- Tab: Contracts -->
+            <div class="detail-tab-content" id="tab-contracts">
+                {% if sla_compliance_pct is not none %}
+                <div style="display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); background: {% if sla_compliance_pct >= 90 %}var(--color-success-light){% elif sla_compliance_pct >= 70 %}rgba(245,158,11,0.08){% else %}var(--color-danger-light){% endif %}; border-radius: var(--radius-md); margin-bottom: var(--space-4);">
+                    <i class="bi bi-shield-check" style="font-size: 1.5rem; color: {% if sla_compliance_pct >= 90 %}var(--color-success){% elif sla_compliance_pct >= 70 %}var(--color-warning){% else %}var(--color-danger){% endif %};"></i>
+                    <div style="flex: 1;">
+                        <strong>SLA Compliance: {{ sla_compliance_pct }}%</strong>
+                        <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">Based on all completed jobs with SLA tracking</div>
+                    </div>
+                    <div style="min-width: 100px;">
+                        <div style="height: 8px; background: var(--color-border); border-radius: var(--radius-full); overflow: hidden;">
+                            <div style="height: 100%; width: {{ sla_compliance_pct }}%; background: {% if sla_compliance_pct >= 90 %}var(--color-success){% elif sla_compliance_pct >= 70 %}var(--color-warning){% else %}var(--color-danger){% endif %}; border-radius: var(--radius-full);"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if contracts %}
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+                    {% for contract in contracts %}
+                    <div class="card" style="border-left: 3px solid var(--color-{{ contract.status_badge_class }});">
+                        <div class="card-body" style="padding: var(--space-4);">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-2);">
+                                <div>
+                                    <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}" style="font-weight: var(--font-weight-semibold); text-decoration: none;">
+                                        {{ contract.title }}
+                                    </a>
+                                    <div style="font-family: monospace; font-size: var(--font-size-xs); color: var(--color-text-muted);">{{ contract.contract_number }}</div>
+                                </div>
+                                <span class="badge badge-{{ contract.status_badge_class }}">{{ contract.status.value.replace('_',' ').title() }}</span>
+                            </div>
+                            <div style="font-size: var(--font-size-sm); display: grid; grid-template-columns: auto 1fr; gap: 2px var(--space-3);">
+                                <span style="color: var(--color-text-muted);">Type</span>
+                                <span>{{ contract.contract_type.value.replace('_',' ').title() }}</span>
+                                <span style="color: var(--color-text-muted);">Value</span>
+                                <span style="font-weight: var(--font-weight-semibold);">${{ '{:,.0f}'.format(contract.value) }}</span>
+                                <span style="color: var(--color-text-muted);">Period</span>
+                                <span>{{ contract.start_date.strftime('%b %Y') }} – {{ contract.end_date.strftime('%b %Y') }}</span>
+                                <span style="color: var(--color-text-muted);">SLAs</span>
+                                <span>
+                                    {% if contract.slas %}
+                                    {% for sla in contract.slas %}
+                                    <span class="badge badge-{{ sla.priority_badge_class }}" style="margin-right: 2px;">{{ sla.priority_level.value[:3].upper() }} {{ sla.response_time_hours }}h</span>
+                                    {% endfor %}
+                                    {% else %}
+                                    <span style="color: var(--color-text-muted);">None</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% if contract.is_expiring_soon %}
+                            <div style="margin-top: var(--space-2); padding: var(--space-1) var(--space-2); background: rgba(245,158,11,0.08); border-radius: var(--radius-sm); font-size: var(--font-size-xs); color: var(--color-warning-dark);">
+                                <i class="bi bi-clock"></i> Expires in {{ contract.days_until_expiry }} days
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div style="padding: var(--space-2) var(--space-4); border-top: 1px solid var(--color-border-light);">
+                            <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}" class="btn btn-sm btn-ghost" style="width: 100%; justify-content: center;">
+                                View Contract <i class="bi bi-chevron-right" style="margin-left: 4px;"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 2rem;">
+                    <i class="bi bi-file-earmark-ruled"></i>
+                    <h3>No contracts</h3>
+                    <p>No contracts for this client yet.</p>
+                    <a href="{{ url_for('contracts.contract_new') }}?client_id={{ client.id }}" class="btn btn-accent btn-sm">
+                        <i class="bi bi-plus"></i> Create Contract
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Tab: Billing -->
+            <div class="detail-tab-content" id="tab-billing">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-4);">
+                    <!-- Payment Terms & Credit -->
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title" style="font-size: var(--font-size-sm);">Payment Terms &amp; Credit</h3></div>
+                        <div class="card-body" style="font-size: var(--font-size-sm);">
+                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 4px var(--space-3);">
+                                <span style="color: var(--color-text-muted);">Default Terms</span>
+                                <span>{{ {'due_on_receipt':'Due on Receipt','net_15':'Net 15','net_30':'Net 30','net_45':'Net 45','net_60':'Net 60','net_90':'Net 90','custom':'Custom'}.get(client_obj.default_payment_terms, client_obj.default_payment_terms or '---') }}{% if client_obj.default_payment_terms == 'custom' and client_obj.custom_payment_days %} ({{ client_obj.custom_payment_days }} days){% endif %}</span>
+                                <span style="color: var(--color-text-muted);">Require PO</span>
+                                <span>{% if client_obj.require_po %}<span class="badge badge-pending">Yes</span>{% else %}<span style="color: var(--color-text-muted);">No</span>{% endif %}</span>
+                                <span style="color: var(--color-text-muted);">Credit Limit</span>
+                                <span>{% if client_obj.credit_limit %}${{ "{:,.2f}".format(client_obj.credit_limit) }}{% else %}<span style="color: var(--color-text-muted);">No limit</span>{% endif %}</span>
+                                <span style="color: var(--color-text-muted);">Available Credit</span>
+                                <span>{% if credit_available is not none %}<span style="font-weight: var(--font-weight-semibold); color: {% if credit_available < 0 %}var(--color-danger){% else %}var(--color-success){% endif %};">${{ "{:,.2f}".format(credit_available) }}</span>{% else %}<span style="color: var(--color-text-muted);">---</span>{% endif %}</span>
+                                <span style="color: var(--color-text-muted);">Tax Exempt</span>
+                                <span>{% if client_obj.tax_exempt %}<span class="badge badge-active">Exempt{% if client_obj.tax_exempt_number %} - {{ client_obj.tax_exempt_number }}{% endif %}</span>{% else %}<span style="color: var(--color-text-muted);">No</span>{% endif %}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Billing Contact -->
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title" style="font-size: var(--font-size-sm);">Billing Contact</h3></div>
+                        <div class="card-body" style="font-size: var(--font-size-sm);">
+                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 4px var(--space-3);">
+                                <span style="color: var(--color-text-muted);">Contact Name</span>
+                                <span>{{ client_obj.billing_contact_name or '---' }}</span>
+                                <span style="color: var(--color-text-muted);">Phone</span>
+                                <span>{{ client_obj.billing_contact_phone or '---' }}</span>
+                                <span style="color: var(--color-text-muted);">Email</span>
+                                <span>{% if client_obj.billing_email %}<a href="mailto:{{ client_obj.billing_email }}">{{ client_obj.billing_email }}</a>{% else %}---{% endif %}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Aging Snapshot -->
+                <div class="card">
+                    <div class="card-header" style="display: flex; justify-content: space-between;">
+                        <h3 class="card-title" style="font-size: var(--font-size-sm);">Accounts Receivable Aging</h3>
+                        <a href="{{ url_for('aging_report') }}?client_id={{ client.id }}" class="btn btn-sm btn-ghost"><i class="bi bi-bar-chart"></i> Full Report</a>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-3); text-align: center;">
+                            {% for label, val, color in [
+                                ('Current', aging.current, 'success'),
+                                ('1-30 Days', aging.days_1_30, 'text-secondary'),
+                                ('31-60 Days', aging.days_31_60, 'warning'),
+                                ('61-90 Days', aging.days_61_90, 'warning'),
+                                ('90+ Days', aging.days_90_plus, 'danger'),
+                                ('Total Due', aging.total, 'accent'),
+                            ] %}
+                            <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3);">
+                                <div style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: 2px;">{{ label }}</div>
+                                <div style="font-weight: var(--font-weight-bold); {% if val > 0 and color in ('warning', 'danger') %}color: var(--color-{{ color }});{% endif %}">${{ "{:,.2f}".format(val) }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Purchase Orders -->
+            <div class="detail-tab-content" id="tab-purchase-orders">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+                    <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); margin: 0;">Purchase Orders</h3>
+                    {% if user.role in ('owner', 'admin', 'dispatcher') %}
+                    <a href="{{ url_for('purchase_orders.po_new') }}" class="btn btn-sm btn-accent"><i class="bi bi-plus"></i> New PO</a>
+                    {% endif %}
+                </div>
+                {% if purchase_orders %}
+                <div class="fsp-table-wrapper">
+                    <table class="fsp-table">
+                        <thead><tr><th>PO Number</th><th>Description</th><th style="text-align:right;">Authorized</th><th style="text-align:right;">Used</th><th style="text-align:right;">Remaining</th><th>Expiry</th><th>Status</th><th></th></tr></thead>
+                        <tbody>
+                            {% for po in purchase_orders %}
+                            <tr>
+                                <td><a href="{{ url_for('purchase_orders.po_detail', po_id=po.id) }}" style="font-weight: var(--font-weight-semibold);">{{ po.po_number }}</a></td>
+                                <td style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">{{ po.description or '---' }}</td>
+                                <td class="col-number">${{ "{:,.2f}".format(po.amount_authorized) }}</td>
+                                <td class="col-number">${{ "{:,.2f}".format(po.amount_used or 0) }}</td>
+                                <td class="col-number" style="font-weight: var(--font-weight-semibold); color: {% if po.amount_remaining == 0 %}var(--color-danger){% elif po.utilization_percentage >= 80 %}var(--color-warning){% else %}var(--color-success){% endif %};">${{ "{:,.2f}".format(po.amount_remaining) }}</td>
+                                <td style="font-size: var(--font-size-xs);">{% if po.expiry_date %}<span style="{% if po.is_expired %}color: var(--color-danger);{% endif %}">{{ po.expiry_date.strftime('%b %d, %Y') }}</span>{% else %}<span style="color: var(--color-text-muted);">No expiry</span>{% endif %}</td>
+                                <td><span class="badge badge-{{ po.status_badge_class }}">{{ po.status|title }}</span></td>
+                                <td><a href="{{ url_for('purchase_orders.po_detail', po_id=po.id) }}" class="btn btn-sm btn-ghost"><i class="bi bi-eye"></i></a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 2rem;">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <h3>No purchase orders</h3>
+                    <p>No POs on file for this client yet.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Tab: Statements -->
+            <div class="detail-tab-content" id="tab-statements">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-3);">Generate Account Statement</h3>
+                        <form id="stmt-form" action="{{ url_for('client_statement', client_id=client.id) }}" method="GET" target="_blank" style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: end;">
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label">From</label>
+                                <input type="date" name="start_date" class="form-control" value="{{ default_stmt_start.isoformat() }}">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label">To</label>
+                                <input type="date" name="end_date" class="form-control" value="{{ default_stmt_end.isoformat() }}">
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-sm btn-accent"><i class="bi bi-eye"></i> View Statement</button>
+                                <button type="submit" name="format" value="pdf" class="btn btn-sm btn-ghost" style="color: var(--color-danger);"><i class="bi bi-file-pdf"></i> PDF</button>
+                            </div>
+                        </form>
+
+                        <hr style="margin: var(--space-3) 0;">
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: var(--space-2);">Email statement to billing contact:</p>
+                        <div style="display: flex; align-items: center; gap: var(--space-2);">
+                            <span class="badge badge-draft">{{ client_obj.billing_email or client_obj.email or 'No billing email on file' }}</span>
+                            {% if client_obj.billing_email or client_obj.email %}
+                            <button class="btn btn-sm btn-success" id="emailStatementBtn"><i class="bi bi-envelope"></i> Send</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -705,6 +925,29 @@ function logCommunication(e) {
         } else {
             alert('Error: ' + result.error);
         }
+    });
+}
+
+// Email statement
+var emailStmtBtn = document.getElementById('emailStatementBtn');
+if (emailStmtBtn) {
+    emailStmtBtn.addEventListener('click', function () {
+        var form = document.getElementById('stmt-form');
+        var startDate = form.querySelector('[name=start_date]').value;
+        var endDate = form.querySelector('[name=end_date]').value;
+        if (!confirm('Send statement for this period to the client billing email?')) return;
+        this.disabled = true;
+        var btn = this;
+        fetch('/clients/' + CLIENT_ID + '/statement/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ start_date: startDate, end_date: endDate }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            btn.disabled = false;
+            alert(data.success ? 'Statement sent to ' + data.sent_to : (data.error || 'Send failed.'));
+        });
     });
 }
 </script>

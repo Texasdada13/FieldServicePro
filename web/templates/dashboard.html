@@ -1,244 +1,489 @@
 {% extends "base.html" %}
 
 {% block title %}Dashboard - FieldServicePro{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
+
 <!-- Greeting Header -->
 <div class="dash-greeting">
-    <div class="dash-date">{{ now().strftime('%A, %B %d').replace(' 0', ' ') if now else 'Today' }}</div>
-    <h1 class="dash-hello">Good {% if now %}{% set h = now().hour %}{% if h < 12 %}morning{% elif h < 17 %}afternoon{% else %}evening{% endif %}{% else %}day{% endif %}, {{ user.first_name or 'Marcus' }}</h1>
+  <div class="dash-date">{{ now().strftime('%A, %B %d').replace(' 0', ' ') if now else 'Today' }}</div>
+  <h1 class="dash-hello">Good {% if now %}{% set h = now().hour %}{% if h < 12 %}morning{% elif h < 17 %}afternoon{% else %}evening{% endif %}{% else %}day{% endif %}, {{ user.first_name or 'there' }}</h1>
 </div>
 
-<!-- ════════ WORKFLOW PIPELINE ════════ -->
-<div class="workflow-section">
-    <h2 class="workflow-title">Workflow</h2>
-    <div class="workflow-bar">
-        <div class="workflow-segment seg-requests" style="flex:1"></div>
-        <div class="workflow-segment seg-quotes" style="flex:1"></div>
-        <div class="workflow-segment seg-jobs" style="flex:1"></div>
-        <div class="workflow-segment seg-invoices" style="flex:1"></div>
+<!-- KPI Row -->
+<div class="row g-4 mb-4">
+  <!-- Active Jobs -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--accent">
+        <i class="bi bi-briefcase-fill" aria-hidden="true"></i>
+      </div>
+      <p class="metric-card__label">Active Jobs</p>
+      <p class="metric-card__value">{{ active_jobs or 0 }}</p>
+      <p class="metric-card__trend metric-card__trend--up">
+        <i class="bi bi-arrow-up-short" aria-hidden="true"></i>
+        <span class="money">${{ "{:,.1f}k".format(jobs_active_value / 1000) if jobs_active_value else '0' }}</span>
+      </p>
     </div>
-    <div class="workflow-grid">
-        <!-- Requests -->
-        <div class="workflow-card">
-            <div class="workflow-card-header">
-                <i class="bi bi-inbox"></i> Requests
-            </div>
-            <div class="workflow-card-value">{{ requests_new }}</div>
-            <div class="workflow-card-label">New</div>
-            <div class="workflow-card-details">
-                <span>Assessments complete ({{ completed_jobs }})</span>
-                <span>Overdue ({{ requests_overdue }})</span>
-            </div>
-        </div>
-        <!-- Quotes -->
-        <div class="workflow-card">
-            <div class="workflow-card-header">
-                <i class="bi bi-file-earmark-text"></i> Quotes
-            </div>
-            <div class="workflow-card-value">{{ quotes_approved }}</div>
-            <div class="workflow-card-label">Approved</div>
-            <div class="workflow-card-details">
-                <span>Draft ({{ quotes_draft }}) <span class="wf-money">${{ "{:,.1f}k".format(quotes_total_value / 1000) }}</span></span>
-                <span>Changes requested ({{ quotes_changes }})</span>
-            </div>
-        </div>
-        <!-- Jobs -->
-        <div class="workflow-card">
-            <div class="workflow-card-header">
-                <i class="bi bi-wrench"></i> Jobs <span class="wf-money">${{ "{:,.1f}k".format(jobs_active_value / 1000) }}</span>
-            </div>
-            <div class="workflow-card-value">{{ active_jobs }}</div>
-            <div class="workflow-card-label">Requires invoicing</div>
-            <div class="workflow-card-details">
-                <span>Active ({{ active_jobs }}) <span class="wf-money">${{ "{:,.1f}k".format(jobs_active_value / 1000) }}</span></span>
-                <span>Action required ({{ jobs_action_required }}) <span class="wf-money">${{ "{:,.0f}".format(jobs_action_value) }}</span></span>
-            </div>
-        </div>
-        <!-- Invoices -->
-        <div class="workflow-card">
-            <div class="workflow-card-header">
-                <i class="bi bi-receipt"></i> Invoices <span class="wf-money">${{ "{:,.1f}M".format(total_invoiced / 1000000) if total_invoiced >= 1000000 else "${:,.1f}k".format(total_invoiced / 1000) }}</span>
-            </div>
-            <div class="workflow-card-value">{{ invoices_awaiting }}</div>
-            <div class="workflow-card-label">Awaiting payment</div>
-            <div class="workflow-card-details">
-                <span>Draft ({{ invoices_draft }}) <span class="wf-money">${{ "{:,.1f}k".format(invoices_draft_value / 1000) }}</span></span>
-                <span>Past due ({{ invoices_past_due }}) <span class="wf-money">${{ "{:,.1f}k".format(invoices_past_due_value / 1000) }}</span></span>
-            </div>
-        </div>
+  </div>
+
+  <!-- Open Quotes -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--warning">
+        <i class="bi bi-file-earmark-text-fill" aria-hidden="true"></i>
+      </div>
+      <p class="metric-card__label">Open Quotes</p>
+      <p class="metric-card__value">{{ quotes_approved or 0 }}</p>
+      <p class="metric-card__trend metric-card__trend--neutral">
+        <i class="bi bi-dash" aria-hidden="true"></i>
+        <span>{{ quotes_draft or 0 }} draft</span>
+      </p>
     </div>
+  </div>
+
+  <!-- Revenue (MTD) -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--success">
+        <i class="bi bi-currency-dollar" aria-hidden="true"></i>
+      </div>
+      <p class="metric-card__label">Total Paid</p>
+      <p class="metric-card__value">${{ "{:,.0f}".format(total_paid) if total_paid else '0' }}</p>
+      <p class="metric-card__trend metric-card__trend--up">
+        <i class="bi bi-arrow-up-short" aria-hidden="true"></i>
+        <span>${{ "{:,.0f}".format(total_invoiced) if total_invoiced else '0' }} invoiced</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Overdue -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="metric-card">
+      <div class="metric-card__icon metric-card__icon--danger">
+        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      </div>
+      <p class="metric-card__label">Overdue</p>
+      <p class="metric-card__value">${{ "{:,.0f}".format(total_overdue) if total_overdue else '0' }}</p>
+      <p class="metric-card__trend metric-card__trend--down">
+        <i class="bi bi-arrow-down-short" aria-hidden="true"></i>
+        <span>{{ invoices_past_due or 0 }} invoices</span>
+      </p>
+    </div>
+  </div>
 </div>
 
-<!-- ════════ MAIN CONTENT: Appointments + Business Performance ════════ -->
-<div class="dash-main-grid">
-    <!-- Left: Today's Appointments -->
-    <div class="dash-appointments">
-        <div class="dash-section-header">
-            <h2>Today's appointments</h2>
+<!-- Compliance Alerts -->
+{% include 'partials/_compliance_alerts.html' %}
+
+<!-- Commercial Invoicing Widgets -->
+{% if user.role in ('owner', 'admin', 'dispatcher') %}
+<div class="row g-4 mb-4">
+  <!-- AR Summary -->
+  <div class="col-md-4">
+    <div class="card" style="height: 100%;">
+      <div class="card-body" style="padding: var(--space-5);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-2);">
+          <div>
+            <p style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-1);">Accounts Receivable</p>
+            <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold);">${{ "{:,.0f}".format(total_ar) }}</div>
+          </div>
+          <div class="metric-card__icon metric-card__icon--primary"><i class="bi bi-currency-dollar"></i></div>
         </div>
-
-        <!-- Financial summary bar -->
-        <div class="appt-financials">
-            <div class="appt-fin-item">
-                <div class="appt-fin-label">Total</div>
-                <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_total / 1000) if todays_total >= 1000 else "{:,.0f}".format(todays_total) }}</div>
-            </div>
-            <div class="appt-fin-item">
-                <div class="appt-fin-label">Active</div>
-                <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_active_value / 1000) if todays_active_value >= 1000 else "{:,.0f}".format(todays_active_value) }}</div>
-            </div>
-            <div class="appt-fin-item">
-                <div class="appt-fin-label">Completed</div>
-                <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_completed_value / 1000) if todays_completed_value >= 1000 else "{:,.0f}".format(todays_completed_value) }}</div>
-            </div>
-            <div class="appt-fin-item">
-                <div class="appt-fin-label">Overdue</div>
-                <div class="appt-fin-value money-red">${{ "{:,.0f}".format(todays_overdue_value) }}</div>
-            </div>
-            <div class="appt-fin-item">
-                <div class="appt-fin-label">Remaining</div>
-                <div class="appt-fin-value">${{ "{:,.0f}".format(todays_remaining) }}</div>
-            </div>
-            <a href="{{ url_for('jobs_page') }}" class="appt-view-schedule">View Schedule</a>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-3);">
+          <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-2); text-align: center;">
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Overdue</div>
+            <div style="font-weight: var(--font-weight-bold); color: var(--color-danger);">${{ "{:,.0f}".format(overdue_amount) }}</div>
+          </div>
+          <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-2); text-align: center;">
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Avg Days Paid</div>
+            <div style="font-weight: var(--font-weight-bold);">{{ avg_days_to_payment }}d</div>
+          </div>
         </div>
+        <div style="margin-top: var(--space-3);">
+          <a href="{{ url_for('aging_report') }}" class="btn btn-sm btn-ghost" style="width: 100%;"><i class="bi bi-bar-chart"></i> View Aging Report</a>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        <!-- Overdue appointments -->
-        {% set overdue_jobs = [] %}
-        {% for job in todays_jobs %}
-            {% if job.status in ['draft', 'scheduled'] %}
-                {% if overdue_jobs.append(job) %}{% endif %}
-            {% endif %}
-        {% endfor %}
-
-        {% if todays_jobs %}
-        <div class="appt-overdue-label">{{ todays_jobs|length }} SCHEDULED</div>
-        <div class="appt-list">
-            {% for job in todays_jobs %}
-            <div class="appt-item">
-                <div class="appt-item-main">
-                    <div class="appt-item-title">{{ job.title }}</div>
-                    <div class="appt-item-time">
-                        {% if job.scheduled_date %}
-                            {{ job.scheduled_date[:16].split('T')[1] if 'T' in (job.scheduled_date or '') else '' }}
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="appt-item-right">
-                    <span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span>
-                    {% if job.estimated_amount %}
-                    <span class="appt-item-amount">${{ "{:,.0f}".format(job.estimated_amount) }}</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
+  <!-- Approval Queue -->
+  <div class="col-md-4">
+    <div class="card" style="height: 100%; {% if pending_approvals > 0 %}border-left: 4px solid var(--color-warning);{% endif %}">
+      <div class="card-body" style="padding: var(--space-5);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-2);">
+          <div>
+            <p style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-1);">Awaiting Approval</p>
+            <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold);">{{ pending_approvals }} <span style="font-size: var(--font-size-sm); font-weight: var(--font-weight-normal); color: var(--color-text-muted);">invoice{{ 's' if pending_approvals != 1 }}</span></div>
+          </div>
+          <div class="metric-card__icon metric-card__icon--warning"><i class="bi bi-clipboard-check"></i></div>
+        </div>
+        {% if pending_approvals > 0 %}
+        <div style="padding: var(--space-2) var(--space-3); background: rgba(245,158,11,0.08); border-radius: var(--radius-md); margin: var(--space-3) 0; font-size: var(--font-size-xs); color: var(--color-warning-dark);">
+          <i class="bi bi-exclamation-triangle"></i>
+          {{ pending_approvals }} invoice{{ 's' if pending_approvals != 1 }} {{ 'requires' if pending_approvals == 1 else 'require' }} your review.
         </div>
         {% else %}
-        <div class="empty-state" style="padding: 2rem;">
-            <i class="bi bi-calendar-check"></i>
-            <h3>No appointments today</h3>
-            <p>All clear for now</p>
-        </div>
+        <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-top: var(--space-2);">All invoices have been reviewed.</p>
         {% endif %}
+        {% if user.role in ('owner', 'admin') %}
+        <a href="{{ url_for('approval_queue') }}" class="btn btn-sm {% if pending_approvals > 0 %}btn-warning{% else %}btn-ghost{% endif %}" style="width: 100%;">
+          <i class="bi bi-clipboard-check"></i> {% if pending_approvals > 0 %}Review Now{% else %}View Queue{% endif %}
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 
-        <!-- Recent Jobs -->
-        <div class="dash-section-header" style="margin-top: 1.5rem;">
-            <h2>Recent Jobs</h2>
-            <a href="{{ url_for('jobs_page') }}" class="btn btn-sm btn-secondary">View All</a>
+  <!-- POs Expiring Soon -->
+  <div class="col-md-4">
+    <div class="card" style="height: 100%; {% if expiring_pos %}border-left: 4px solid var(--color-danger);{% endif %}">
+      <div class="card-body" style="padding: var(--space-5);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-2);">
+          <div>
+            <p style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-1);">POs Expiring Soon</p>
+            <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold);">{{ expiring_pos|length }} <span style="font-size: var(--font-size-sm); font-weight: var(--font-weight-normal); color: var(--color-text-muted);">within 30 days</span></div>
+          </div>
+          <div class="metric-card__icon metric-card__icon--danger"><i class="bi bi-calendar-x"></i></div>
         </div>
-        {% if recent_jobs %}
-        <div class="appt-list">
-            {% for job in recent_jobs[:6] %}
-            <div class="appt-item">
-                <div class="appt-item-main">
-                    <div class="appt-item-title">{{ job.title }}</div>
-                    <div class="appt-item-time" style="font-size: 0.75rem; color: var(--text-secondary);">{{ job.job_number }}</div>
-                </div>
-                <div class="appt-item-right">
-                    <span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span>
-                    {% if job.estimated_amount %}
-                    <span class="appt-item-amount">${{ "{:,.0f}".format(job.estimated_amount) }}</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
+        {% if expiring_pos %}
+        <div style="margin: var(--space-2) 0;">
+          {% for po in expiring_pos[:3] %}
+          <div style="display: flex; justify-content: space-between; padding: var(--space-1) 0; border-bottom: 1px solid var(--color-border-light); font-size: var(--font-size-sm);">
+            <a href="{{ url_for('purchase_orders.po_detail', po_id=po.id) }}" style="font-weight: var(--font-weight-medium);">{{ po.po_number }}</a>
+            <span style="color: var(--color-text-muted);">
+              {{ po.expiry_date.strftime('%b %d') }}
+              {% set days_left = (po.expiry_date - today).days %}
+              <span class="badge {% if days_left <= 7 %}badge-danger{% else %}badge-pending{% endif %}" style="margin-left: 4px;">{{ days_left }}d</span>
+            </span>
+          </div>
+          {% endfor %}
+          {% if expiring_pos|length > 3 %}
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-muted); text-align: center; padding-top: var(--space-1);">+{{ expiring_pos|length - 3 }} more</div>
+          {% endif %}
         </div>
+        {% else %}
+        <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-top: var(--space-2);">No POs expiring in the next 30 days.</p>
         {% endif %}
+        <a href="{{ url_for('purchase_orders.po_list') }}" class="btn btn-sm btn-ghost" style="width: 100%; margin-top: var(--space-2);"><i class="bi bi-file-earmark-text"></i> All Purchase Orders</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Workflow Pipeline -->
+<div class="workflow-section">
+  <h2 class="workflow-title">Workflow</h2>
+  <div class="workflow-bar">
+    <div class="workflow-segment seg-requests" style="flex:1"></div>
+    <div class="workflow-segment seg-quotes" style="flex:1"></div>
+    <div class="workflow-segment seg-jobs" style="flex:1"></div>
+    <div class="workflow-segment seg-invoices" style="flex:1"></div>
+  </div>
+  <div class="workflow-grid">
+    <!-- Requests -->
+    <div class="workflow-card">
+      <div class="workflow-card-header">
+        <i class="bi bi-inbox"></i> Requests
+      </div>
+      <div class="workflow-card-value">{{ requests_new }}</div>
+      <div class="workflow-card-label">New</div>
+      <div class="workflow-card-details">
+        <span>Assessments complete ({{ completed_jobs }})</span>
+        <span>Overdue ({{ requests_overdue }})</span>
+      </div>
+    </div>
+    <!-- Quotes -->
+    <div class="workflow-card">
+      <div class="workflow-card-header">
+        <i class="bi bi-file-earmark-text"></i> Quotes
+      </div>
+      <div class="workflow-card-value">{{ quotes_approved }}</div>
+      <div class="workflow-card-label">Approved</div>
+      <div class="workflow-card-details">
+        <span>Draft ({{ quotes_draft }}) <span class="wf-money">${{ "{:,.1f}k".format(quotes_total_value / 1000) }}</span></span>
+        <span>Changes requested ({{ quotes_changes }})</span>
+      </div>
+    </div>
+    <!-- Jobs -->
+    <div class="workflow-card">
+      <div class="workflow-card-header">
+        <i class="bi bi-wrench"></i> Jobs <span class="wf-money">${{ "{:,.1f}k".format(jobs_active_value / 1000) }}</span>
+      </div>
+      <div class="workflow-card-value">{{ active_jobs }}</div>
+      <div class="workflow-card-label">Requires invoicing</div>
+      <div class="workflow-card-details">
+        <span>Active ({{ active_jobs }}) <span class="wf-money">${{ "{:,.1f}k".format(jobs_active_value / 1000) }}</span></span>
+        <span>Action required ({{ jobs_action_required }}) <span class="wf-money">${{ "{:,.0f}".format(jobs_action_value) }}</span></span>
+      </div>
+    </div>
+    <!-- Invoices -->
+    <div class="workflow-card">
+      <div class="workflow-card-header">
+        <i class="bi bi-receipt"></i> Invoices <span class="wf-money">${{ "{:,.1f}M".format(total_invoiced / 1000000) if total_invoiced >= 1000000 else "${:,.1f}k".format(total_invoiced / 1000) }}</span>
+      </div>
+      <div class="workflow-card-value">{{ invoices_awaiting }}</div>
+      <div class="workflow-card-label">Awaiting payment</div>
+      <div class="workflow-card-details">
+        <span>Draft ({{ invoices_draft }}) <span class="wf-money">${{ "{:,.1f}k".format(invoices_draft_value / 1000) }}</span></span>
+        <span>Past due ({{ invoices_past_due }}) <span class="wf-money">${{ "{:,.1f}k".format(invoices_past_due_value / 1000) }}</span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Content: Appointments + Business Performance -->
+<div class="dash-main-grid">
+  <!-- Left: Today's Appointments -->
+  <div class="dash-appointments">
+    <div class="dash-section-header">
+      <h2>Today's appointments</h2>
     </div>
 
-    <!-- Right: Business Performance -->
-    <div class="dash-performance">
-        <!-- Receivables -->
-        <div class="perf-card">
-            <div class="perf-card-header">
-                <h3>Receivables</h3>
-                <a href="{{ url_for('invoices_page') }}" class="perf-chevron"><i class="bi bi-chevron-right"></i></a>
-            </div>
-            <div class="perf-subtitle">{{ receivables_count }} clients owe you</div>
-            <div class="perf-big-number">${{ "{:,.0f}".format(total_outstanding) }}</div>
+    <!-- Financial summary bar -->
+    <div class="appt-financials">
+      <div class="appt-fin-item">
+        <div class="appt-fin-label">Total</div>
+        <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_total / 1000) if todays_total >= 1000 else "{:,.0f}".format(todays_total) }}</div>
+      </div>
+      <div class="appt-fin-item">
+        <div class="appt-fin-label">Active</div>
+        <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_active_value / 1000) if todays_active_value >= 1000 else "{:,.0f}".format(todays_active_value) }}</div>
+      </div>
+      <div class="appt-fin-item">
+        <div class="appt-fin-label">Completed</div>
+        <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_completed_value / 1000) if todays_completed_value >= 1000 else "{:,.0f}".format(todays_completed_value) }}</div>
+      </div>
+      <div class="appt-fin-item">
+        <div class="appt-fin-label">Overdue</div>
+        <div class="appt-fin-value money-red">${{ "{:,.0f}".format(todays_overdue_value) }}</div>
+      </div>
+      <div class="appt-fin-item">
+        <div class="appt-fin-label">Remaining</div>
+        <div class="appt-fin-value">${{ "{:,.0f}".format(todays_remaining) }}</div>
+      </div>
+      <a href="{{ url_for('jobs_page') }}" class="appt-view-schedule">View Schedule</a>
+    </div>
 
-            {% if receivables_clients %}
-            <table class="perf-table">
-                <thead>
-                    <tr>
-                        <th>Client</th>
-                        <th style="text-align:right">Balance</th>
-                        <th style="text-align:right">Late</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for rc in receivables_clients %}
-                    <tr>
-                        <td class="perf-client-name">
-                            {% if rc.client_type == 'commercial' and rc.company_name %}
-                                {{ rc.company_name[:30] }}
-                            {% else %}
-                                {{ (rc.first_name or '') ~ ' ' ~ (rc.last_name or '') }}
-                            {% endif %}
-                        </td>
-                        <td style="text-align:right" class="money">${{ "{:,.1f}k".format(rc.balance / 1000) if rc.balance >= 1000 else "{:,.0f}".format(rc.balance) }}</td>
-                        <td style="text-align:right" class="money money-red">{% if rc.late > 0 %}${{ "{:,.1f}k".format(rc.late / 1000) if rc.late >= 1000 else "{:,.0f}".format(rc.late) }}{% else %}-{% endif %}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    {% if todays_jobs %}
+    <div class="appt-overdue-label">{{ todays_jobs|length }} SCHEDULED</div>
+    <div class="appt-list">
+      {% for job in todays_jobs %}
+      <div class="appt-item">
+        <div class="appt-item-main">
+          <div class="appt-item-title">{{ job.title }}</div>
+          <div class="appt-item-time">
+            {% if job.scheduled_date %}
+              {{ job.scheduled_date[:16].split('T')[1] if 'T' in (job.scheduled_date or '') else '' }}
             {% endif %}
+          </div>
         </div>
-
-        <!-- Upcoming Jobs -->
-        <div class="perf-card">
-            <div class="perf-card-header">
-                <h3>Upcoming jobs</h3>
-                <a href="{{ url_for('jobs_page') }}" class="perf-chevron"><i class="bi bi-chevron-right"></i></a>
-            </div>
-            <div class="perf-subtitle">This week</div>
-            <div class="perf-big-number">${{ "{:,.0f}".format(upcoming_jobs_value) }}</div>
+        <div class="appt-item-right">
+          <span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span>
+          {% if job.estimated_amount %}
+          <span class="appt-item-amount">${{ "{:,.0f}".format(job.estimated_amount) }}</span>
+          {% endif %}
         </div>
-
-        <!-- Quick Financial Summary -->
-        <div class="perf-card">
-            <div class="perf-card-header">
-                <h3>Revenue Summary</h3>
-            </div>
-            <div class="perf-fin-rows">
-                <div class="perf-fin-row">
-                    <span>Total Invoiced</span>
-                    <span class="money money-green">${{ "{:,.0f}".format(total_invoiced) }}</span>
-                </div>
-                <div class="perf-fin-row">
-                    <span>Total Paid</span>
-                    <span class="money money-green">${{ "{:,.0f}".format(total_paid) }}</span>
-                </div>
-                <div class="perf-fin-row">
-                    <span>Outstanding</span>
-                    <span class="money money-orange">${{ "{:,.0f}".format(total_outstanding) }}</span>
-                </div>
-                <div class="perf-fin-row">
-                    <span>Overdue</span>
-                    <span class="money money-red">${{ "{:,.0f}".format(total_overdue) }}</span>
-                </div>
-            </div>
-        </div>
+      </div>
+      {% endfor %}
     </div>
+    {% else %}
+    <div class="empty-state" style="padding: 2rem;">
+      <i class="bi bi-calendar-check"></i>
+      <h3>No appointments today</h3>
+      <p>All clear for now</p>
+    </div>
+    {% endif %}
+
+    <!-- Recent Jobs -->
+    <div class="dash-section-header" style="margin-top: 1.5rem;">
+      <h2>Recent Jobs</h2>
+      <a href="{{ url_for('jobs_page') }}" class="btn btn-sm btn-secondary">View All</a>
+    </div>
+    {% if recent_jobs %}
+    <div class="appt-list">
+      {% for job in recent_jobs[:6] %}
+      <div class="appt-item">
+        <div class="appt-item-main">
+          <div class="appt-item-title">{{ job.title }}</div>
+          <div class="appt-item-time" style="font-size: 0.75rem; color: var(--color-text-secondary);">{{ job.job_number }}</div>
+        </div>
+        <div class="appt-item-right">
+          <span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span>
+          {% if job.estimated_amount %}
+          <span class="appt-item-amount">${{ "{:,.0f}".format(job.estimated_amount) }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right: Business Performance -->
+  <div class="dash-performance">
+    <!-- Receivables -->
+    <div class="perf-card">
+      <div class="perf-card-header">
+        <h3>Receivables</h3>
+        <a href="{{ url_for('invoices_page') }}" class="perf-chevron"><i class="bi bi-chevron-right"></i></a>
+      </div>
+      <div class="perf-subtitle">{{ receivables_count }} clients owe you</div>
+      <div class="perf-big-number">${{ "{:,.0f}".format(total_outstanding) }}</div>
+
+      {% if receivables_clients %}
+      <table class="perf-table">
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th style="text-align:right">Balance</th>
+            <th style="text-align:right">Late</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rc in receivables_clients %}
+          <tr>
+            <td class="perf-client-name">
+              {% if rc.client_type == 'commercial' and rc.company_name %}
+                {{ rc.company_name[:30] }}
+              {% else %}
+                {{ (rc.first_name or '') ~ ' ' ~ (rc.last_name or '') }}
+              {% endif %}
+            </td>
+            <td style="text-align:right" class="money">${{ "{:,.1f}k".format(rc.balance / 1000) if rc.balance >= 1000 else "{:,.0f}".format(rc.balance) }}</td>
+            <td style="text-align:right" class="money money-red">{% if rc.late > 0 %}${{ "{:,.1f}k".format(rc.late / 1000) if rc.late >= 1000 else "{:,.0f}".format(rc.late) }}{% else %}-{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+
+    <!-- Upcoming Jobs -->
+    <div class="perf-card">
+      <div class="perf-card-header">
+        <h3>Upcoming jobs</h3>
+        <a href="{{ url_for('jobs_page') }}" class="perf-chevron"><i class="bi bi-chevron-right"></i></a>
+      </div>
+      <div class="perf-subtitle">This week</div>
+      <div class="perf-big-number">${{ "{:,.0f}".format(upcoming_jobs_value) }}</div>
+    </div>
+
+    <!-- Revenue Summary -->
+    <div class="perf-card">
+      <div class="perf-card-header">
+        <h3>Revenue Summary</h3>
+      </div>
+      <div class="perf-fin-rows">
+        <div class="perf-fin-row">
+          <span>Total Invoiced</span>
+          <span class="money money-green">${{ "{:,.0f}".format(total_invoiced) }}</span>
+        </div>
+        <div class="perf-fin-row">
+          <span>Total Paid</span>
+          <span class="money money-green">${{ "{:,.0f}".format(total_paid) }}</span>
+        </div>
+        <div class="perf-fin-row">
+          <span>Outstanding</span>
+          <span class="money money-orange">${{ "{:,.0f}".format(total_outstanding) }}</span>
+        </div>
+        <div class="perf-fin-row">
+          <span>Overdue</span>
+          <span class="money money-red">${{ "{:,.0f}".format(total_overdue) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expiring Contracts -->
+    <div class="perf-card">
+      <div class="perf-card-header">
+        <h3><i class="bi bi-clock-history" style="color: var(--color-warning); margin-right: 4px;"></i> Expiring Contracts</h3>
+        <a href="{{ url_for('contracts.contract_list') }}?expiring_soon=1" class="perf-chevron"><i class="bi bi-chevron-right"></i></a>
+      </div>
+      {% if expiring_contracts %}
+      <div style="margin-top: var(--space-2);">
+        {% for c in expiring_contracts %}
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border-light);">
+          <div style="min-width: 0; flex: 1;">
+            <a href="{{ url_for('contracts.contract_detail', contract_id=c.id) }}" style="font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); text-decoration: none; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              {{ c.title }}
+            </a>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+              {{ c.client.display_name if c.client else '---' }} · {{ c.contract_number }}
+            </div>
+          </div>
+          <div style="text-align: right; margin-left: var(--space-2); flex-shrink: 0;">
+            {% set days = c.days_until_expiry %}
+            <span class="badge {% if days <= 7 %}badge-danger{% elif days <= 14 %}badge-pending{% else %}badge-draft{% endif %}">{{ days }}d</span>
+            <div style="font-size: 0.65rem; color: var(--color-text-muted);">{{ c.end_date.strftime('%b %d') }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="text-align: center; padding: var(--space-4) 0; color: var(--color-text-muted); font-size: var(--font-size-sm);">
+        <i class="bi bi-check-circle" style="color: var(--color-success); display: block; font-size: 1.5rem; margin-bottom: var(--space-2);"></i>
+        No contracts expiring in 30 days
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- SLA Performance -->
+    <div class="perf-card">
+      <div class="perf-card-header">
+        <h3><i class="bi bi-shield-check" style="color: var(--color-accent); margin-right: 4px;"></i> SLA Performance</h3>
+        <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">30 days</span>
+      </div>
+      {% if sla_perf_pct is not none %}
+      <div style="text-align: center; margin: var(--space-3) 0;">
+        <div style="font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: {% if sla_perf_pct >= 90 %}var(--color-success){% elif sla_perf_pct >= 70 %}var(--color-warning){% else %}var(--color-danger){% endif %};">
+          {{ sla_perf_pct }}%
+        </div>
+        <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+          Resolution Rate · {{ sla_jobs_count }} jobs
+        </div>
+        <div style="height: 6px; background: var(--color-border); border-radius: var(--radius-full); margin-top: var(--space-2); overflow: hidden;">
+          <div style="height: 100%; width: {{ sla_perf_pct }}%; background: {% if sla_perf_pct >= 90 %}var(--color-success){% elif sla_perf_pct >= 70 %}var(--color-warning){% else %}var(--color-danger){% endif %}; border-radius: var(--radius-full);"></div>
+        </div>
+      </div>
+      {% else %}
+      <div style="text-align: center; padding: var(--space-3) 0; color: var(--color-text-muted); font-size: var(--font-size-sm);">
+        <i class="bi bi-bar-chart" style="display: block; font-size: 1.5rem; margin-bottom: var(--space-2);"></i>
+        No SLA data yet this month
+      </div>
+      {% endif %}
+
+      {% if sla_alert_jobs %}
+      <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-3); margin-top: var(--space-3);">
+        <div style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--color-text-muted); margin-bottom: var(--space-2);">
+          <i class="bi bi-exclamation-triangle" style="color: var(--color-danger);"></i>
+          Needs Attention ({{ sla_alert_jobs|length }})
+        </div>
+        {% for job in sla_alert_jobs[:3] %}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
+          <div style="min-width: 0; flex: 1;">
+            <a href="{{ url_for('job_detail', job_id=job.id) }}" style="font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); text-decoration: none; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              {{ (job.title or 'Job #' ~ job.id) }}
+            </a>
+            <div style="font-size: 0.65rem; color: var(--color-text-muted);">
+              {{ job.contract.contract_number if job.contract else '' }}
+            </div>
+          </div>
+          <span class="badge {% if job.sla_resolution_breached %}badge-danger{% else %}badge-pending{% endif %}" style="margin-left: var(--space-2);">
+            {{ 'Breached' if job.sla_resolution_breached else 'At Risk' }}
+          </span>
+        </div>
+        {% endfor %}
+        {% if sla_alert_jobs|length > 3 %}
+        <div style="font-size: var(--font-size-xs); text-align: center; color: var(--color-text-muted);">
+          +{{ sla_alert_jobs|length - 3 }} more
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
 </div>
 {% endblock %}

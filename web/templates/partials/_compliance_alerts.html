@@ -1,0 +1,46 @@
+{# Dashboard Compliance Alerts Widget
+   Requires context: compliance_alerts (list of alert dicts from get_all_compliance_alerts) #}
+
+{% if compliance_alerts %}
+<div class="card" style="margin-bottom:var(--space-4);border-left:3px solid var(--color-warning);">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;background:rgba(245,158,11,0.06);">
+    <h3 class="card-title" style="margin:0;">
+      <i class="bi bi-shield-exclamation" style="color:var(--color-warning);"></i>
+      Compliance Alerts
+    </h3>
+    <span class="badge" style="background:var(--color-danger);color:#fff;">{{ compliance_alerts|length }}</span>
+  </div>
+  <div style="max-height:400px;overflow-y:auto;">
+    {% for alert in compliance_alerts %}
+    <a href="{{ alert.link }}" style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);text-decoration:none;color:inherit;{% if alert.severity == 'danger' %}background:rgba(220,38,38,0.04);{% endif %}">
+      <div style="display:flex;align-items:center;gap:var(--space-2);">
+        {% if alert.type == 'permit' %}
+        <i class="bi bi-card-checklist" style="color:var(--color-{{ alert.severity }});"></i>
+        {% elif alert.type == 'insurance' %}
+        <i class="bi bi-shield-check" style="color:var(--color-{{ alert.severity }});"></i>
+        {% elif alert.type == 'certification' %}
+        <i class="bi bi-award" style="color:var(--color-{{ alert.severity }});"></i>
+        {% elif alert.type == 'lien_waiver' %}
+        <i class="bi bi-file-earmark-medical" style="color:var(--color-{{ alert.severity }});"></i>
+        {% elif alert.type == 'checklist' %}
+        <i class="bi bi-clipboard-check" style="color:var(--color-{{ alert.severity }});"></i>
+        {% else %}
+        <i class="bi bi-exclamation-triangle" style="color:var(--color-{{ alert.severity }});"></i>
+        {% endif %}
+        <span style="font-size:var(--font-size-sm);">{{ alert.message }}</span>
+      </div>
+      <span class="badge" style="background:var(--color-{{ alert.severity }});color:#fff;font-size:var(--font-size-xs);white-space:nowrap;">
+        {{ alert.type|replace('_', ' ')|title }}
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="card" style="margin-bottom:var(--space-4);">
+  <div class="card-body" style="text-align:center;padding:var(--space-4);color:var(--color-success);">
+    <i class="bi bi-shield-check" style="font-size:1.5rem;margin-right:var(--space-2);"></i>
+    All compliance items are clear. No alerts.
+  </div>
+</div>
+{% endif %}

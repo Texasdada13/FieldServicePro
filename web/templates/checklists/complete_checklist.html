@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}Complete: {{ template.name }}{% endblock %}
+{% block page_title %}Complete Checklist{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+  <!-- Breadcrumb -->
+  <nav style="margin-bottom:var(--space-3);font-size:var(--font-size-sm);">
+    <a href="{{ url_for('job_detail', job_id=job.id) }}" style="color:var(--color-text-muted);text-decoration:none;">Job #{{ job.id }}</a>
+    <span style="color:var(--color-text-muted);margin:0 var(--space-1);">/</span>
+    <a href="{{ url_for('checklists.job_checklists', job_id=job.id) }}" style="color:var(--color-text-muted);text-decoration:none;">Checklists</a>
+    <span style="color:var(--color-text-muted);margin:0 var(--space-1);">/</span>
+    <span style="color:var(--color-text-secondary);">{{ template.name }}</span>
+  </nav>
+
+  <div class="card" style="margin-bottom:var(--space-3);">
+    <div class="card-header" style="background:var(--color-accent);color:#fff;">
+      <h4 style="margin:0;"><i class="bi bi-clipboard-check" style="margin-right:var(--space-2);"></i>{{ template.name }}</h4>
+      <div style="font-size:var(--font-size-sm);opacity:0.9;">Job #{{ job.id }} &mdash; {{ job.title if job.title else 'Untitled' }}</div>
+    </div>
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data" id="checklistCompletionForm">
+        <!-- Context -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4);">
+          <div class="form-group">
+            <label class="form-label">Phase (Optional)</label>
+            <select name="phase_id" class="form-control">
+              <option value="">Entire Job</option>
+              {% for phase in phases %}
+              <option value="{{ phase.id }}">{{ phase.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Location</label>
+            <input type="text" name="location" class="form-control" placeholder="Site address or area">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Weather Conditions</label>
+            <input type="text" name="weather_conditions" class="form-control" placeholder="e.g., Clear, 22°C">
+          </div>
+        </div>
+
+        <hr style="border-color:var(--color-border);margin-bottom:var(--space-4);">
+
+        <!-- Checklist Items -->
+        {% for item in template.items %}
+        <div class="card" id="itemCard_{{ item.id }}" style="margin-bottom:var(--space-3);transition:border-color .2s;">
+          <div class="card-body" style="padding:var(--space-3);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-2);">
+              <div>
+                <h6 style="margin:0;">
+                  {{ loop.index }}. {{ item.question }}
+                  {% if item.is_required %}<span style="color:var(--color-danger);">*</span>{% endif %}
+                </h6>
+                {% if item.help_text %}
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:2px;">
+                  <i class="bi bi-info-circle"></i> {{ item.help_text }}
+                </div>
+                {% endif %}
+              </div>
+              <span id="indicator_{{ item.id }}"></span>
+            </div>
+
+            {% if item.item_type == 'yes_no' %}
+            <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-2);">
+              <input type="radio" class="btn-check" name="item_{{ item.id }}" id="item_{{ item.id }}_yes" value="yes"
+                     onchange="updateCompliance({{ item.id }}, 'yes_no', this.value, '{{ item.failure_action }}')"
+                     {% if item.is_required %}required{% endif %}>
+              <label for="item_{{ item.id }}_yes" style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:var(--space-1) var(--space-3);border:2px solid var(--color-border);border-radius:var(--radius-md);transition:all .15s;">
+                <i class="bi bi-check-lg" style="color:var(--color-success);"></i> Yes
+              </label>
+              <input type="radio" class="btn-check" name="item_{{ item.id }}" id="item_{{ item.id }}_no" value="no"
+                     onchange="updateCompliance({{ item.id }}, 'yes_no', this.value, '{{ item.failure_action }}')">
+              <label for="item_{{ item.id }}_no" style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:var(--space-1) var(--space-3);border:2px solid var(--color-border);border-radius:var(--radius-md);transition:all .15s;">
+                <i class="bi bi-x-lg" style="color:var(--color-danger);"></i> No
+              </label>
+            </div>
+
+            {% elif item.item_type == 'pass_fail' %}
+            <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-2);">
+              <input type="radio" class="btn-check" name="item_{{ item.id }}" id="item_{{ item.id }}_pass" value="pass"
+                     onchange="updateCompliance({{ item.id }}, 'pass_fail', this.value, '{{ item.failure_action }}')"
+                     {% if item.is_required %}required{% endif %}>
+              <label for="item_{{ item.id }}_pass" style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:var(--space-1) var(--space-3);border:2px solid var(--color-border);border-radius:var(--radius-md);transition:all .15s;">
+                <i class="bi bi-check-circle" style="color:var(--color-success);"></i> Pass
+              </label>
+              <input type="radio" class="btn-check" name="item_{{ item.id }}" id="item_{{ item.id }}_fail" value="fail"
+                     onchange="updateCompliance({{ item.id }}, 'pass_fail', this.value, '{{ item.failure_action }}')">
+              <label for="item_{{ item.id }}_fail" style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:var(--space-1) var(--space-3);border:2px solid var(--color-border);border-radius:var(--radius-md);transition:all .15s;">
+                <i class="bi bi-x-circle" style="color:var(--color-danger);"></i> Fail
+              </label>
+            </div>
+
+            {% elif item.item_type == 'text' %}
+            <textarea name="item_{{ item.id }}" class="form-control" rows="2"
+                      {% if item.is_required %}required{% endif %}
+                      style="margin-bottom:var(--space-2);"></textarea>
+
+            {% elif item.item_type == 'number' %}
+            <input type="number" name="item_{{ item.id }}" class="form-control"
+                   style="max-width:200px;margin-bottom:var(--space-2);"
+                   {% if item.is_required %}required{% endif %}>
+
+            {% elif item.item_type == 'photo' %}
+            <input type="file" name="item_{{ item.id }}_photo" class="form-control"
+                   accept="image/*" style="margin-bottom:var(--space-2);"
+                   {% if item.is_required %}required{% endif %}>
+            <input type="hidden" name="item_{{ item.id }}" value="photo_uploaded">
+
+            {% elif item.item_type == 'signature' %}
+            <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-2);max-width:400px;margin-bottom:var(--space-2);">
+              <canvas id="sigCanvas_{{ item.id }}" width="380" height="150"
+                      style="border:1px solid var(--color-border);cursor:crosshair;width:100%;border-radius:var(--radius-sm);"></canvas>
+              <input type="hidden" name="item_{{ item.id }}" id="sigData_{{ item.id }}">
+              <div style="margin-top:var(--space-1);">
+                <button type="button" class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="clearSignature({{ item.id }})">Clear</button>
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- Notes for each item -->
+            <input type="text" name="item_{{ item.id }}_notes" class="form-control"
+                   style="font-size:var(--font-size-sm);" placeholder="Additional notes (optional)">
+
+            {% if item.failure_action == 'block_work' %}
+            <div style="font-size:var(--font-size-xs);color:var(--color-danger);margin-top:var(--space-1);">
+              <i class="bi bi-exclamation-octagon"></i> Failing this item will block work.
+            </div>
+            {% elif item.failure_action == 'notify_supervisor' %}
+            <div style="font-size:var(--font-size-xs);color:var(--color-warning);margin-top:var(--space-1);">
+              <i class="bi bi-bell"></i> Failure will notify supervisor.
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+
+        <hr style="border-color:var(--color-border);">
+
+        <!-- Completion Summary -->
+        <div class="card" id="summaryCard" style="margin-bottom:var(--space-3);">
+          <div class="card-body" style="padding:var(--space-3);">
+            <h6 style="margin:0 0 var(--space-2);">Completion Summary</h6>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);text-align:center;">
+              <div>
+                <span id="passCount" style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-success);">0</span>
+                <br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Compliant</span>
+              </div>
+              <div>
+                <span id="failCount" style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-danger);">0</span>
+                <br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Non-Compliant</span>
+              </div>
+              <div>
+                <span id="pendingCount" style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-text-muted);">{{ template.item_count }}</span>
+                <br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Pending</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">General Notes</label>
+          <textarea name="notes" class="form-control" rows="2"></textarea>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-3);">
+          <a href="{{ url_for('checklists.job_checklists', job_id=job.id) }}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-accent" id="submitBtn" style="padding:var(--space-2) var(--space-4);">
+            <i class="bi bi-clipboard-check"></i> Submit Checklist
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.btn-check { position:absolute; clip:rect(0,0,0,0); pointer-events:none; }
+.btn-check:checked + label { border-color:var(--color-accent); background:var(--color-surface-raised); font-weight:600; }
+</style>
+
+<script>
+let complianceState = {};
+const totalItems = {{ template.item_count }};
+
+function updateCompliance(itemId, type, value, failureAction) {
+  const card = document.getElementById('itemCard_' + itemId);
+  const indicator = document.getElementById('indicator_' + itemId);
+  let compliant = true;
+
+  if (type === 'yes_no' && value === 'no') compliant = false;
+  if (type === 'pass_fail' && value === 'fail') compliant = false;
+
+  complianceState[itemId] = compliant;
+
+  if (compliant) {
+    card.style.borderColor = 'var(--color-success)';
+    indicator.innerHTML = '<i class="bi bi-check-circle-fill" style="font-size:1.25rem;color:var(--color-success);"></i>';
+  } else {
+    card.style.borderColor = 'var(--color-danger)';
+    indicator.innerHTML = '<i class="bi bi-x-circle-fill" style="font-size:1.25rem;color:var(--color-danger);"></i>';
+  }
+
+  updateSummary();
+}
+
+function updateSummary() {
+  let passCount = 0, failCount = 0;
+  for (let key in complianceState) {
+    if (complianceState[key]) passCount++;
+    else failCount++;
+  }
+  document.getElementById('passCount').textContent = passCount;
+  document.getElementById('failCount').textContent = failCount;
+  document.getElementById('pendingCount').textContent = totalItems - passCount - failCount;
+}
+
+// Signature canvas handling
+function initSignature(itemId) {
+  const canvas = document.getElementById('sigCanvas_' + itemId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+
+  canvas.addEventListener('mousedown', e => { drawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); });
+  canvas.addEventListener('mousemove', e => { if (drawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } });
+  canvas.addEventListener('mouseup', () => { drawing = false; document.getElementById('sigData_' + itemId).value = canvas.toDataURL(); });
+  canvas.addEventListener('mouseleave', () => { drawing = false; });
+
+  // Touch support
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const r = canvas.getBoundingClientRect(); ctx.beginPath(); ctx.moveTo(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top); });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (drawing) { const r = canvas.getBoundingClientRect(); ctx.lineTo(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top); ctx.stroke(); } });
+  canvas.addEventListener('touchend', () => { drawing = false; document.getElementById('sigData_' + itemId).value = canvas.toDataURL(); });
+}
+
+function clearSignature(itemId) {
+  const canvas = document.getElementById('sigCanvas_' + itemId);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById('sigData_' + itemId).value = '';
+}
+
+// Init all signature canvases
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('canvas[id^="sigCanvas_"]').forEach(c => {
+    const id = c.id.replace('sigCanvas_', '');
+    initSignature(id);
+  });
+});
+</script>
+{% endblock %}
