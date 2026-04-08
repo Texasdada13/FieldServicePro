@@ -1,5 +1,6 @@
 """Job / Work Order model."""
 
+import builtins
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, Float
 from sqlalchemy.orm import relationship
@@ -94,38 +95,38 @@ class Job(Base):
 
     # -- Phase helper properties --
 
-    @property
+    @builtins.property
     def phase_count(self):
         return len(self.phases)
 
-    @property
+    @builtins.property
     def completed_phase_count(self):
         return sum(1 for p in self.phases if p.is_complete)
 
-    @property
+    @builtins.property
     def percent_complete(self):
         if not self.phases or self.phase_count == 0:
             return 0
         return round((self.completed_phase_count / self.phase_count) * 100)
 
-    @property
+    @builtins.property
     def phase_progress(self):
         """Returns (completed_count, total_count, percentage)."""
         return self.completed_phase_count, self.phase_count, self.percent_complete
 
-    @property
+    @builtins.property
     def total_change_orders(self):
         return sum(1 for co in self.change_orders if co.status == 'approved')
 
-    @property
+    @builtins.property
     def total_change_order_value(self):
         return sum(co.cost_difference for co in self.change_orders if co.status == 'approved')
 
-    @property
+    @builtins.property
     def pending_change_orders_count(self):
         return sum(1 for co in self.change_orders if co.status in ('submitted', 'pending_approval'))
 
-    @property
+    @builtins.property
     def derived_status_from_phases(self):
         """Derive job status from phase statuses. Returns None if not multi-phase."""
         if not self.is_multi_phase or not self.phases:
@@ -141,11 +142,11 @@ class Job(Base):
             return 'scheduled'
         return 'scheduled'
 
-    @property
+    @builtins.property
     def has_on_hold_phase(self):
         return any(p.status == 'on_hold' for p in self.phases)
 
-    @property
+    @builtins.property
     def current_contract_value(self):
         """Original cost + approved change order deltas."""
         base = float(self.original_estimated_cost or self.estimated_amount or 0)
@@ -153,7 +154,7 @@ class Job(Base):
 
     # -- SLA helper properties --
 
-    @property
+    @builtins.property
     def sla_response_at_risk(self):
         """Response deadline within 80% consumed but not yet met."""
         if not self.sla_response_deadline or self.actual_response_time:
@@ -165,7 +166,7 @@ class Job(Base):
         elapsed = (now - self.created_at).total_seconds()
         return total > 0 and (elapsed / total) >= 0.80
 
-    @property
+    @builtins.property
     def sla_response_breached(self):
         if not self.sla_response_deadline:
             return False
@@ -173,7 +174,7 @@ class Job(Base):
             return self.actual_response_time > self.sla_response_deadline
         return datetime.utcnow() > self.sla_response_deadline
 
-    @property
+    @builtins.property
     def sla_resolution_at_risk(self):
         if not self.sla_resolution_deadline or self.actual_resolution_time:
             return False
@@ -184,7 +185,7 @@ class Job(Base):
         elapsed = (now - self.created_at).total_seconds()
         return total > 0 and (elapsed / total) >= 0.80
 
-    @property
+    @builtins.property
     def sla_resolution_breached(self):
         if not self.sla_resolution_deadline:
             return False
@@ -192,7 +193,7 @@ class Job(Base):
             return self.actual_resolution_time > self.sla_resolution_deadline
         return datetime.utcnow() > self.sla_resolution_deadline
 
-    @property
+    @builtins.property
     def sla_status(self):
         """Returns: 'breached', 'at_risk', 'on_track', 'met', or None"""
         if not self.sla_id:

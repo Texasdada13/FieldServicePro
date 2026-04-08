@@ -106,7 +106,7 @@ class Invoice(Base):
         """Days past due_date. Negative means not yet due."""
         if not self.due_date:
             return 0
-        due = self.due_date if isinstance(self.due_date, date) else self.due_date.date()
+        due = self.due_date.date() if hasattr(self.due_date, 'date') else self.due_date
         return (date.today() - due).days
 
     @property

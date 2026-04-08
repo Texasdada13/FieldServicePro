@@ -304,3 +304,33 @@ def api_upload_inline():
         return jsonify({'error': str(e)}), 400
     finally:
         db.close()
+
+
+# ── Alias routes (templates reference these alternate endpoint names) ──
+
+@documents_bp.route('/documents/center')
+@login_required
+def document_center():
+    """Alias for document_list — sidebar and templates link here."""
+    return redirect(url_for('documents.document_list'))
+
+
+@documents_bp.route('/documents/upload-doc', methods=['GET', 'POST'])
+@login_required
+def upload_document():
+    """Alias for document_upload."""
+    return redirect(url_for('documents.document_upload'))
+
+
+@documents_bp.route('/documents/<int:doc_id>/dl')
+@login_required
+def download_document(doc_id):
+    """Alias for document_download."""
+    return redirect(url_for('documents.document_download', doc_id=doc_id))
+
+
+@documents_bp.route('/documents/<int:doc_id>/remove', methods=['POST'])
+@login_required
+def delete_document_view(doc_id):
+    """Alias for document_delete."""
+    return redirect(url_for('documents.document_delete', doc_id=doc_id), code=307)

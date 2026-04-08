@@ -473,12 +473,15 @@ def dashboard():
         ).all()
         avg_days_to_payment = 0
         if paid_invs:
-            avg_days_to_payment = round(sum(
-                max(0, (inv.updated_at.date() if hasattr(inv.updated_at, 'date') else inv.updated_at
-                         ) - (inv.issued_date.date() if inv.issued_date and hasattr(inv.issued_date, 'date') else today)).days
-                if inv.updated_at and inv.issued_date else 0
-                for inv in paid_invs
-            ) / len(paid_invs), 1) if paid_invs else 0
+            def _days_to_pay(inv):
+                if not inv.updated_at or not inv.issued_date:
+                    return 0
+                end = inv.updated_at.date() if hasattr(inv.updated_at, 'date') else inv.updated_at
+                start = inv.issued_date.date() if hasattr(inv.issued_date, 'date') else inv.issued_date
+                return max(0, (end - start).days)
+            avg_days_to_payment = round(
+                sum(_days_to_pay(inv) for inv in paid_invs) / len(paid_invs), 1
+            )
 
         # Pending approvals
         pending_approvals = db.query(Invoice).filter(
