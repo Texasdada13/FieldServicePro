@@ -54,6 +54,7 @@ from web.routes.lien_waiver_routes import lien_waivers_bp
 from web.portal_auth import portal_auth_bp
 from web.routes.portal_routes import portal_bp
 from web.routes.portal_admin_routes import portal_admin_bp
+from web.routes.request_routes import requests_bp
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -119,6 +120,7 @@ app.register_blueprint(lien_waivers_bp)
 app.register_blueprint(portal_auth_bp)
 app.register_blueprint(portal_bp)
 app.register_blueprint(portal_admin_bp)
+app.register_blueprint(requests_bp)
 
 
 @app.before_request
@@ -211,6 +213,19 @@ def inject_approval_count():
         except Exception:
             pass
 
+    # New service request count
+    new_request_count = 0
+    if current_user.is_authenticated:
+        try:
+            from models.service_request import ServiceRequest
+            db3 = get_session()
+            new_request_count = db3.query(ServiceRequest).filter_by(
+                organization_id=current_user.organization_id, status='new'
+            ).count()
+            db3.close()
+        except Exception:
+            pass
+
     # Permission helpers for templates
     from web.utils.permissions import (
         can_manage_phase, can_approve_change_order,
@@ -219,6 +234,7 @@ def inject_approval_count():
     return {
         'pending_approval_count': count,
         'pending_co_count': co_count,
+        'new_request_count': new_request_count,
         'can_manage_phase': can_manage_phase,
         'can_approve_change_order': can_approve_change_order,
         'can_edit_change_order': can_edit_change_order,

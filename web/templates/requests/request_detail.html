@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}{{ sr.request_number }}{% endblock %}
+{% block page_title %}{{ sr.request_number }}{% endblock %}
+
+{% block content %}
+<!-- Back + Actions -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);flex-wrap:wrap;gap:var(--space-2);">
+  <a href="{{ url_for('requests.request_list') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);">
+    <i class="bi bi-arrow-left"></i> Back to Requests
+  </a>
+  <div style="display:flex;gap:var(--space-2);">
+    {% if sr.status == 'new' %}
+    <form method="POST" action="{{ url_for('requests.request_mark_reviewed', request_id=sr.id) }}" style="display:inline;">
+      <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-eye"></i> Mark Reviewed</button>
+    </form>
+    {% endif %}
+    {% if sr.status in ('new', 'reviewed') %}
+    <form method="POST" action="{{ url_for('requests.request_convert_to_job', request_id=sr.id) }}" style="display:inline;"
+          onsubmit="return confirm('Convert this request to a job?')">
+      <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-right-circle"></i> Convert to Job</button>
+    </form>
+    <form method="POST" action="{{ url_for('requests.request_decline', request_id=sr.id) }}" style="display:inline;"
+          onsubmit="return confirm('Decline this request?')">
+      <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);color:var(--color-danger);"><i class="bi bi-x-circle"></i> Decline</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Status Banner -->
+<div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-4);">
+  <span class="badge" style="background:var(--color-{{ sr.status_color }});color:#fff;font-size:var(--font-size-sm);padding:var(--space-1) var(--space-3);">{{ sr.status_display }}</span>
+  <span class="badge" style="background:var(--color-{{ sr.priority_color }});color:#fff;font-size:var(--font-size-sm);padding:var(--space-1) var(--space-3);">{{ sr.priority_display }} Priority</span>
+  {% if sr.converted_job_id %}
+  <a href="{{ url_for('job_detail', job_id=sr.converted_job_id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">
+    <i class="bi bi-briefcase"></i> View Job #{{ sr.converted_job.job_number if sr.converted_job else sr.converted_job_id }}
+  </a>
+  {% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+  <!-- Left: Editable form -->
+  <div>
+    <form method="POST">
+      <div class="card" style="margin-bottom:var(--space-3);">
+        <div class="card-header"><h3 class="card-title"><i class="bi bi-person" style="color:var(--color-accent);"></i> Contact</h3></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Contact Name *</label>
+            <input type="text" name="contact_name" class="form-control" required value="{{ sr.contact_name }}">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="form-group">
+              <label class="form-label">Phone</label>
+              <input type="tel" name="contact_phone" class="form-control" value="{{ sr.contact_phone or '' }}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" name="contact_email" class="form-control" value="{{ sr.contact_email or '' }}">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="form-group">
+              <label class="form-label">Client</label>
+              <select name="client_id" id="clientSelect" class="form-control" onchange="loadProperties(this.value)">
+                <option value="">-- None --</option>
+                {% if sr.client %}
+                <option value="{{ sr.client_id }}" selected>{{ sr.client.display_name }}</option>
+                {% endif %}
+              </select>
+              <input type="text" id="clientSearch" class="form-control" placeholder="Search clients..." style="margin-top:var(--space-1);">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Property</label>
+              <select name="property_id" id="propertySelect" class="form-control">
+                <option value="">-- None --</option>
+                {% if sr.property %}
+                <option value="{{ sr.property_id }}" selected>{{ sr.property.display_address }}</option>
+                {% endif %}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:var(--space-3);">
+        <div class="card-header"><h3 class="card-title"><i class="bi bi-clipboard" style="color:var(--color-accent);"></i> Request Details</h3></div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+            <div class="form-group">
+              <label class="form-label">Source</label>
+              <select name="source" class="form-control">
+                {% for val, label in [('phone','Phone'),('email','Email'),('walk_in','Walk-In'),('portal','Portal'),('referral','Referral'),('other','Other')] %}
+                <option value="{{ val }}" {{ 'selected' if sr.source == val }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Type</label>
+              <select name="request_type" class="form-control">
+                <option value="">General</option>
+                {% for val, label in [('plumbing','Plumbing'),('hvac','HVAC'),('electrical','Electrical'),('general','General'),('service_call','Service Call'),('repair','Repair'),('installation','Installation'),('inspection','Inspection'),('emergency','Emergency')] %}
+                <option value="{{ val }}" {{ 'selected' if sr.request_type == val }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Priority</label>
+              <select name="priority" class="form-control">
+                {% for val, label in [('low','Low'),('medium','Medium'),('high','High'),('emergency','Emergency')] %}
+                <option value="{{ val }}" {{ 'selected' if sr.priority == val }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description *</label>
+            <textarea name="description" class="form-control" rows="4" required>{{ sr.description }}</textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="form-group">
+              <label class="form-label">Preferred Date</label>
+              <input type="date" name="preferred_date" class="form-control" value="{{ sr.preferred_date.isoformat() if sr.preferred_date else '' }}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Preferred Time</label>
+              <select name="preferred_time" class="form-control">
+                <option value="">Anytime</option>
+                {% for val, label in [('morning','Morning'),('afternoon','Afternoon'),('evening','Evening')] %}
+                <option value="{{ val }}" {{ 'selected' if sr.preferred_time == val }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:var(--space-3);">
+        <div class="card-header"><h3 class="card-title">Internal</h3></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Assigned To</label>
+            <select name="assigned_to" class="form-control">
+              <option value="">-- Unassigned --</option>
+              {% for u in users %}
+              <option value="{{ u.id }}" {{ 'selected' if sr.assigned_to == u.id }}>{{ u.full_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Internal Notes</label>
+            <textarea name="notes" class="form-control" rows="3">{{ sr.notes or '' }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;">
+        <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg"></i> Save Changes</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Right: Info sidebar -->
+  <div>
+    <div class="card" style="margin-bottom:var(--space-3);">
+      <div class="card-header"><h3 class="card-title">Info</h3></div>
+      <div class="card-body">
+        <div style="margin-bottom:var(--space-2);">
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Request #</span>
+          <strong>{{ sr.request_number }}</strong>
+        </div>
+        <div style="margin-bottom:var(--space-2);">
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Created</span>
+          <strong>{{ sr.created_at.strftime('%b %d, %Y %I:%M %p') if sr.created_at else '' }}</strong>
+        </div>
+        {% if sr.creator %}
+        <div style="margin-bottom:var(--space-2);">
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Created By</span>
+          <strong>{{ sr.creator.full_name }}</strong>
+        </div>
+        {% endif %}
+        {% if sr.assigned_user %}
+        <div style="margin-bottom:var(--space-2);">
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Assigned To</span>
+          <strong>{{ sr.assigned_user.full_name }}</strong>
+        </div>
+        {% endif %}
+        {% if sr.updated_at %}
+        <div>
+          <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Last Updated</span>
+          <strong>{{ sr.updated_at.strftime('%b %d, %Y %I:%M %p') }}</strong>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if sr.converted_job %}
+    <div class="card" style="border-left:3px solid var(--color-success);">
+      <div class="card-body" style="text-align:center;">
+        <i class="bi bi-check-circle" style="color:var(--color-success);font-size:1.5rem;"></i>
+        <div style="font-weight:600;margin:var(--space-1) 0;">Converted to Job</div>
+        <a href="{{ url_for('job_detail', job_id=sr.converted_job_id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">
+          View {{ sr.converted_job.job_number }}
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+// Client search (same as create form)
+let searchTimeout;
+const clientSearch = document.getElementById('clientSearch');
+const clientSelect = document.getElementById('clientSelect');
+
+clientSearch.addEventListener('input', function() {
+  clearTimeout(searchTimeout);
+  const q = this.value.trim();
+  if (q.length < 2) return;
+  searchTimeout = setTimeout(() => {
+    fetch('/api/clients/search?q=' + encodeURIComponent(q))
+      .then(r => r.json())
+      .then(data => {
+        // Keep current selection
+        const currentVal = clientSelect.value;
+        const currentText = clientSelect.options[clientSelect.selectedIndex]?.text;
+        clientSelect.innerHTML = '<option value="">-- None --</option>';
+        if (currentVal) {
+          const kept = document.createElement('option');
+          kept.value = currentVal;
+          kept.textContent = currentText;
+          clientSelect.appendChild(kept);
+        }
+        (data.clients || []).forEach(c => {
+          if (String(c.id) !== String(currentVal)) {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.display_name;
+            clientSelect.appendChild(opt);
+          }
+        });
+        clientSelect.value = currentVal;
+      });
+  }, 300);
+});
+
+function loadProperties(clientId) {
+  const propSelect = document.getElementById('propertySelect');
+  propSelect.innerHTML = '<option value="">-- None --</option>';
+  if (!clientId) return;
+  fetch('/api/lookup/properties/' + clientId)
+    .then(r => r.json())
+    .then(data => {
+      (data.properties || []).forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.display_address || p.address || p.name;
+        propSelect.appendChild(opt);
+      });
+    });
+}
+</script>
+{% endblock %}

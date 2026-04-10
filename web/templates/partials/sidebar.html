@@ -44,10 +44,13 @@
           </a>
         </li>
         <li class="sidebar__item">
-          <a href="{{ url_for('jobs_page') }}?status=draft"
+          <a href="{{ url_for('requests.request_list') }}"
              class="sidebar__link {% if active_page == 'requests' %}is-active{% endif %}">
             <i class="bi bi-inbox sidebar__link-icon" aria-hidden="true"></i>
             <span class="sidebar__link-text">Requests</span>
+            {% if new_request_count is defined and new_request_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-accent); color: #fff;">{{ new_request_count }}</span>
+            {% endif %}
           </a>
         </li>
         <li class="sidebar__item">

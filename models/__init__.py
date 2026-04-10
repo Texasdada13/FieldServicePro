@@ -33,6 +33,7 @@ from .portal_user import PortalUser, portal_user_properties
 from .portal_message import PortalMessage
 from .portal_notification import PortalNotification
 from .portal_settings import PortalSettings
+from .service_request import ServiceRequest
 
 __all__ = [
     'Base', 'get_session', 'init_db', 'engine',
@@ -65,4 +66,5 @@ __all__ = [
     'PortalMessage',
     'PortalNotification',
     'PortalSettings',
+    'ServiceRequest',
 ]

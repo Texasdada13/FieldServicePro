@@ -3,93 +3,60 @@
 {% block title %}Jobs - FieldServicePro{% endblock %}
 
 {% block content %}
-<!-- Jobber-style Header -->
-<div class="page-header" style="margin-bottom: 1rem;">
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
     <div>
-        <h1 style="margin-bottom: 0.15rem;">Jobs</h1>
-        <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">{{ "{:,}".format(jobs|length) }} result{{ 's' if jobs|length != 1 else '' }}</p>
+        <h1 style="margin:0;">Jobs</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ "{:,}".format(jobs|length) }} result{{ 's' if jobs|length != 1 else '' }}</p>
     </div>
-    <div style="display: flex; align-items: center; gap: 1rem;">
-        <a href="#" style="color: var(--primary); font-size: 0.85rem; font-weight: 500; text-decoration: none;">+ More Actions</a>
-        <button class="btn btn-primary" style="background: var(--success); border-color: var(--success);" onclick="document.getElementById('newJobModal').classList.add('show')">
-            <i class="bi bi-plus-lg"></i> New Job
-        </button>
+    <button class="btn btn-accent" onclick="document.getElementById('newJobModal').classList.add('show')">
+        <i class="bi bi-plus-lg"></i> New Job
+    </button>
+</div>
+
+<!-- KPI Stat Cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ jobs_ending_soon }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Ending in 30d</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-danger);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-danger);">{{ jobs_late }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Late</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-warning);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ jobs_requires_invoicing }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Needs Invoicing</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-info);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ jobs_action_required }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Action Required</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-text-muted);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ jobs_unscheduled }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Unscheduled</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ recent_visits_count }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Recent Visits</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ visits_scheduled_count }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Scheduled</div>
     </div>
 </div>
 
-<!-- KPI Cards Row -->
-<div class="kpi-grid" style="grid-template-columns: 1.4fr 1fr 1fr; margin-bottom: 1.5rem;">
-    <!-- Overview Card -->
-    <div class="kpi-card accent-blue" style="padding: 1.25rem;">
-        <div class="kpi-label" style="margin-bottom: 0.75rem; font-weight: 600;">Overview</div>
-        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.45rem;">
-            <li style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                <span style="color: var(--text-secondary);">Ending within 30 days</span>
-                <strong style="color: var(--text-primary);">{{ jobs_ending_soon }}</strong>
-            </li>
-            <li style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                <span style="color: var(--danger);">Late</span>
-                <strong style="color: var(--danger);">{{ jobs_late }}</strong>
-            </li>
-            <li style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                <span style="color: var(--text-secondary);">Requires Invoicing</span>
-                <strong style="color: var(--text-primary);">{{ jobs_requires_invoicing }}</strong>
-            </li>
-            <li style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                <span style="color: var(--accent);">Action Required</span>
-                <strong style="color: var(--accent);">{{ jobs_action_required }}</strong>
-            </li>
-            <li style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                <span style="color: var(--text-secondary);">Unscheduled</span>
-                <strong style="color: var(--text-primary);">{{ jobs_unscheduled }}</strong>
-            </li>
-        </ul>
-    </div>
-
-    <!-- Recent Visits Card -->
-    <div class="kpi-card accent-green" style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: center;">
-        <div class="kpi-label" style="margin-bottom: 0.5rem;">Recent Visits <span style="text-transform: none; letter-spacing: 0;">(past 30 days)</span></div>
-        <div class="kpi-value">{{ recent_visits_count }}</div>
-        <div class="kpi-sub">
-            {% if recent_visits_count > 0 %}
-            <span style="color: var(--success);">
-                <i class="bi bi-arrow-up-short"></i> completed recently
-            </span>
-            {% else %}
-            <span>No recent completions</span>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Visits Scheduled Card -->
-    <div class="kpi-card accent-orange" style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: center;">
-        <div class="kpi-label" style="margin-bottom: 0.5rem;">Visits Scheduled</div>
-        <div class="kpi-value">{{ visits_scheduled_count }}</div>
-        <div class="kpi-sub">
-            {% if visits_scheduled_count > 0 %}
-            <span style="color: var(--primary);">
-                <i class="bi bi-calendar-check"></i> upcoming
-            </span>
-            {% else %}
-            <span>No upcoming visits</span>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Filter Pills + Search -->
-<div class="filter-bar" style="justify-content: space-between;">
-    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-        <!-- Status Filter -->
-        <select id="statusFilter" onchange="window.location.href='{{ url_for('jobs_page') }}?status=' + this.value + '{% if active_division %}&division={{ active_division }}{% endif %}'">
+<!-- Filter Bar -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <select id="statusFilter" class="form-control" style="width:auto;min-width:130px;"
+                onchange="window.location.href='{{ url_for('jobs_page') }}?status=' + this.value + '{% if active_division %}&division={{ active_division }}{% endif %}'">
             <option value="">All Statuses</option>
             {% for status in statuses %}
             <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status | replace('_', ' ') | title }}</option>
             {% endfor %}
         </select>
-
-        <!-- Job Type Filter (client-side) -->
-        <select id="jobTypeFilter" onchange="filterTable()">
+        <select id="jobTypeFilter" class="form-control" style="width:auto;min-width:130px;" onchange="filterTable()">
             <option value="">All Job Types</option>
             <option value="service_call">Service Call</option>
             <option value="repair">Repair</option>
@@ -98,131 +65,119 @@
             <option value="inspection">Inspection</option>
             <option value="emergency">Emergency</option>
         </select>
-
-        <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer; margin-left: var(--space-2);">
-          <input type="checkbox" id="filterMultiPhase" onchange="filterTable()" style="accent-color: var(--color-accent);">
-          Multi-Phase
+        <label style="display:flex;align-items:center;gap:4px;font-size:var(--font-size-xs);cursor:pointer;white-space:nowrap;">
+            <input type="checkbox" id="filterMultiPhase" onchange="filterTable()" style="accent-color:var(--color-accent);"> Multi-Phase
         </label>
-        <label style="display: flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); cursor: pointer;">
-          <input type="checkbox" id="filterPendingCO" onchange="filterTable()" style="accent-color: var(--color-warning);">
-          Has Pending COs
+        <label style="display:flex;align-items:center;gap:4px;font-size:var(--font-size-xs);cursor:pointer;white-space:nowrap;">
+            <input type="checkbox" id="filterPendingCO" onchange="filterTable()" style="accent-color:var(--color-warning);"> Pending COs
         </label>
+        <div style="position:relative;margin-left:auto;">
+            <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:0.8rem;"></i>
+            <input type="text" id="jobSearch" class="form-control" placeholder="Search jobs..." oninput="filterTable()"
+                   style="padding-left:2rem;width:220px;">
+        </div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);white-space:nowrap;">
+            Total: <strong style="color:var(--color-text-primary);">${{ "{:,.2f}".format(total_jobs_value) }}</strong>
+        </div>
     </div>
-    <div style="position: relative;">
-        <i class="bi bi-search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.85rem;"></i>
-        <input type="text" id="jobSearch" placeholder="Search jobs..." oninput="filterTable()" style="padding-left: 2rem; min-width: 220px;">
-    </div>
-</div>
-
-<!-- Total Value Bar -->
-<div style="display: flex; justify-content: flex-end; margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">
-    Total value: <strong style="margin-left: 0.35rem; color: var(--text-primary);">${{ "{:,.2f}".format(total_jobs_value) }}</strong>
 </div>
 
 <!-- Jobs Table -->
 <div class="card">
-    <div class="card-body" style="padding: 0;">
+    <div style="overflow-x:auto;">
         {% if jobs %}
-        <table class="data-table" id="jobsTable">
+        <table class="table" id="jobsTable" style="width:100%;margin:0;">
             <thead>
                 <tr>
-                    <th>Client</th>
-                    <th>Job</th>
-                    <th>Property</th>
-                    <th>Schedule</th>
-                    <th>Status</th>
-                    <th>Contract</th>
-                    <th>SLA</th>
-                    <th>Progress</th>
-                    <th>COs</th>
-                    <th style="text-align: right;">Total</th>
+                    <th style="min-width:140px;">Client</th>
+                    <th style="min-width:160px;">Job</th>
+                    <th style="min-width:140px;">Property</th>
+                    <th style="min-width:100px;">Schedule</th>
+                    <th style="min-width:90px;">Status</th>
+                    <th style="min-width:80px;">Contract</th>
+                    <th style="min-width:80px;">SLA</th>
+                    <th style="min-width:100px;">Progress</th>
+                    <th style="min-width:80px;">COs</th>
+                    <th style="text-align:right;min-width:90px;">Total</th>
                 </tr>
             </thead>
             <tbody>
                 {% for job in jobs %}
-                <tr data-job-id="{{ job.id }}" data-job-type="{{ job.job_type }}" data-is-multi-phase="{{ job.is_multi_phase|lower }}" data-pending-co-count="{{ job.pending_change_orders_count }}" data-searchable="{{ job.client_name|lower }} {{ job.job_number|lower }} {{ job.title|lower }} {{ (job.property_address or '')|lower }} {{ job.status|lower }}" onclick="window.location.href='/jobs/{{ job.id }}'" style="cursor: pointer;">
+                <tr data-job-id="{{ job.id }}" data-job-type="{{ job.job_type }}" data-is-multi-phase="{{ job.is_multi_phase|lower }}" data-pending-co-count="{{ job.pending_change_orders_count }}" data-searchable="{{ job.client_name|lower }} {{ job.job_number|lower }} {{ job.title|lower }} {{ (job.property_address or '')|lower }} {{ job.status|lower }}" onclick="window.location.href='/jobs/{{ job.id }}'" style="cursor:pointer;">
                     <td>
-                        <div style="font-weight: 500;">{{ job.client_name }}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary);">
-                            <span class="division-badge" style="background: {{ job.division_color }}; font-size: 0.65rem; padding: 0.1rem 0.4rem;">{{ job.division_name }}</span>
+                        <div style="font-weight:500;">{{ job.client_name }}</div>
+                        <div style="font-size:0.65rem;margin-top:2px;">
+                            <span class="division-badge" style="background:{{ job.division_color }};font-size:0.6rem;padding:1px 6px;">{{ job.division_name }}</span>
                         </div>
                     </td>
                     <td>
-                        <div style="font-weight: 600; color: var(--primary);">{{ job.job_number }}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-primary);">{{ job.title }}</div>
-                        {% if job.job_type %}<div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: capitalize;">{{ job.job_type | replace('_', ' ') }}</div>{% endif %}
+                        <div style="font-weight:600;color:var(--color-accent);">{{ job.job_number }}</div>
+                        <div style="font-size:var(--font-size-sm);color:var(--color-text-primary);">{{ job.title }}</div>
+                        {% if job.job_type %}<div style="font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:capitalize;">{{ job.job_type | replace('_', ' ') }}</div>{% endif %}
                     </td>
-                    <td style="font-size: 0.8rem; max-width: 180px;">{{ job.property_address or '—' }}</td>
-                    <td style="font-size: 0.8rem; white-space: nowrap;">
+                    <td style="font-size:var(--font-size-sm);max-width:180px;">
+                        {{ job.property_address if job.property_address else '' }}
+                    </td>
+                    <td style="font-size:var(--font-size-sm);white-space:nowrap;">
                         {% if job.scheduled_date %}
                             {{ job.scheduled_date[:10] }}
                         {% else %}
-                            <span style="color: var(--text-secondary); font-style: italic;">Unscheduled</span>
+                            <span style="color:var(--color-text-muted);font-style:italic;">Unscheduled</span>
                         {% endif %}
                     </td>
                     <td><span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span></td>
                     <td>
-                      {% if job.contract_id %}
-                      <a href="{{ url_for('contracts.contract_detail', contract_id=job.contract_id) }}"
-                         class="badge badge-active" style="text-decoration: none; font-size: 0.65rem;"
-                         title="{{ job.contract_number }}" onclick="event.stopPropagation();">
-                        {{ job.contract_number }}
-                      </a>
-                      {% else %}
-                      <span style="color: var(--color-text-muted);">---</span>
-                      {% endif %}
+                        {% if job.contract_id %}
+                        <a href="{{ url_for('contracts.contract_detail', contract_id=job.contract_id) }}"
+                           class="badge badge-active" style="text-decoration:none;font-size:0.6rem;"
+                           onclick="event.stopPropagation();">{{ job.contract_number }}</a>
+                        {% endif %}
                     </td>
                     <td>
-                      {% set sla_s = job.sla_status %}
-                      {% if sla_s == 'breached' %}
+                        {% set sla_s = job.sla_status %}
+                        {% if sla_s == 'breached' %}
                         <span class="badge badge-danger"><i class="bi bi-exclamation-triangle-fill"></i> Breached</span>
-                      {% elif sla_s == 'at_risk' %}
+                        {% elif sla_s == 'at_risk' %}
                         <span class="badge badge-pending"><i class="bi bi-clock-history"></i> At Risk</span>
-                      {% elif sla_s == 'met' %}
+                        {% elif sla_s == 'met' %}
                         <span class="badge badge-completed">Met</span>
-                      {% elif sla_s == 'on_track' %}
+                        {% elif sla_s == 'on_track' %}
                         <span class="badge badge-active">On Track</span>
-                      {% else %}
-                        <span style="color: var(--color-text-muted);">---</span>
-                      {% endif %}
+                        {% endif %}
                     </td>
                     <td>
-                      {% if job.is_multi_phase and job.phase_count > 0 %}
-                      <div style="min-width: 100px;">
-                        <div style="height: 6px; background: var(--color-border); border-radius: var(--radius-full); overflow: hidden; margin-bottom: 2px;">
-                          <div style="height: 100%; width: {{ job.percent_complete }}%; background: var(--color-accent); border-radius: var(--radius-full);"></div>
+                        {% if job.is_multi_phase and job.phase_count > 0 %}
+                        <div style="min-width:90px;">
+                            <div style="height:5px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;margin-bottom:2px;">
+                                <div style="height:100%;width:{{ job.percent_complete }}%;background:var(--color-accent);border-radius:var(--radius-full);"></div>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--color-text-muted);">
+                                <span>{{ job.completed_phase_count }}/{{ job.phase_count }}</span>
+                                <span>{{ job.percent_complete }}%</span>
+                            </div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--color-text-muted);">
-                          <span>{{ job.completed_phase_count }}/{{ job.phase_count }}</span>
-                          <span>{{ job.percent_complete }}%</span>
-                        </div>
-                      </div>
-                      {% elif job.is_multi_phase %}
-                      <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">No phases</span>
-                      {% else %}
-                      <span style="color: var(--color-text-muted);">---</span>
-                      {% endif %}
+                        {% elif job.is_multi_phase %}
+                        <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">No phases</span>
+                        {% endif %}
                     </td>
-                    <td style="text-align: center;">
-                      {% if job.pending_change_orders_count > 0 %}
-                      <a href="/jobs/{{ job.id }}?tab=change_orders" class="badge badge-pending" style="text-decoration: none;" onclick="event.stopPropagation();">{{ job.pending_change_orders_count }} pending</a>
-                      {% elif job.total_change_orders > 0 %}
-                      <span class="badge badge-completed" style="font-size: var(--font-size-xs);">{{ job.total_change_orders }} approved</span>
-                      {% else %}
-                      <span style="color: var(--color-text-muted);">---</span>
-                      {% endif %}
+                    <td style="text-align:center;">
+                        {% if job.pending_change_orders_count > 0 %}
+                        <a href="/jobs/{{ job.id }}?tab=change_orders" class="badge badge-pending" style="text-decoration:none;font-size:var(--font-size-xs);" onclick="event.stopPropagation();">{{ job.pending_change_orders_count }} pending</a>
+                        {% elif job.total_change_orders > 0 %}
+                        <span class="badge badge-completed" style="font-size:var(--font-size-xs);">{{ job.total_change_orders }}</span>
+                        {% endif %}
                     </td>
-                    <td style="text-align: right; font-weight: 600; white-space: nowrap;">${{ "{:,.2f}".format(job.estimated_amount or 0) }}</td>
+                    <td style="text-align:right;font-weight:600;white-space:nowrap;">${{ "{:,.2f}".format(job.estimated_amount or 0) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
-        <div class="empty-state">
-            <i class="bi bi-clipboard-plus"></i>
-            <h3>No jobs found</h3>
-            <p>Create your first job to get started tracking work</p>
-            <button class="btn btn-primary" onclick="document.getElementById('newJobModal').classList.add('show')">
+        <div style="padding:var(--space-6);text-align:center;">
+            <i class="bi bi-clipboard-plus" style="font-size:3rem;color:var(--color-text-muted);"></i>
+            <h3 style="margin:var(--space-2) 0 var(--space-1);">No jobs found</h3>
+            <p style="color:var(--color-text-muted);">Create your first job to get started tracking work</p>
+            <button class="btn btn-accent" onclick="document.getElementById('newJobModal').classList.add('show')">
                 <i class="bi bi-plus-lg"></i> Create First Job
             </button>
         </div>
@@ -260,17 +215,14 @@
                         </select>
                     </div>
                 </div>
-
                 <div class="form-group">
                     <label>Title</label>
                     <input type="text" name="title" placeholder="e.g. Hot water tank replacement" required>
                 </div>
-
                 <div class="form-group">
                     <label>Description</label>
                     <textarea name="description" placeholder="Job details..."></textarea>
                 </div>
-
                 <div class="form-row">
                     <div class="form-group">
                         <label>Client</label>
@@ -285,7 +237,6 @@
                         </select>
                     </div>
                 </div>
-
                 <div class="form-row">
                     <div class="form-group">
                         <label>Scheduled Date</label>
@@ -296,7 +247,6 @@
                         <input type="number" name="estimated_amount" step="0.01" placeholder="0.00">
                     </div>
                 </div>
-
                 <div class="form-row">
                     <div class="form-group">
                         <label>Priority</label>
@@ -317,8 +267,8 @@
             </form>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').classList.remove('show')">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('newJobForm').requestSubmit()">Create Job</button>
+            <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').classList.remove('show')">Cancel</button>
+            <button class="btn btn-accent" onclick="document.getElementById('newJobForm').requestSubmit()">Create Job</button>
         </div>
     </div>
 </div>
@@ -326,7 +276,6 @@
 
 {% block scripts %}
 <script>
-// Load clients for the dropdown
 fetch('/api/lookup/clients').then(r => r.json()).then(clients => {
     const sel = document.getElementById('jobClient');
     clients.forEach(c => {
@@ -337,7 +286,6 @@ fetch('/api/lookup/clients').then(r => r.json()).then(clients => {
     });
 });
 
-// Load technicians
 fetch('/api/lookup/technicians').then(r => r.json()).then(techs => {
     const sel = document.getElementById('jobTechnician');
     techs.forEach(t => {
@@ -378,7 +326,6 @@ function createJob(e) {
         technician_id: form.technician_id.value || null,
         status: form.scheduled_date.value ? 'scheduled' : 'draft',
     };
-
     fetch('/api/jobs', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -386,43 +333,30 @@ function createJob(e) {
     })
     .then(r => r.json())
     .then(result => {
-        if (result.success) {
-            window.location.reload();
-        } else {
-            alert('Error: ' + result.error);
-        }
+        if (result.success) window.location.reload();
+        else alert('Error: ' + result.error);
     });
 }
 
-// Client-side search and job type filtering
 function filterTable() {
     const searchTerm = (document.getElementById('jobSearch').value || '').toLowerCase();
     const jobType = document.getElementById('jobTypeFilter').value;
-    const multiPhaseOnly = document.getElementById('filterMultiPhase') ? document.getElementById('filterMultiPhase').checked : false;
-    const pendingCOOnly = document.getElementById('filterPendingCO') ? document.getElementById('filterPendingCO').checked : false;
+    const multiPhaseOnly = document.getElementById('filterMultiPhase').checked;
+    const pendingCOOnly = document.getElementById('filterPendingCO').checked;
     const table = document.getElementById('jobsTable');
     if (!table) return;
 
-    const rows = table.querySelectorAll('tbody tr');
-    let visibleCount = 0;
-
-    rows.forEach(row => {
+    table.querySelectorAll('tbody tr').forEach(row => {
         const searchable = row.getAttribute('data-searchable') || '';
         const rowJobType = row.getAttribute('data-job-type') || '';
-        const isMultiPhase = row.getAttribute('data-is-multi-phase') === 'true';
-        const pendingCO = parseInt(row.getAttribute('data-pending-co-count') || '0') > 0;
+        const isMulti = row.getAttribute('data-is-multi-phase') === 'true';
+        const hasCO = parseInt(row.getAttribute('data-pending-co-count') || '0') > 0;
 
-        const matchesSearch = !searchTerm || searchable.includes(searchTerm);
-        const matchesType = !jobType || rowJobType === jobType;
-        const matchesMultiPhase = !multiPhaseOnly || isMultiPhase;
-        const matchesPendingCO = !pendingCOOnly || pendingCO;
-
-        if (matchesSearch && matchesType && matchesMultiPhase && matchesPendingCO) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
-        }
+        const show = (!searchTerm || searchable.includes(searchTerm))
+            && (!jobType || rowJobType === jobType)
+            && (!multiPhaseOnly || isMulti)
+            && (!pendingCOOnly || hasCO);
+        row.style.display = show ? '' : 'none';
     });
 }
 </script>

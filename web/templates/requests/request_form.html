@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}New Service Request{% endblock %}
+{% block page_title %}New Service Request{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+  <form method="POST" id="requestForm">
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+      <!-- Left: Main details -->
+      <div>
+        <div class="card" style="margin-bottom:var(--space-3);">
+          <div class="card-header"><h3 class="card-title"><i class="bi bi-person" style="color:var(--color-accent);"></i> Contact Information</h3></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Contact Name *</label>
+              <input type="text" name="contact_name" class="form-control" required placeholder="Who called / emailed">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+              <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="tel" name="contact_phone" class="form-control" placeholder="(555) 123-4567">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" name="contact_email" class="form-control" placeholder="contact@email.com">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+              <div class="form-group">
+                <label class="form-label">Client (optional)</label>
+                <select name="client_id" id="clientSelect" class="form-control" onchange="loadProperties(this.value)">
+                  <option value="">-- New / Unknown Client --</option>
+                </select>
+                <input type="text" id="clientSearch" class="form-control" placeholder="Type to search clients..." style="margin-top:var(--space-1);">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Property</label>
+                <select name="property_id" id="propertySelect" class="form-control">
+                  <option value="">-- Select client first --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:var(--space-3);">
+          <div class="card-header"><h3 class="card-title"><i class="bi bi-clipboard" style="color:var(--color-accent);"></i> Request Details</h3></div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+              <div class="form-group">
+                <label class="form-label">Source *</label>
+                <select name="source" class="form-control" required>
+                  <option value="phone">Phone</option>
+                  <option value="email">Email</option>
+                  <option value="walk_in">Walk-In</option>
+                  <option value="portal">Portal</option>
+                  <option value="referral">Referral</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Type</label>
+                <select name="request_type" class="form-control">
+                  <option value="">General</option>
+                  <option value="plumbing">Plumbing</option>
+                  <option value="hvac">HVAC</option>
+                  <option value="electrical">Electrical</option>
+                  <option value="general">General Maintenance</option>
+                  <option value="service_call">Service Call</option>
+                  <option value="repair">Repair</option>
+                  <option value="installation">Installation</option>
+                  <option value="inspection">Inspection</option>
+                  <option value="emergency">Emergency</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Priority *</label>
+                <select name="priority" class="form-control" required>
+                  <option value="low">Low</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="high">High</option>
+                  <option value="emergency">Emergency</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description *</label>
+              <textarea name="description" class="form-control" rows="4" required placeholder="Describe what the client needs..."></textarea>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+              <div class="form-group">
+                <label class="form-label">Preferred Date</label>
+                <input type="date" name="preferred_date" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Preferred Time</label>
+                <select name="preferred_time" class="form-control">
+                  <option value="">Anytime</option>
+                  <option value="morning">Morning (8am-12pm)</option>
+                  <option value="afternoon">Afternoon (12pm-5pm)</option>
+                  <option value="evening">Evening (5pm-8pm)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Internal -->
+      <div>
+        <div class="card" style="margin-bottom:var(--space-3);">
+          <div class="card-header"><h3 class="card-title">Internal</h3></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Assign To</label>
+              <select name="assigned_to" class="form-control">
+                <option value="">-- Unassigned --</option>
+                {% for u in users %}
+                <option value="{{ u.id }}">{{ u.full_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Internal Notes</label>
+              <textarea name="notes" class="form-control" rows="4" placeholder="Notes visible only to staff..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+          <button type="submit" class="btn btn-accent" style="width:100%;"><i class="bi bi-check-lg"></i> Save Request</button>
+          <a href="{{ url_for('requests.request_list') }}" class="btn btn-ghost" style="width:100%;">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+// Client search
+let searchTimeout;
+const clientSearch = document.getElementById('clientSearch');
+const clientSelect = document.getElementById('clientSelect');
+
+clientSearch.addEventListener('input', function() {
+  clearTimeout(searchTimeout);
+  const q = this.value.trim();
+  if (q.length < 2) return;
+  searchTimeout = setTimeout(() => {
+    fetch('/api/clients/search?q=' + encodeURIComponent(q))
+      .then(r => r.json())
+      .then(data => {
+        clientSelect.innerHTML = '<option value="">-- New / Unknown Client --</option>';
+        (data.clients || []).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.display_name;
+          clientSelect.appendChild(opt);
+        });
+        if (data.clients && data.clients.length === 1) {
+          clientSelect.value = data.clients[0].id;
+          loadProperties(data.clients[0].id);
+        }
+      });
+  }, 300);
+});
+
+function loadProperties(clientId) {
+  const propSelect = document.getElementById('propertySelect');
+  propSelect.innerHTML = '<option value="">-- No property --</option>';
+  if (!clientId) return;
+  fetch('/api/lookup/properties/' + clientId)
+    .then(r => r.json())
+    .then(data => {
+      (data.properties || []).forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.display_address || p.address || p.name;
+        propSelect.appendChild(opt);
+      });
+    });
+}
+</script>
+{% endblock %}

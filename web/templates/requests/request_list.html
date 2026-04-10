@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Service Requests{% endblock %}
+{% block page_title %}Service Requests{% endblock %}
+
+{% block content %}
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-accent);">{{ new_count }}</div>
+    <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">New Requests</div>
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-info);">{{ reviewed_count }}</div>
+    <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">Awaiting Conversion</div>
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-text-secondary);">{{ today_count }}</div>
+    <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">Today</div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);flex-wrap:wrap;gap:var(--space-2);">
+  <form method="GET" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;">
+    <select name="status" class="form-control" style="width:auto;" onchange="this.form.submit()">
+      <option value="">All Statuses</option>
+      {% for val, label in status_choices %}
+      <option value="{{ val }}" {{ 'selected' if filter_status == val }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="priority" class="form-control" style="width:auto;" onchange="this.form.submit()">
+      <option value="">All Priorities</option>
+      {% for val, label in priority_choices %}
+      <option value="{{ val }}" {{ 'selected' if filter_priority == val }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="type" class="form-control" style="width:auto;" onchange="this.form.submit()">
+      <option value="">All Types</option>
+      {% for val, label in type_choices %}
+      <option value="{{ val }}" {{ 'selected' if filter_type == val }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <div style="position:relative;">
+      <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ search or '' }}" style="width:200px;">
+    </div>
+    {% if filter_status or filter_priority or filter_type or search %}
+    <a href="{{ url_for('requests.request_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+    {% endif %}
+  </form>
+  <a href="{{ url_for('requests.request_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Request</a>
+</div>
+
+<!-- Table -->
+{% if requests %}
+<div class="card">
+  <div style="overflow-x:auto;">
+    <table class="table" style="width:100%;margin:0;">
+      <thead>
+        <tr>
+          <th>Request #</th>
+          <th>Contact</th>
+          <th>Client</th>
+          <th>Type</th>
+          <th>Priority</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sr in requests %}
+        <tr style="cursor:pointer;" onclick="window.location='{{ url_for('requests.request_detail', request_id=sr.id) }}'">
+          <td style="font-weight:600;">{{ sr.request_number }}</td>
+          <td>
+            {{ sr.contact_name }}
+            {% if sr.contact_phone %}
+            <br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ sr.contact_phone }}</span>
+            {% endif %}
+          </td>
+          <td>{{ sr.client.display_name if sr.client else '---' }}</td>
+          <td>{{ sr.type_display }}</td>
+          <td>
+            <span class="badge" style="background:var(--color-{{ sr.priority_color }});color:#fff;">{{ sr.priority_display }}</span>
+          </td>
+          <td style="font-size:var(--font-size-sm);">{{ sr.source_display }}</td>
+          <td>
+            <span class="badge" style="background:var(--color-{{ sr.status_color }});color:#fff;">{{ sr.status_display }}</span>
+          </td>
+          <td style="font-size:var(--font-size-sm);">{{ sr.created_at.strftime('%b %d, %Y') if sr.created_at else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card" style="padding:var(--space-6);text-align:center;">
+  <i class="bi bi-inbox" style="font-size:3rem;color:var(--color-text-muted);"></i>
+  <h3 style="margin:var(--space-2) 0 var(--space-1);">No Requests</h3>
+  <p style="color:var(--color-text-muted);">{% if search or filter_status %}No requests match your filters.{% else %}No service requests yet.{% endif %}</p>
+  <a href="{{ url_for('requests.request_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Request</a>
+</div>
+{% endif %}
+{% endblock %}
