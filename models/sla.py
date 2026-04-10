@@ -22,6 +22,7 @@ class SLA(Base):
     __tablename__ = 'slas'
 
     id                    = Column(Integer, primary_key=True)
+    organization_id       = Column(Integer, ForeignKey('organizations.id'), nullable=True)
     sla_name              = Column(String(255), nullable=False)
     priority_level        = Column(SAEnum(PriorityLevel), nullable=False)
     response_time_hours   = Column(Float, nullable=False)

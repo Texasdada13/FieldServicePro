@@ -949,9 +949,13 @@ def quotes_page():
         org_id = current_user.organization_id
         active_div = get_active_division(request)
 
+        status_filter = request.args.get('status', '')
+
         q = db.query(Quote).filter_by(organization_id=org_id)
         if active_div:
             q = q.filter_by(division_id=active_div)
+        if status_filter:
+            q = q.filter_by(status=status_filter)
 
         quotes = q.order_by(Quote.created_at.desc()).all()
 
@@ -970,6 +974,7 @@ def quotes_page():
             active_division=active_div,
             quotes=quote_list,
             statuses=[s.value for s in QuoteStatus],
+            status_filter=status_filter,
         )
     finally:
         db.close()

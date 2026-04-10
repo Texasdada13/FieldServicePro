@@ -15,7 +15,7 @@
 <div class="dash-kpi-row">
 
   <!-- Active Jobs -->
-  <div class="metric-card">
+  <a href="{{ url_for('jobs_page') }}?status=in_progress" class="metric-card metric-card--link">
     <div class="metric-card__icon metric-card__icon--accent">
       <i class="bi bi-briefcase-fill"></i>
     </div>
@@ -25,10 +25,10 @@
       <i class="bi bi-arrow-up-short"></i>
       <span class="money">${{ "{:,.0f}".format(jobs_active_value) if jobs_active_value else '0' }} pipeline</span>
     </p>
-  </div>
+  </a>
 
   <!-- Revenue -->
-  <div class="metric-card">
+  <a href="{{ url_for('invoices_page') }}?status=paid" class="metric-card metric-card--link">
     <div class="metric-card__icon metric-card__icon--success">
       <i class="bi bi-currency-dollar"></i>
     </div>
@@ -38,10 +38,10 @@
       <i class="bi bi-arrow-up-short"></i>
       <span>${{ "{:,.0f}".format(total_invoiced) if total_invoiced else '0' }} invoiced</span>
     </p>
-  </div>
+  </a>
 
   <!-- Overdue Invoices -->
-  <div class="metric-card{% if invoices_past_due and invoices_past_due > 0 %} metric-card--alert{% endif %}">
+  <a href="{{ url_for('invoices_page') }}?status=overdue" class="metric-card metric-card--link{% if invoices_past_due and invoices_past_due > 0 %} metric-card--alert{% endif %}">
     <div class="metric-card__icon metric-card__icon--danger">
       <i class="bi bi-exclamation-triangle-fill"></i>
     </div>
@@ -51,10 +51,10 @@
       <i class="bi bi-arrow-down-short"></i>
       <span>${{ "{:,.0f}".format(total_overdue) if total_overdue else '0' }} outstanding</span>
     </p>
-  </div>
+  </a>
 
   <!-- Upcoming Schedule -->
-  <div class="metric-card">
+  <a href="{{ url_for('schedule_page') }}" class="metric-card metric-card--link">
     <div class="metric-card__icon metric-card__icon--warning">
       <i class="bi bi-calendar-week-fill"></i>
     </div>
@@ -64,7 +64,7 @@
       <i class="bi bi-calendar-check"></i>
       <span>${{ "{:,.0f}".format(upcoming_jobs_value) if upcoming_jobs_value else '0' }} scheduled</span>
     </p>
-  </div>
+  </a>
 
 </div>
 
@@ -93,7 +93,7 @@
 
       <!-- Pipeline Stats -->
       <div class="dash-pipeline-grid">
-        <a href="{{ url_for('jobs_page') }}?status=draft" class="dash-stat-row dash-stat-row--warning">
+        <a href="{{ url_for('requests.request_list') }}?status=new" class="dash-stat-row dash-stat-row--warning">
           <div class="dash-stat-bar"></div>
           <div class="dash-stat-content">
             <span class="dash-stat-label">New Requests</span>
@@ -104,7 +104,7 @@
           {% endif %}
         </a>
 
-        <a href="{{ url_for('quotes_page') }}" class="dash-stat-row dash-stat-row--blue">
+        <a href="{{ url_for('quotes_page') }}?status=sent" class="dash-stat-row dash-stat-row--blue">
           <div class="dash-stat-bar"></div>
           <div class="dash-stat-content">
             <span class="dash-stat-label">Open Quotes</span>
@@ -132,7 +132,7 @@
           {% endif %}
         </a>
 
-        <a href="{{ url_for('invoices_page') }}" class="dash-stat-row dash-stat-row--green">
+        <a href="{{ url_for('invoices_page') }}?status=sent" class="dash-stat-row dash-stat-row--green">
           <div class="dash-stat-bar"></div>
           <div class="dash-stat-content">
             <span class="dash-stat-label">Awaiting Payment</span>
@@ -278,11 +278,11 @@
       </div>
       <div class="card-body">
         <div class="dash-quick-grid">
-          <a href="{{ url_for('jobs_page') }}" class="dash-quick-btn dash-quick-btn--accent">
-            <i class="bi bi-plus-circle"></i>
-            <span>New Job</span>
+          <a href="{{ url_for('requests.request_new') }}" class="dash-quick-btn dash-quick-btn--accent">
+            <i class="bi bi-inbox"></i>
+            <span>New Request</span>
           </a>
-          <a href="{{ url_for('quotes_page') }}" class="dash-quick-btn dash-quick-btn--blue">
+          <a href="{{ url_for('quote_new_page') }}" class="dash-quick-btn dash-quick-btn--blue">
             <i class="bi bi-file-earmark-text"></i>
             <span>New Quote</span>
           </a>
@@ -361,5 +361,23 @@
 
   </div>
 </div>
+
+<style>
+/* Clickable KPI cards */
+a.metric-card--link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+a.metric-card--link:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border-color: var(--color-accent);
+}
+a.metric-card--link:hover .metric-card__label {
+  color: var(--color-accent);
+}
+</style>
 
 {% endblock %}
