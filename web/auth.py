@@ -280,8 +280,8 @@ def demo():
         # --- Demo user ---
         user = User(
             email='demo@fieldservicepro.app',
-            first_name='Marcus',
-            last_name='Demo',
+            first_name='Ricky',
+            last_name='F.',
             organization_id=org.id,
             role='owner',
         )
@@ -299,13 +299,13 @@ def demo():
             Technician(organization_id=org.id, division_id=div_gc.id, first_name='Carlos', last_name='Rivera', phone='(519) 555-0206', mobile='(519) 555-0206', color='#8b5cf6', hourly_rate=70),
             Technician(organization_id=org.id, division_id=div_plb.id, first_name='Alex', last_name='Nguyen', phone='(519) 555-0207', mobile='(519) 555-0207', color='#1d4ed8', hourly_rate=78),
             Technician(organization_id=org.id, division_id=div_hvac.id, first_name='Jordan', last_name='Blake', phone='(519) 555-0208', mobile='(519) 555-0208', color='#047857', hourly_rate=82),
-            Technician(organization_id=org.id, division_id=div_elec.id, first_name='Marcus', last_name='Lee', phone='(519) 555-0209', mobile='(519) 555-0209', color='#d97706', hourly_rate=88),
+            Technician(organization_id=org.id, division_id=div_elec.id, first_name='Marc', last_name='Lee', phone='(519) 555-0209', mobile='(519) 555-0209', color='#d97706', hourly_rate=88),
             Technician(organization_id=org.id, division_id=div_gc.id, first_name='Tyler', last_name='Brandt', phone='(519) 555-0210', mobile='(519) 555-0210', color='#7c3aed', hourly_rate=72),
         ]
         db.add_all(techs)
         db.flush()
 
-        # --- Clients (from Marcus's actual Jobber data) ---
+        # --- Clients (seed data) ---
         clients_data = [
             {'type': 'commercial', 'company': 'Kingsley Management Inc.', 'first': 'Andrea', 'last': 'Kingsley', 'email': 'andrea@kingsleymgmt.ca', 'phone': '(519) 555-1001', 'city': 'Kitchener'},
             {'type': 'commercial', 'company': 'Centurion Property Management', 'first': 'Brian', 'last': 'Holtz', 'email': 'bholtz@centurionpm.ca', 'phone': '(519) 555-1002', 'city': 'Waterloo'},

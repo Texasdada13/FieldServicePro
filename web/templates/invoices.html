@@ -3,171 +3,146 @@
 {% block title %}Invoices - FieldServicePro{% endblock %}
 
 {% block content %}
-<!-- Header with actions -->
-<div class="page-header" style="display: flex; align-items: center; justify-content: space-between;">
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
     <div>
-        <h1>Invoices</h1>
-        <p>{{ invoices|length }} invoice{{ 's' if invoices|length != 1 else '' }}</p>
+        <h1 style="margin:0;">Invoices</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ invoices|length }} invoice{{ 's' if invoices|length != 1 else '' }}</p>
     </div>
-    <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <a class="btn btn-success" href="{{ url_for('invoice_new') }}">
+</div>
+
+<!-- KPI Stats -->
+{% set paid_list = invoices|selectattr('status', 'equalto', 'paid')|list %}
+{% set paid_total = paid_list|map(attribute='total')|map('float')|sum %}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ invoices|length }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Invoices</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="font-size:var(--font-size-xl);font-weight:700;color:var(--color-success);">${{ "{:,.0f}".format(paid_total) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Paid ({{ paid_list|length }})</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-info);">
+        <div style="font-size:var(--font-size-xl);font-weight:700;">${{ "{:,.0f}".format(total_outstanding) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Outstanding ({{ invoices_sent_count }})</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if invoices_past_due_count > 0 %}var(--color-danger){% else %}var(--color-text-muted){% endif %};">
+        <div style="font-size:var(--font-size-xl);font-weight:700;{% if invoices_past_due_count > 0 %}color:var(--color-danger);{% endif %}">${{ "{:,.0f}".format(invoices_past_due_value) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Overdue ({{ invoices_past_due_count }})</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-warning);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ avg_payment_days }}<span style="font-size:var(--font-size-sm);font-weight:400;color:var(--color-text-muted);"> days</span></div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Avg Payment Time</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <select id="statusFilter" class="form-control" style="width:auto;min-width:130px;" onchange="applyStatusFilter(this.value)">
+            <option value="">All Statuses</option>
+            {% for status in statuses %}
+            <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status | replace('_', ' ') | title }}</option>
+            {% endfor %}
+        </select>
+        <select id="termsFilter" class="form-control" style="width:auto;min-width:130px;" onchange="filterInvoices()">
+            <option value="">All Terms</option>
+            <option value="due_on_receipt">Due on Receipt</option>
+            <option value="net_15">Net 15</option>
+            <option value="net_30">Net 30</option>
+            <option value="net_60">Net 60</option>
+            <option value="net_90">Net 90</option>
+        </select>
+        <select id="dateFilter" class="form-control" style="width:auto;min-width:130px;" onchange="filterInvoices()">
+            <option value="">All Dates</option>
+            <option value="30">Last 30 Days</option>
+            <option value="90">Last 90 Days</option>
+            <option value="365">This Year</option>
+        </select>
+        <div style="position:relative;margin-left:auto;">
+            <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:0.8rem;"></i>
+            <input type="text" id="invoiceSearch" class="form-control" placeholder="Search invoices..." oninput="filterInvoices()"
+                   style="padding-left:2rem;width:240px;">
+        </div>
+        <a class="btn btn-accent" href="{{ url_for('invoice_new') }}">
             <i class="bi bi-plus-lg"></i> New Invoice
         </a>
-        <div class="dropdown" style="position: relative;">
-            <button class="btn btn-outline" onclick="this.parentElement.classList.toggle('open')" style="font-size: 0.85rem;">
-                + More Actions
-            </button>
-            <div class="dropdown-menu" style="display: none; position: absolute; right: 0; top: 100%; background: #fff; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; min-width: 180px;">
-                <a href="#" class="dropdown-item" style="display: block; padding: 0.5rem 1rem; color: #333; text-decoration: none; font-size: 0.85rem;">Import Invoices</a>
-                <a href="#" class="dropdown-item" style="display: block; padding: 0.5rem 1rem; color: #333; text-decoration: none; font-size: 0.85rem;">Export to CSV</a>
-                <a href="#" class="dropdown-item" style="display: block; padding: 0.5rem 1rem; color: #333; text-decoration: none; font-size: 0.85rem;">Batch Send</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 4 KPI Cards -->
-<div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
-    <!-- Card 1: Overview -->
-    <div class="kpi-card">
-        <div class="kpi-label">Overview</div>
-        <ul style="list-style: none; padding: 0; margin: 0.75rem 0 0 0; font-size: 0.85rem; line-height: 1.8;">
-            <li style="display: flex; justify-content: space-between;">
-                <span>
-                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #dc3545; margin-right: 6px;"></span>
-                    Past due ({{ invoices_past_due_count }})
-                </span>
-                <span class="money money-red">${{ "{:,.0f}".format(invoices_past_due_value) }}</span>
-            </li>
-            <li style="display: flex; justify-content: space-between;">
-                <span>
-                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #6c757d; margin-right: 6px;"></span>
-                    Draft ({{ invoices_draft_count }})
-                </span>
-                <span class="money">${{ "{:,.0f}".format(invoices_draft_value) }}</span>
-            </li>
-            <li style="display: flex; justify-content: space-between;">
-                <span>
-                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #0d6efd; margin-right: 6px;"></span>
-                    Sent ({{ invoices_sent_count }})
-                </span>
-                <span class="money">${{ "{:,.0f}".format(invoices_sent_value) }}</span>
-            </li>
-        </ul>
-    </div>
-
-    <!-- Card 2: Issued (past 30 days) -->
-    <div class="kpi-card">
-        <div class="kpi-label">Issued <span style="font-weight: 400; color: #888;">(past 30 days)</span></div>
-        <div class="kpi-value" style="margin-top: 0.5rem;">{{ invoices_issued_30d }}</div>
-        <div class="kpi-sub">
-            ${{ "{:,.0f}".format(total_invoiced_30d) }} total
-            {% if issued_pct_change != 0 %}
-            <span style="margin-left: 6px; font-size: 0.8rem; color: {{ '#28a745' if issued_pct_change > 0 else '#dc3545' }};">
-                <i class="bi bi-arrow-{{ 'up' if issued_pct_change > 0 else 'down' }}"></i>
-                {{ issued_pct_change }}%
-            </span>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Card 3: Average Invoice (past 30 days) -->
-    <div class="kpi-card">
-        <div class="kpi-label">Avg Invoice <span style="font-weight: 400; color: #888;">(past 30 days)</span></div>
-        <div class="kpi-value" style="margin-top: 0.5rem;">${{ "{:,.0f}".format(avg_invoice_30d) }}</div>
-        <div class="kpi-sub">
-            per invoice
-            {% if avg_pct_change != 0 %}
-            <span style="margin-left: 6px; font-size: 0.8rem; color: {{ '#28a745' if avg_pct_change > 0 else '#dc3545' }};">
-                <i class="bi bi-arrow-{{ 'up' if avg_pct_change > 0 else 'down' }}"></i>
-                {{ avg_pct_change }}%
-            </span>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Card 4: Invoice payment time -->
-    <div class="kpi-card">
-        <div class="kpi-label">Invoice Payment Time</div>
-        <div class="kpi-value" style="margin-top: 0.5rem;">{{ median_payment_days }} <span style="font-size: 0.9rem; font-weight: 400;">days</span></div>
-        <div class="kpi-sub">
-            median &middot; {{ avg_payment_days }} days avg
-        </div>
-    </div>
-</div>
-
-<!-- Filter bar with pills & search -->
-<div class="filter-bar" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-    <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
-        <a href="{{ url_for('invoices_page') }}"
-           class="badge {% if not status_filter %}badge-active{% else %}badge-outline{% endif %}"
-           style="padding: 0.4rem 0.85rem; border-radius: 20px; text-decoration: none; font-size: 0.8rem; cursor: pointer;
-                  {% if not status_filter %}background: #0d6efd; color: #fff;{% else %}background: #f0f0f0; color: #555; border: 1px solid #ddd;{% endif %}">
-            All
-        </a>
-        {% for status in statuses %}
-        <a href="{{ url_for('invoices_page') }}?status={{ status }}"
-           class="badge {% if status_filter == status %}badge-active{% else %}badge-outline{% endif %}"
-           style="padding: 0.4rem 0.85rem; border-radius: 20px; text-decoration: none; font-size: 0.8rem; cursor: pointer;
-                  {% if status_filter == status %}background: #0d6efd; color: #fff;{% else %}background: #f0f0f0; color: #555; border: 1px solid #ddd;{% endif %}">
-            {{ status | title }}
-        </a>
-        {% endfor %}
-    </div>
-    <div style="flex: 1;"></div>
-    <div style="position: relative; min-width: 220px;">
-        <i class="bi bi-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 0.85rem;"></i>
-        <input type="text" id="invoiceSearch" placeholder="Search invoices..."
-               style="width: 100%; padding: 0.45rem 0.75rem 0.45rem 2rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; outline: none;"
-               oninput="filterInvoiceTable(this.value)">
     </div>
 </div>
 
 <!-- Invoices Table -->
-<div class="card" style="margin-top: 1rem;">
-    <div class="card-body" style="padding: 0;">
+<div class="card">
+    <div style="overflow-x:auto;">
         {% if invoices %}
-        <table class="data-table" id="invoicesTable">
+        <table id="invoicesTable" style="width:100%;border-collapse:collapse;">
             <thead>
-                <tr>
-                    <th>Client</th>
-                    <th>Invoice #</th>
-                    <th>Due Date</th>
-                    <th>Subject</th>
-                    <th>Status</th>
-                    <th style="text-align: right;">Total</th>
-                    <th style="text-align: right;">Balance</th>
+                <tr style="border-bottom:2px solid var(--color-border);">
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Invoice #</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:150px;">Client</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:80px;">Job</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:80px;">Status</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:80px;">Terms</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Due Date</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:90px;">Total</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Balance Due</th>
                 </tr>
             </thead>
             <tbody>
                 {% for inv in invoices %}
-                <tr class="invoice-row" onclick="window.location.href='/invoices/{{ inv.id }}'" style="cursor: pointer;">
-                    <td>
-                        <strong>{{ inv.client_name }}</strong>
-                    </td>
-                    <td>
-                        <a href="#" style="color: #0d6efd; text-decoration: none; font-weight: 500;">{{ inv.invoice_number }}</a>
-                    </td>
-                    <td style="font-size: 0.8rem; white-space: nowrap;">
-                        {% if inv.due_date %}
-                            {{ inv.due_date[:10] }}
-                            {% if inv.is_overdue %}
-                                <span style="color: #dc3545; font-size: 0.75rem; margin-left: 4px;">
-                                    <i class="bi bi-exclamation-circle-fill"></i>
-                                </span>
-                            {% endif %}
-                        {% else %}
-                            —
+                <tr onclick="window.location.href='/invoices/{{ inv.id }}'"
+                    data-status="{{ inv.status }}"
+                    data-terms="{{ inv.payment_terms or '' }}"
+                    data-created="{{ inv.created_at or '' }}"
+                    data-searchable="{{ (inv.invoice_number or '')|lower }} {{ (inv.client_name or '')|lower }} {{ (inv.po_number_display or '')|lower }} {{ (inv.job_id|string if inv.job_id else '')|lower }}"
+                    style="cursor:pointer;border-bottom:1px solid var(--color-border);transition:background 0.1s;{% if inv.status == 'overdue' %}border-left:3px solid var(--color-danger);background:rgba(239,68,68,0.03);{% else %}border-left:3px solid transparent;{% endif %}">
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <a href="/invoices/{{ inv.id }}" onclick="event.stopPropagation();" style="font-weight:600;color:var(--color-accent);text-decoration:none;">{{ inv.invoice_number }}</a>
+                        {% if inv.po_number_display %}
+                        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">PO: {{ inv.po_number_display }}</div>
                         {% endif %}
                     </td>
-                    <td style="font-size: 0.85rem; color: #555; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        {{ inv.subject or '—' }}
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <div style="font-weight:500;">{{ inv.client_name }}</div>
+                        {% if inv.subject %}
+                        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ inv.subject }}</div>
+                        {% endif %}
                     </td>
-                    <td>
-                        <span class="badge badge-{{ inv.status }}">{{ inv.status | title }}</span>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">
+                        {% if inv.job_id %}
+                        <a href="/jobs/{{ inv.job_id }}" onclick="event.stopPropagation();" style="color:var(--color-text-secondary);text-decoration:none;">#{{ inv.job_id }}</a>
+                        {% endif %}
                     </td>
-                    <td class="money" style="text-align: right;">${{ "{:,.2f}".format(inv.total or 0) }}</td>
-                    <td class="money {% if inv.is_overdue %}money-red{% elif inv.balance_due > 0 %}money-orange{% else %}money-green{% endif %}" style="text-align: right;">
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        {% if inv.status == 'draft' %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Draft</span>
+                        {% elif inv.status in ('sent', 'viewed') %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:rgba(13,148,136,0.1);color:var(--color-accent);">Sent</span>
+                        {% elif inv.status == 'paid' %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">Paid</span>
+                        {% elif inv.status == 'partial' %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:rgba(37,99,235,0.1);color:var(--color-info);">Partial</span>
+                        {% elif inv.status == 'overdue' %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:rgba(239,68,68,0.1);color:var(--color-danger);">Overdue</span>
+                        {% elif inv.status == 'void' %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Void</span>
+                        {% else %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ inv.status|title }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">
+                        {% if inv.payment_terms %}{{ inv.payment_terms|replace('_', ' ')|title }}{% endif %}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);white-space:nowrap;">
+                        {% if inv.due_date %}
+                        <span style="color:var(--color-text-secondary);">{{ inv.due_date[:10] }}</span>
+                        {% if inv.is_overdue and inv.days_overdue %}
+                        <div style="font-size:var(--font-size-xs);color:var(--color-danger);font-weight:600;">{{ inv.days_overdue }}d overdue</div>
+                        {% endif %}
+                        {% endif %}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;white-space:nowrap;">${{ "{:,.2f}".format(inv.total or 0) }}</td>
+                    <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;white-space:nowrap;{% if inv.is_overdue %}color:var(--color-danger);{% elif (inv.balance_due or 0) > 0 %}color:var(--color-warning);{% elif inv.status == 'paid' %}color:var(--color-success);{% endif %}">
                         ${{ "{:,.2f}".format(inv.balance_due or 0) }}
                     </td>
                 </tr>
@@ -175,38 +150,54 @@
             </tbody>
         </table>
         {% else %}
-        <div class="empty-state">
-            <i class="bi bi-receipt"></i>
-            <h3>No invoices yet</h3>
-            <p>Invoices will appear here when jobs are completed and invoiced</p>
+        <div style="padding:var(--space-6);text-align:center;">
+            <i class="bi bi-receipt" style="font-size:3rem;color:var(--color-text-muted);"></i>
+            <h3 style="margin:var(--space-2) 0 var(--space-1);">No invoices yet</h3>
+            <p style="color:var(--color-text-muted);">Invoices will appear here when jobs are completed and invoiced</p>
+            <a class="btn btn-accent" href="{{ url_for('invoice_new') }}">
+                <i class="bi bi-plus-lg"></i> Create First Invoice
+            </a>
         </div>
         {% endif %}
     </div>
 </div>
 
+<style>
+#invoicesTable tbody tr:hover { background: var(--color-surface-raised); }
+#invoicesTable tbody tr[style*="border-left:3px solid var(--color-danger)"]:hover { background: rgba(239,68,68,0.06); }
+</style>
+{% endblock %}
+
+{% block scripts %}
 <script>
-/* Client-side search filtering */
-function filterInvoiceTable(query) {
-    const q = query.toLowerCase().trim();
-    const rows = document.querySelectorAll('#invoicesTable tbody .invoice-row');
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(q) ? '' : 'none';
-    });
+function applyStatusFilter(status) {
+    window.location.href = '{{ url_for("invoices_page") }}' + (status ? '?status=' + status : '');
 }
 
-/* Toggle dropdown */
-document.addEventListener('click', function(e) {
-    document.querySelectorAll('.dropdown').forEach(dd => {
-        const menu = dd.querySelector('.dropdown-menu');
-        if (dd.contains(e.target)) {
-            if (e.target.closest('.btn')) {
-                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-            }
-        } else {
-            menu.style.display = 'none';
+function filterInvoices() {
+    var term = (document.getElementById('invoiceSearch').value || '').toLowerCase();
+    var terms = document.getElementById('termsFilter').value;
+    var dateDays = parseInt(document.getElementById('dateFilter').value) || 0;
+    var now = new Date();
+    var table = document.getElementById('invoicesTable');
+    if (!table) return;
+
+    table.querySelectorAll('tbody tr').forEach(function(row) {
+        var searchable = row.getAttribute('data-searchable') || '';
+        var rowTerms = row.getAttribute('data-terms') || '';
+        var created = row.getAttribute('data-created') || '';
+
+        var matchSearch = !term || searchable.includes(term);
+        var matchTerms = !terms || rowTerms === terms;
+        var matchDate = true;
+        if (dateDays && created) {
+            var createdDate = new Date(created);
+            var cutoff = new Date(now.getTime() - dateDays * 86400000);
+            matchDate = createdDate >= cutoff;
         }
+
+        row.style.display = (matchSearch && matchTerms && matchDate) ? '' : 'none';
     });
-});
+}
 </script>
 {% endblock %}

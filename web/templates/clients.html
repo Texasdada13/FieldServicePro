@@ -3,186 +3,139 @@
 {% block title %}Clients - FieldServicePro{% endblock %}
 
 {% block content %}
-<div class="page-header">
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
     <div>
-        <h1>Clients</h1>
-        <p>{{ clients|length }} client{{ 's' if clients|length != 1 else '' }}</p>
+        <h1 style="margin:0;">Clients</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ clients|length }} client{{ 's' if clients|length != 1 else '' }}</p>
     </div>
-    <a class="btn btn-primary" href="{{ url_for('client_new_page') }}">
-        <i class="bi bi-plus-lg"></i> New Client
-    </a>
 </div>
 
-<!-- Filters -->
-<div class="filter-bar">
-    <select onchange="window.location.href='{{ url_for('clients_page') }}?type=' + this.value">
-        <option value="">All Types</option>
-        <option value="commercial" {% if client_type_filter == 'commercial' %}selected{% endif %}>Commercial</option>
-        <option value="residential" {% if client_type_filter == 'residential' %}selected{% endif %}>Residential</option>
-    </select>
+<!-- KPI Stats -->
+{% set commercial_count = clients|selectattr('client_type', 'equalto', 'commercial')|list|length %}
+{% set residential_count = clients|selectattr('client_type', 'equalto', 'residential')|list|length %}
+{% set recent_count = clients|selectattr('created_at')|list|length %}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ clients|length }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Clients</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-info);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ commercial_count }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Commercial</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-text-muted);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ residential_count }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Residential</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ recent_count }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Active</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <select class="form-control" style="width:auto;min-width:140px;"
+                onchange="window.location.href='{{ url_for('clients_page') }}?type=' + this.value">
+            <option value="">All Types</option>
+            <option value="commercial" {% if client_type_filter == 'commercial' %}selected{% endif %}>Commercial</option>
+            <option value="residential" {% if client_type_filter == 'residential' %}selected{% endif %}>Residential</option>
+        </select>
+        <div style="position:relative;margin-left:auto;">
+            <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:0.8rem;"></i>
+            <input type="text" id="clientSearch" class="form-control" placeholder="Search clients..." oninput="filterClients()"
+                   style="padding-left:2rem;width:240px;">
+        </div>
+        <a class="btn btn-accent" href="{{ url_for('client_new_page') }}">
+            <i class="bi bi-plus-lg"></i> New Client
+        </a>
+    </div>
 </div>
 
 <!-- Clients Table -->
 <div class="card">
-    <div class="card-body" style="padding: 0;">
+    <div style="overflow-x:auto;">
         {% if clients %}
-        <table class="data-table">
+        <table id="clientsTable" style="width:100%;border-collapse:collapse;">
             <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>City</th>
-                    <th>Properties</th>
+                <tr style="border-bottom:2px solid var(--color-border);">
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:200px;">Name</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:90px;">Type</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:180px;">Email</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:130px;">Phone</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:110px;">City</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:center;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:80px;">Properties</th>
                 </tr>
             </thead>
             <tbody>
                 {% for client in clients %}
-                <tr style="cursor: pointer;" onclick="window.location.href='/clients/{{ client.id }}'">
-                    <td>
-                        <a href="/clients/{{ client.id }}" style="font-weight: 500; color: var(--primary); text-decoration: none;">{{ client.display_name }}</a>
+                <tr onclick="window.location.href='/clients/{{ client.id }}'"
+                    data-searchable="{{ client.display_name|lower }} {{ (client.company_name or '')|lower }} {{ (client.first_name or '')|lower }} {{ (client.last_name or '')|lower }} {{ (client.email or '')|lower }} {{ (client.phone or '')|lower }} {{ (client.billing_city or '')|lower }}"
+                    style="cursor:pointer;border-bottom:1px solid var(--color-border);{% if client.client_type == 'commercial' %}border-left:3px solid var(--color-info);{% else %}border-left:3px solid transparent;{% endif %}transition:background 0.1s;">
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <div style="font-weight:600;color:var(--color-accent);">{{ client.display_name }}</div>
                         {% if client.client_type == 'commercial' and client.first_name %}
-                        <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ client.first_name }} {{ client.last_name or '' }}</div>
+                        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:1px;">
+                            <i class="bi bi-person" style="font-size:0.65rem;"></i> {{ client.first_name }} {{ client.last_name or '' }}
+                        </div>
                         {% endif %}
                     </td>
-                    <td>
-                        <span class="badge {% if client.client_type == 'commercial' %}badge-scheduled{% else %}badge-draft{% endif %}">
-                            {{ client.client_type }}
-                        </span>
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        {% if client.client_type == 'commercial' %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:rgba(13,148,136,0.1);color:var(--color-accent);">Commercial</span>
+                        {% else %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Residential</span>
+                        {% endif %}
                     </td>
-                    <td style="font-size: 0.85rem;">{{ client.email or '—' }}</td>
-                    <td style="font-size: 0.85rem;">{{ client.phone or '—' }}</td>
-                    <td>{{ client.billing_city or '—' }}</td>
-                    <td>{{ client.property_count }}</td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">
+                        {% if client.email %}
+                        <a href="mailto:{{ client.email }}" onclick="event.stopPropagation();" style="color:var(--color-text-secondary);text-decoration:none;">{{ client.email }}</a>
+                        {% endif %}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);color:var(--color-text-secondary);white-space:nowrap;">
+                        {{ client.phone or '' }}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);color:var(--color-text-secondary);">
+                        {{ client.billing_city or '' }}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);text-align:center;">
+                        {% if client.property_count > 0 %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-surface-raised);color:var(--color-text-secondary);">{{ client.property_count }}</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
-        <div class="empty-state">
-            <i class="bi bi-people"></i>
-            <h3>No clients yet</h3>
-            <p>Add your first client to start creating jobs and quotes</p>
-            <button class="btn btn-primary" onclick="document.getElementById('newClientModal').classList.add('show')">
+        <div style="padding:var(--space-6);text-align:center;">
+            <i class="bi bi-people" style="font-size:3rem;color:var(--color-text-muted);"></i>
+            <h3 style="margin:var(--space-2) 0 var(--space-1);">No clients yet</h3>
+            <p style="color:var(--color-text-muted);">Add your first client to start creating jobs and quotes</p>
+            <a class="btn btn-accent" href="{{ url_for('client_new_page') }}">
                 <i class="bi bi-plus-lg"></i> Add First Client
-            </button>
+            </a>
         </div>
         {% endif %}
     </div>
 </div>
 
-<!-- New Client Modal -->
-<div class="modal-overlay" id="newClientModal">
-    <div class="modal">
-        <div class="modal-header">
-            <h2>New Client</h2>
-            <button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('show')">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="newClientForm" onsubmit="createClient(event)">
-                <div class="form-group">
-                    <label>Client Type</label>
-                    <select name="client_type" id="clientType" onchange="toggleCompanyField()">
-                        <option value="commercial">Commercial (Property Management, Business)</option>
-                        <option value="residential">Residential (Homeowner)</option>
-                    </select>
-                </div>
-
-                <div class="form-group" id="companyField">
-                    <label>Company Name</label>
-                    <input type="text" name="company_name" placeholder="e.g. Kingsley Management Inc.">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>First Name</label>
-                        <input type="text" name="first_name" placeholder="First name">
-                    </div>
-                    <div class="form-group">
-                        <label>Last Name</label>
-                        <input type="text" name="last_name" placeholder="Last name">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" name="email" placeholder="email@example.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Phone</label>
-                        <input type="text" name="phone" placeholder="(519) 555-0100">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Billing Address</label>
-                    <input type="text" name="billing_address" placeholder="123 Main St">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>City</label>
-                        <input type="text" name="billing_city" placeholder="Kitchener">
-                    </div>
-                    <div class="form-group">
-                        <label>Province</label>
-                        <input type="text" name="billing_province" value="Ontario">
-                    </div>
-                    <div class="form-group">
-                        <label>Postal Code</label>
-                        <input type="text" name="billing_postal_code" placeholder="N2G 1A1">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Notes</label>
-                    <textarea name="notes" placeholder="Any notes about this client..."></textarea>
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').classList.remove('show')">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('newClientForm').requestSubmit()">Create Client</button>
-        </div>
-    </div>
-</div>
+<style>
+#clientsTable tbody tr:hover { background: var(--color-surface-raised); }
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function toggleCompanyField() {
-    const type = document.getElementById('clientType').value;
-    document.getElementById('companyField').style.display = type === 'commercial' ? 'block' : 'none';
-}
-
-function createClient(e) {
-    e.preventDefault();
-    const form = e.target;
-    const data = {
-        client_type: form.client_type.value,
-        company_name: form.company_name?.value || null,
-        first_name: form.first_name.value,
-        last_name: form.last_name.value,
-        email: form.email.value,
-        phone: form.phone.value,
-        billing_address: form.billing_address.value,
-        billing_city: form.billing_city.value,
-        billing_province: form.billing_province.value,
-        billing_postal_code: form.billing_postal_code.value,
-        notes: form.notes.value,
-    };
-
-    fetch('/api/clients', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data),
-    })
-    .then(r => r.json())
-    .then(result => {
-        if (result.success) window.location.reload();
-        else alert('Error: ' + result.error);
+function filterClients() {
+    const term = (document.getElementById('clientSearch').value || '').toLowerCase();
+    const table = document.getElementById('clientsTable');
+    if (!table) return;
+    table.querySelectorAll('tbody tr').forEach(row => {
+        const searchable = row.getAttribute('data-searchable') || '';
+        row.style.display = (!term || searchable.includes(term)) ? '' : 'none';
     });
 }
 </script>

@@ -71,7 +71,7 @@ def seed():
             print("No clients found. Creating sample clients...")
             for i, (name, co) in enumerate([
                 ('Sarah', 'Apex Property Management Inc.'),
-                ('Marcus', 'Ridgeline Retail Group LLC'),
+                ('Rick', 'Ridgeline Retail Group LLC'),
                 ('Priya', 'Northern Data Centre Corp.'),
             ]):
                 c = Client(
@@ -89,7 +89,7 @@ def seed():
                  billing_contact_name='Sarah Chen', billing_contact_phone='416-555-0101'),
             dict(default_payment_terms='net_45', credit_limit=25000.0,
                  require_po=False, billing_email='billing@ridgeline.com',
-                 billing_contact_name='Marcus Webb', billing_contact_phone='905-555-0202'),
+                 billing_contact_name='Rick Webb', billing_contact_phone='905-555-0202'),
             dict(default_payment_terms='net_60', credit_limit=100000.0,
                  require_po=True, billing_email='facilities@ndc.ca',
                  billing_contact_name='Priya Okonkwo', billing_contact_phone='647-555-0303',
@@ -185,7 +185,7 @@ def seed():
                  payment_terms='net_30', subtotal=3761.06, tax_rate=13, tax_amount=488.94,
                  total=4250.0, amount_paid=0, balance_due=4250.0,
                  department='Capital Projects', cost_code='CAP-ELEC-2025',
-                 billing_contact='Marcus Webb', approval_status='approved',
+                 billing_contact='Rick Webb', approval_status='approved',
                  approved_by=owner.id, approved_at=datetime.utcnow()),
             # 31-60 days overdue
             dict(invoice_number=next_num(), client_id=clients[1].id if len(clients) > 1 else clients[0].id,
@@ -194,7 +194,7 @@ def seed():
                  due_date=datetime.combine(today - timedelta(days=40), datetime.min.time()),
                  payment_terms='net_45', subtotal=2566.37, tax_rate=13, tax_amount=333.63,
                  total=2900.0, amount_paid=0, balance_due=2900.0,
-                 billing_contact='Marcus Webb', approval_status='approved',
+                 billing_contact='Rick Webb', approval_status='approved',
                  approved_by=owner.id, approved_at=datetime.utcnow()),
             # 61-90 days overdue (tax exempt)
             dict(invoice_number=next_num(), client_id=clients[2].id if len(clients) > 2 else clients[0].id,

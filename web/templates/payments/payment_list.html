@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Payments - FieldServicePro{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Payments</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ payments|length }} payment{{ 's' if payments|length != 1 else '' }}</p>
+    </div>
+</div>
+
+<!-- KPI Stats -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="font-size:var(--font-size-xl);font-weight:700;color:var(--color-success);">${{ "{:,.2f}".format(total_this_month) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">This Month</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);">
+        <div style="font-size:var(--font-size-xl);font-weight:700;">${{ "{:,.2f}".format(total_all_time) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">All Time</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-info);">
+        <div style="font-size:var(--font-size-xl);font-weight:700;">${{ "{:,.2f}".format(total_today) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Today ({{ payments_today_count }})</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <select name="method" class="form-control" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+            <option value="">All Methods</option>
+            <option value="cash" {{ 'selected' if filter_method == 'cash' }}>Cash</option>
+            <option value="cheque" {{ 'selected' if filter_method == 'cheque' }}>Cheque</option>
+            <option value="e-transfer" {{ 'selected' if filter_method == 'e-transfer' }}>E-Transfer</option>
+            <option value="credit_card" {{ 'selected' if filter_method == 'credit_card' }}>Credit Card</option>
+            <option value="ach" {{ 'selected' if filter_method == 'ach' }}>ACH</option>
+            <option value="wire" {{ 'selected' if filter_method == 'wire' }}>Wire</option>
+        </select>
+        <select name="range" class="form-control" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+            <option value="">All Dates</option>
+            <option value="7" {{ 'selected' if filter_range == '7' }}>Last 7 Days</option>
+            <option value="30" {{ 'selected' if filter_range == '30' }}>Last 30 Days</option>
+            <option value="90" {{ 'selected' if filter_range == '90' }}>Last 90 Days</option>
+            <option value="365" {{ 'selected' if filter_range == '365' }}>This Year</option>
+        </select>
+        <div style="position:relative;margin-left:auto;">
+            <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:0.8rem;"></i>
+            <input type="text" name="search" class="form-control" placeholder="Search by invoice, client, ref..." value="{{ search or '' }}"
+                   style="padding-left:2rem;width:240px;">
+        </div>
+        {% if filter_method or filter_range or search %}
+        <a href="{{ url_for('payments.payment_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Payments Table -->
+<div class="card">
+    <div style="overflow-x:auto;">
+        {% if payments %}
+        <table id="paymentsTable" style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom:2px solid var(--color-border);">
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:110px;">Date</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:150px;">Client</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Invoice</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Method</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Amount</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Reference</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:120px;">Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payments %}
+                <tr style="border-bottom:1px solid var(--color-border);transition:background 0.1s;">
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);white-space:nowrap;">
+                        {{ p.payment_date.strftime('%b %d, %Y') if p.payment_date else '' }}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);font-weight:500;">{{ p.client_name }}</td>
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        {% if p.invoice_id %}
+                        <a href="/invoices/{{ p.invoice_id }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;">{{ p.invoice_number }}</a>
+                        {% endif %}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        {% if p.payment_method %}
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-secondary);text-transform:capitalize;">{{ p.payment_method|replace('_', ' ')|replace('-', ' ') }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;color:var(--color-success);white-space:nowrap;">
+                        ${{ "{:,.2f}".format(p.amount) }}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);color:var(--color-text-secondary);">
+                        {{ p.reference_number or '' }}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        {{ p.notes or '' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="padding:var(--space-6);text-align:center;">
+            <i class="bi bi-credit-card" style="font-size:3rem;color:var(--color-text-muted);"></i>
+            <h3 style="margin:var(--space-2) 0 var(--space-1);">No payments found</h3>
+            <p style="color:var(--color-text-muted);">{% if search or filter_method or filter_range %}No payments match your filters.{% else %}Payments will appear here when invoices are paid.{% endif %}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+#paymentsTable tbody tr:hover { background: var(--color-surface-raised); }
+</style>
+{% endblock %}

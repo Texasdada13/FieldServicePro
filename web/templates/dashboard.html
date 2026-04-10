@@ -5,485 +5,361 @@
 
 {% block content %}
 
-<!-- Greeting Header -->
+<!-- ── Greeting ── -->
 <div class="dash-greeting">
-  <div class="dash-date">{{ now().strftime('%A, %B %d').replace(' 0', ' ') if now else 'Today' }}</div>
+  <div class="dash-date">{{ now().strftime('%A, %B %d, %Y').replace(' 0', ' ') if now else 'Today' }}</div>
   <h1 class="dash-hello">Good {% if now %}{% set h = now().hour %}{% if h < 12 %}morning{% elif h < 17 %}afternoon{% else %}evening{% endif %}{% else %}day{% endif %}, {{ user.first_name or 'there' }}</h1>
 </div>
 
-<!-- KPI Row -->
-<div class="row g-4 mb-4">
+<!-- ══════════════ ROW 1 — KPI Cards ══════════════ -->
+<div class="dash-kpi-row">
+
   <!-- Active Jobs -->
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="metric-card">
-      <div class="metric-card__icon metric-card__icon--accent">
-        <i class="bi bi-briefcase-fill" aria-hidden="true"></i>
-      </div>
-      <p class="metric-card__label">Active Jobs</p>
-      <p class="metric-card__value">{{ active_jobs or 0 }}</p>
-      <p class="metric-card__trend metric-card__trend--up">
-        <i class="bi bi-arrow-up-short" aria-hidden="true"></i>
-        <span class="money">${{ "{:,.1f}k".format(jobs_active_value / 1000) if jobs_active_value else '0' }}</span>
-      </p>
+  <div class="metric-card">
+    <div class="metric-card__icon metric-card__icon--accent">
+      <i class="bi bi-briefcase-fill"></i>
     </div>
+    <p class="metric-card__label">Active Jobs</p>
+    <p class="metric-card__value">{{ active_jobs or 0 }}</p>
+    <p class="metric-card__trend metric-card__trend--up">
+      <i class="bi bi-arrow-up-short"></i>
+      <span class="money">${{ "{:,.0f}".format(jobs_active_value) if jobs_active_value else '0' }} pipeline</span>
+    </p>
   </div>
 
-  <!-- Open Quotes -->
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="metric-card">
-      <div class="metric-card__icon metric-card__icon--warning">
-        <i class="bi bi-file-earmark-text-fill" aria-hidden="true"></i>
-      </div>
-      <p class="metric-card__label">Open Quotes</p>
-      <p class="metric-card__value">{{ quotes_approved or 0 }}</p>
-      <p class="metric-card__trend metric-card__trend--neutral">
-        <i class="bi bi-dash" aria-hidden="true"></i>
-        <span>{{ quotes_draft or 0 }} draft</span>
-      </p>
+  <!-- Revenue -->
+  <div class="metric-card">
+    <div class="metric-card__icon metric-card__icon--success">
+      <i class="bi bi-currency-dollar"></i>
     </div>
+    <p class="metric-card__label">Total Paid</p>
+    <p class="metric-card__value">${{ "{:,.0f}".format(total_paid) if total_paid else '0' }}</p>
+    <p class="metric-card__trend metric-card__trend--up">
+      <i class="bi bi-arrow-up-short"></i>
+      <span>${{ "{:,.0f}".format(total_invoiced) if total_invoiced else '0' }} invoiced</span>
+    </p>
   </div>
 
-  <!-- Revenue (MTD) -->
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="metric-card">
-      <div class="metric-card__icon metric-card__icon--success">
-        <i class="bi bi-currency-dollar" aria-hidden="true"></i>
-      </div>
-      <p class="metric-card__label">Total Paid</p>
-      <p class="metric-card__value">${{ "{:,.0f}".format(total_paid) if total_paid else '0' }}</p>
-      <p class="metric-card__trend metric-card__trend--up">
-        <i class="bi bi-arrow-up-short" aria-hidden="true"></i>
-        <span>${{ "{:,.0f}".format(total_invoiced) if total_invoiced else '0' }} invoiced</span>
-      </p>
+  <!-- Overdue Invoices -->
+  <div class="metric-card{% if invoices_past_due and invoices_past_due > 0 %} metric-card--alert{% endif %}">
+    <div class="metric-card__icon metric-card__icon--danger">
+      <i class="bi bi-exclamation-triangle-fill"></i>
     </div>
+    <p class="metric-card__label">Overdue Invoices</p>
+    <p class="metric-card__value{% if invoices_past_due and invoices_past_due > 0 %} metric-card__value--danger{% endif %}">{{ invoices_past_due or 0 }}</p>
+    <p class="metric-card__trend metric-card__trend--down">
+      <i class="bi bi-arrow-down-short"></i>
+      <span>${{ "{:,.0f}".format(total_overdue) if total_overdue else '0' }} outstanding</span>
+    </p>
   </div>
 
-  <!-- Overdue -->
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="metric-card">
-      <div class="metric-card__icon metric-card__icon--danger">
-        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
-      </div>
-      <p class="metric-card__label">Overdue</p>
-      <p class="metric-card__value">${{ "{:,.0f}".format(total_overdue) if total_overdue else '0' }}</p>
-      <p class="metric-card__trend metric-card__trend--down">
-        <i class="bi bi-arrow-down-short" aria-hidden="true"></i>
-        <span>{{ invoices_past_due or 0 }} invoices</span>
-      </p>
+  <!-- Upcoming Schedule -->
+  <div class="metric-card">
+    <div class="metric-card__icon metric-card__icon--warning">
+      <i class="bi bi-calendar-week-fill"></i>
     </div>
+    <p class="metric-card__label">Upcoming (7 days)</p>
+    <p class="metric-card__value">{{ todays_jobs|length + (active_jobs or 0) - (todays_jobs|length) }}</p>
+    <p class="metric-card__trend metric-card__trend--neutral">
+      <i class="bi bi-calendar-check"></i>
+      <span>${{ "{:,.0f}".format(upcoming_jobs_value) if upcoming_jobs_value else '0' }} scheduled</span>
+    </p>
   </div>
+
 </div>
 
 <!-- Compliance Alerts -->
 {% include 'partials/_compliance_alerts.html' %}
 
-<!-- Commercial Invoicing Widgets -->
-{% if user.role in ('owner', 'admin', 'dispatcher') %}
-<div class="row g-4 mb-4">
-  <!-- AR Summary -->
-  <div class="col-md-4">
-    <div class="card" style="height: 100%;">
-      <div class="card-body" style="padding: var(--space-5);">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-2);">
-          <div>
-            <p style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-1);">Accounts Receivable</p>
-            <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold);">${{ "{:,.0f}".format(total_ar) }}</div>
-          </div>
-          <div class="metric-card__icon metric-card__icon--primary"><i class="bi bi-currency-dollar"></i></div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-3);">
-          <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-2); text-align: center;">
-            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Overdue</div>
-            <div style="font-weight: var(--font-weight-bold); color: var(--color-danger);">${{ "{:,.0f}".format(overdue_amount) }}</div>
-          </div>
-          <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-2); text-align: center;">
-            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">Avg Days Paid</div>
-            <div style="font-weight: var(--font-weight-bold);">{{ avg_days_to_payment }}d</div>
-          </div>
-        </div>
-        <div style="margin-top: var(--space-3);">
-          <a href="{{ url_for('aging_report') }}" class="btn btn-sm btn-ghost" style="width: 100%;"><i class="bi bi-bar-chart"></i> View Aging Report</a>
+<!-- ══════════════ ROW 2 — Overview + Today's Schedule ══════════════ -->
+<div class="dash-row-2">
+
+  <!-- LEFT: Workflow Overview -->
+  <div class="dash-overview-card card">
+    <div class="card-header">
+      <h2 class="card-title"><i class="bi bi-kanban" style="margin-right:6px; color:var(--color-accent);"></i> Workflow Overview</h2>
+    </div>
+    <div class="card-body" style="padding:0;">
+
+      <!-- Pipeline Bar -->
+      <div style="padding: var(--space-4) var(--space-5) 0;">
+        <div class="workflow-bar" style="margin-bottom: var(--space-4);">
+          <div class="workflow-segment seg-requests" style="flex:{{ requests_new or 1 }}"></div>
+          <div class="workflow-segment seg-quotes" style="flex:{{ quotes_approved or 1 }}"></div>
+          <div class="workflow-segment seg-jobs" style="flex:{{ active_jobs or 1 }}"></div>
+          <div class="workflow-segment seg-invoices" style="flex:{{ invoices_awaiting or 1 }}"></div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- Approval Queue -->
-  <div class="col-md-4">
-    <div class="card" style="height: 100%; {% if pending_approvals > 0 %}border-left: 4px solid var(--color-warning);{% endif %}">
-      <div class="card-body" style="padding: var(--space-5);">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-2);">
-          <div>
-            <p style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-1);">Awaiting Approval</p>
-            <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold);">{{ pending_approvals }} <span style="font-size: var(--font-size-sm); font-weight: var(--font-weight-normal); color: var(--color-text-muted);">invoice{{ 's' if pending_approvals != 1 }}</span></div>
+      <!-- Pipeline Stats -->
+      <div class="dash-pipeline-grid">
+        <a href="{{ url_for('jobs_page') }}?status=draft" class="dash-stat-row dash-stat-row--warning">
+          <div class="dash-stat-bar"></div>
+          <div class="dash-stat-content">
+            <span class="dash-stat-label">New Requests</span>
+            <span class="dash-stat-value">{{ requests_new }}</span>
           </div>
-          <div class="metric-card__icon metric-card__icon--warning"><i class="bi bi-clipboard-check"></i></div>
-        </div>
-        {% if pending_approvals > 0 %}
-        <div style="padding: var(--space-2) var(--space-3); background: rgba(245,158,11,0.08); border-radius: var(--radius-md); margin: var(--space-3) 0; font-size: var(--font-size-xs); color: var(--color-warning-dark);">
-          <i class="bi bi-exclamation-triangle"></i>
-          {{ pending_approvals }} invoice{{ 's' if pending_approvals != 1 }} {{ 'requires' if pending_approvals == 1 else 'require' }} your review.
-        </div>
-        {% else %}
-        <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-top: var(--space-2);">All invoices have been reviewed.</p>
-        {% endif %}
-        {% if user.role in ('owner', 'admin') %}
-        <a href="{{ url_for('approval_queue') }}" class="btn btn-sm {% if pending_approvals > 0 %}btn-warning{% else %}btn-ghost{% endif %}" style="width: 100%;">
-          <i class="bi bi-clipboard-check"></i> {% if pending_approvals > 0 %}Review Now{% else %}View Queue{% endif %}
+          {% if requests_overdue > 0 %}
+          <span class="badge badge-danger" style="font-size:0.65rem;">{{ requests_overdue }} overdue</span>
+          {% endif %}
+        </a>
+
+        <a href="{{ url_for('quotes_page') }}" class="dash-stat-row dash-stat-row--blue">
+          <div class="dash-stat-bar"></div>
+          <div class="dash-stat-content">
+            <span class="dash-stat-label">Open Quotes</span>
+            <span class="dash-stat-value">{{ quotes_approved }}</span>
+          </div>
+          <span class="dash-stat-money">${{ "{:,.0f}".format(quotes_total_value) }}</span>
+        </a>
+
+        <a href="{{ url_for('jobs_page') }}?status=completed" class="dash-stat-row dash-stat-row--accent">
+          <div class="dash-stat-bar"></div>
+          <div class="dash-stat-content">
+            <span class="dash-stat-label">Requires Invoicing</span>
+            <span class="dash-stat-value">{{ jobs_requires_invoicing }}</span>
+          </div>
+        </a>
+
+        <a href="{{ url_for('jobs_page') }}?status=on_hold" class="dash-stat-row dash-stat-row--amber">
+          <div class="dash-stat-bar"></div>
+          <div class="dash-stat-content">
+            <span class="dash-stat-label">Action Required</span>
+            <span class="dash-stat-value">{{ jobs_action_required }}</span>
+          </div>
+          {% if jobs_action_value > 0 %}
+          <span class="dash-stat-money">${{ "{:,.0f}".format(jobs_action_value) }}</span>
+          {% endif %}
+        </a>
+
+        <a href="{{ url_for('invoices_page') }}" class="dash-stat-row dash-stat-row--green">
+          <div class="dash-stat-bar"></div>
+          <div class="dash-stat-content">
+            <span class="dash-stat-label">Awaiting Payment</span>
+            <span class="dash-stat-value">{{ invoices_awaiting }}</span>
+          </div>
+          <span class="dash-stat-money">${{ "{:,.0f}".format(total_outstanding) }}</span>
+        </a>
+
+        {% if invoices_past_due > 0 %}
+        <a href="{{ url_for('invoices_page') }}?status=overdue" class="dash-stat-row dash-stat-row--red">
+          <div class="dash-stat-bar"></div>
+          <div class="dash-stat-content">
+            <span class="dash-stat-label">Past Due</span>
+            <span class="dash-stat-value">{{ invoices_past_due }}</span>
+          </div>
+          <span class="dash-stat-money" style="color:var(--color-danger);">${{ "{:,.0f}".format(invoices_past_due_value) }}</span>
         </a>
         {% endif %}
       </div>
+
     </div>
   </div>
 
-  <!-- POs Expiring Soon -->
-  <div class="col-md-4">
-    <div class="card" style="height: 100%; {% if expiring_pos %}border-left: 4px solid var(--color-danger);{% endif %}">
-      <div class="card-body" style="padding: var(--space-5);">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-2);">
-          <div>
-            <p style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-1);">POs Expiring Soon</p>
-            <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold);">{{ expiring_pos|length }} <span style="font-size: var(--font-size-sm); font-weight: var(--font-weight-normal); color: var(--color-text-muted);">within 30 days</span></div>
-          </div>
-          <div class="metric-card__icon metric-card__icon--danger"><i class="bi bi-calendar-x"></i></div>
+  <!-- RIGHT: Today's Schedule -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title"><i class="bi bi-clock" style="margin-right:6px; color:var(--color-accent);"></i> Today's Schedule</h2>
+      <a href="{{ url_for('schedule_page') }}" class="btn btn-sm btn-ghost">View All</a>
+    </div>
+    <div class="card-body" style="padding:0;">
+      {% if todays_jobs %}
+      <!-- Financial summary -->
+      <div class="dash-today-fin">
+        <div class="dash-today-fin-item">
+          <span class="dash-today-fin-label">Total</span>
+          <span class="dash-today-fin-val">${{ "{:,.0f}".format(todays_total) }}</span>
         </div>
-        {% if expiring_pos %}
-        <div style="margin: var(--space-2) 0;">
-          {% for po in expiring_pos[:3] %}
-          <div style="display: flex; justify-content: space-between; padding: var(--space-1) 0; border-bottom: 1px solid var(--color-border-light); font-size: var(--font-size-sm);">
-            <a href="{{ url_for('purchase_orders.po_detail', po_id=po.id) }}" style="font-weight: var(--font-weight-medium);">{{ po.po_number }}</a>
-            <span style="color: var(--color-text-muted);">
-              {{ po.expiry_date.strftime('%b %d') }}
-              {% set days_left = (po.expiry_date - today).days %}
-              <span class="badge {% if days_left <= 7 %}badge-danger{% else %}badge-pending{% endif %}" style="margin-left: 4px;">{{ days_left }}d</span>
-            </span>
-          </div>
-          {% endfor %}
-          {% if expiring_pos|length > 3 %}
-          <div style="font-size: var(--font-size-xs); color: var(--color-text-muted); text-align: center; padding-top: var(--space-1);">+{{ expiring_pos|length - 3 }} more</div>
-          {% endif %}
+        <div class="dash-today-fin-item">
+          <span class="dash-today-fin-label">Active</span>
+          <span class="dash-today-fin-val">${{ "{:,.0f}".format(todays_active_value) }}</span>
         </div>
-        {% else %}
-        <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-top: var(--space-2);">No POs expiring in the next 30 days.</p>
-        {% endif %}
-        <a href="{{ url_for('purchase_orders.po_list') }}" class="btn btn-sm btn-ghost" style="width: 100%; margin-top: var(--space-2);"><i class="bi bi-file-earmark-text"></i> All Purchase Orders</a>
+        <div class="dash-today-fin-item">
+          <span class="dash-today-fin-label">Completed</span>
+          <span class="dash-today-fin-val" style="color:var(--color-success);">${{ "{:,.0f}".format(todays_completed_value) }}</span>
+        </div>
       </div>
-    </div>
-  </div>
-</div>
-{% endif %}
 
-<!-- Workflow Pipeline -->
-<div class="workflow-section">
-  <h2 class="workflow-title">Workflow</h2>
-  <div class="workflow-bar">
-    <div class="workflow-segment seg-requests" style="flex:1"></div>
-    <div class="workflow-segment seg-quotes" style="flex:1"></div>
-    <div class="workflow-segment seg-jobs" style="flex:1"></div>
-    <div class="workflow-segment seg-invoices" style="flex:1"></div>
-  </div>
-  <div class="workflow-grid">
-    <!-- Requests -->
-    <div class="workflow-card">
-      <div class="workflow-card-header">
-        <i class="bi bi-inbox"></i> Requests
-      </div>
-      <div class="workflow-card-value">{{ requests_new }}</div>
-      <div class="workflow-card-label">New</div>
-      <div class="workflow-card-details">
-        <span>Assessments complete ({{ completed_jobs }})</span>
-        <span>Overdue ({{ requests_overdue }})</span>
-      </div>
-    </div>
-    <!-- Quotes -->
-    <div class="workflow-card">
-      <div class="workflow-card-header">
-        <i class="bi bi-file-earmark-text"></i> Quotes
-      </div>
-      <div class="workflow-card-value">{{ quotes_approved }}</div>
-      <div class="workflow-card-label">Approved</div>
-      <div class="workflow-card-details">
-        <span>Draft ({{ quotes_draft }}) <span class="wf-money">${{ "{:,.1f}k".format(quotes_total_value / 1000) }}</span></span>
-        <span>Changes requested ({{ quotes_changes }})</span>
-      </div>
-    </div>
-    <!-- Jobs -->
-    <div class="workflow-card">
-      <div class="workflow-card-header">
-        <i class="bi bi-wrench"></i> Jobs <span class="wf-money">${{ "{:,.1f}k".format(jobs_active_value / 1000) }}</span>
-      </div>
-      <div class="workflow-card-value">{{ active_jobs }}</div>
-      <div class="workflow-card-label">Requires invoicing</div>
-      <div class="workflow-card-details">
-        <span>Active ({{ active_jobs }}) <span class="wf-money">${{ "{:,.1f}k".format(jobs_active_value / 1000) }}</span></span>
-        <span>Action required ({{ jobs_action_required }}) <span class="wf-money">${{ "{:,.0f}".format(jobs_action_value) }}</span></span>
-      </div>
-    </div>
-    <!-- Invoices -->
-    <div class="workflow-card">
-      <div class="workflow-card-header">
-        <i class="bi bi-receipt"></i> Invoices <span class="wf-money">${{ "{:,.1f}M".format(total_invoiced / 1000000) if total_invoiced >= 1000000 else "${:,.1f}k".format(total_invoiced / 1000) }}</span>
-      </div>
-      <div class="workflow-card-value">{{ invoices_awaiting }}</div>
-      <div class="workflow-card-label">Awaiting payment</div>
-      <div class="workflow-card-details">
-        <span>Draft ({{ invoices_draft }}) <span class="wf-money">${{ "{:,.1f}k".format(invoices_draft_value / 1000) }}</span></span>
-        <span>Past due ({{ invoices_past_due }}) <span class="wf-money">${{ "{:,.1f}k".format(invoices_past_due_value / 1000) }}</span></span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Main Content: Appointments + Business Performance -->
-<div class="dash-main-grid">
-  <!-- Left: Today's Appointments -->
-  <div class="dash-appointments">
-    <div class="dash-section-header">
-      <h2>Today's appointments</h2>
-    </div>
-
-    <!-- Financial summary bar -->
-    <div class="appt-financials">
-      <div class="appt-fin-item">
-        <div class="appt-fin-label">Total</div>
-        <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_total / 1000) if todays_total >= 1000 else "{:,.0f}".format(todays_total) }}</div>
-      </div>
-      <div class="appt-fin-item">
-        <div class="appt-fin-label">Active</div>
-        <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_active_value / 1000) if todays_active_value >= 1000 else "{:,.0f}".format(todays_active_value) }}</div>
-      </div>
-      <div class="appt-fin-item">
-        <div class="appt-fin-label">Completed</div>
-        <div class="appt-fin-value">${{ "{:,.1f}K".format(todays_completed_value / 1000) if todays_completed_value >= 1000 else "{:,.0f}".format(todays_completed_value) }}</div>
-      </div>
-      <div class="appt-fin-item">
-        <div class="appt-fin-label">Overdue</div>
-        <div class="appt-fin-value money-red">${{ "{:,.0f}".format(todays_overdue_value) }}</div>
-      </div>
-      <div class="appt-fin-item">
-        <div class="appt-fin-label">Remaining</div>
-        <div class="appt-fin-value">${{ "{:,.0f}".format(todays_remaining) }}</div>
-      </div>
-      <a href="{{ url_for('jobs_page') }}" class="appt-view-schedule">View Schedule</a>
-    </div>
-
-    {% if todays_jobs %}
-    <div class="appt-overdue-label">{{ todays_jobs|length }} SCHEDULED</div>
-    <div class="appt-list">
-      {% for job in todays_jobs %}
-      <div class="appt-item">
-        <div class="appt-item-main">
-          <div class="appt-item-title">{{ job.title }}</div>
-          <div class="appt-item-time">
-            {% if job.scheduled_date %}
-              {{ job.scheduled_date[:16].split('T')[1] if 'T' in (job.scheduled_date or '') else '' }}
+      <div class="dash-appt-list">
+        {% for job in todays_jobs %}
+        <a href="{{ url_for('job_detail', job_id=job.id) }}" class="dash-appt-item">
+          <div class="dash-appt-time">
+            {% if job.scheduled_date and 'T' in (job.scheduled_date or '') %}
+              {{ job.scheduled_date.split('T')[1][:5] }}
+            {% else %}
+              --:--
             {% endif %}
           </div>
-        </div>
-        <div class="appt-item-right">
-          <span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span>
-          {% if job.estimated_amount %}
-          <span class="appt-item-amount">${{ "{:,.0f}".format(job.estimated_amount) }}</span>
-          {% endif %}
-        </div>
+          <div class="dash-appt-info">
+            <div class="dash-appt-title">{{ job.title }}</div>
+            <div class="dash-appt-meta">
+              {% if job.client_name is defined %}{{ job.client_name }}{% endif %}
+              {% if job.job_type %} &middot; <span style="text-transform:capitalize;">{{ job.job_type|replace('_',' ') }}</span>{% endif %}
+            </div>
+          </div>
+          <div class="dash-appt-right">
+            <span class="badge badge-{{ job.status }}">{{ job.status|replace('_',' ') }}</span>
+          </div>
+        </a>
+        {% endfor %}
       </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-state" style="padding: 2rem;">
-      <i class="bi bi-calendar-check"></i>
-      <h3>No appointments today</h3>
-      <p>All clear for now</p>
-    </div>
-    {% endif %}
-
-    <!-- Recent Jobs -->
-    <div class="dash-section-header" style="margin-top: 1.5rem;">
-      <h2>Recent Jobs</h2>
-      <a href="{{ url_for('jobs_page') }}" class="btn btn-sm btn-secondary">View All</a>
-    </div>
-    {% if recent_jobs %}
-    <div class="appt-list">
-      {% for job in recent_jobs[:6] %}
-      <div class="appt-item">
-        <div class="appt-item-main">
-          <div class="appt-item-title">{{ job.title }}</div>
-          <div class="appt-item-time" style="font-size: 0.75rem; color: var(--color-text-secondary);">{{ job.job_number }}</div>
-        </div>
-        <div class="appt-item-right">
-          <span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span>
-          {% if job.estimated_amount %}
-          <span class="appt-item-amount">${{ "{:,.0f}".format(job.estimated_amount) }}</span>
-          {% endif %}
-        </div>
+      {% else %}
+      <div class="empty-state" style="padding:var(--space-8) var(--space-5);">
+        <i class="bi bi-calendar-check" style="font-size:2rem;"></i>
+        <h3>No appointments today</h3>
+        <p>Your schedule is clear</p>
       </div>
-      {% endfor %}
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 
-  <!-- Right: Business Performance -->
-  <div class="dash-performance">
+</div>
+
+<!-- ══════════════ ROW 3 — Activity + Quick Actions ══════════════ -->
+<div class="dash-row-3">
+
+  <!-- LEFT: Recent Activity -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title"><i class="bi bi-activity" style="margin-right:6px; color:var(--color-accent);"></i> Recent Activity</h2>
+      <a href="{{ url_for('jobs_page') }}" class="btn btn-sm btn-ghost">View All Jobs</a>
+    </div>
+    <div class="card-body" style="padding:0;">
+      {% if recent_jobs %}
+      <div class="dash-activity-feed">
+        {% for job in recent_jobs %}
+        <a href="{{ url_for('job_detail', job_id=job.id) }}" class="dash-activity-item">
+          <div class="dash-activity-icon
+            {%- if job.status == 'completed' %} dash-activity-icon--success
+            {%- elif job.status == 'in_progress' %} dash-activity-icon--accent
+            {%- elif job.status == 'draft' %} dash-activity-icon--warning
+            {%- elif job.status == 'on_hold' %} dash-activity-icon--danger
+            {%- else %} dash-activity-icon--default{% endif %}">
+            {% if job.status == 'completed' %}<i class="bi bi-check-lg"></i>
+            {% elif job.status == 'in_progress' %}<i class="bi bi-wrench"></i>
+            {% elif job.status == 'draft' %}<i class="bi bi-plus-lg"></i>
+            {% elif job.status == 'on_hold' %}<i class="bi bi-pause-fill"></i>
+            {% elif job.status == 'scheduled' %}<i class="bi bi-calendar-event"></i>
+            {% else %}<i class="bi bi-circle"></i>{% endif %}
+          </div>
+          <div class="dash-activity-body">
+            <div class="dash-activity-title">{{ job.title }}</div>
+            <div class="dash-activity-meta">
+              <span class="badge badge-{{ job.status }}" style="font-size:0.6rem; padding:1px 6px;">{{ job.status|replace('_',' ') }}</span>
+              <span>{{ job.job_number }}</span>
+              {% if job.estimated_amount %}<span class="money">${{ "{:,.0f}".format(job.estimated_amount) }}</span>{% endif %}
+            </div>
+          </div>
+          <div class="dash-activity-time">
+            {% if job.created_at %}
+              {{ job.created_at[:10] }}
+            {% endif %}
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding:var(--space-8);">
+        <i class="bi bi-clock-history" style="font-size:2rem;"></i>
+        <h3>No recent activity</h3>
+        <p>Create your first job to get started</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- RIGHT: Quick Actions + Key Metrics -->
+  <div class="dash-right-stack">
+
+    <!-- Quick Actions -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title"><i class="bi bi-lightning-charge" style="margin-right:6px; color:var(--color-warning);"></i> Quick Actions</h2>
+      </div>
+      <div class="card-body">
+        <div class="dash-quick-grid">
+          <a href="{{ url_for('jobs_page') }}" class="dash-quick-btn dash-quick-btn--accent">
+            <i class="bi bi-plus-circle"></i>
+            <span>New Job</span>
+          </a>
+          <a href="{{ url_for('quotes_page') }}" class="dash-quick-btn dash-quick-btn--blue">
+            <i class="bi bi-file-earmark-text"></i>
+            <span>New Quote</span>
+          </a>
+          <a href="{{ url_for('invoice_new') }}" class="dash-quick-btn dash-quick-btn--green">
+            <i class="bi bi-receipt"></i>
+            <span>New Invoice</span>
+          </a>
+          <a href="{{ url_for('client_new_page') }}" class="dash-quick-btn dash-quick-btn--purple">
+            <i class="bi bi-person-plus"></i>
+            <span>New Client</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
     <!-- Receivables -->
-    <div class="perf-card">
-      <div class="perf-card-header">
-        <h3>Receivables</h3>
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Receivables</h2>
         <a href="{{ url_for('invoices_page') }}" class="perf-chevron"><i class="bi bi-chevron-right"></i></a>
       </div>
-      <div class="perf-subtitle">{{ receivables_count }} clients owe you</div>
-      <div class="perf-big-number">${{ "{:,.0f}".format(total_outstanding) }}</div>
-
-      {% if receivables_clients %}
-      <table class="perf-table">
-        <thead>
-          <tr>
-            <th>Client</th>
-            <th style="text-align:right">Balance</th>
-            <th style="text-align:right">Late</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for rc in receivables_clients %}
-          <tr>
-            <td class="perf-client-name">
-              {% if rc.client_type == 'commercial' and rc.company_name %}
-                {{ rc.company_name[:30] }}
-              {% else %}
-                {{ (rc.first_name or '') ~ ' ' ~ (rc.last_name or '') }}
-              {% endif %}
-            </td>
-            <td style="text-align:right" class="money">${{ "{:,.1f}k".format(rc.balance / 1000) if rc.balance >= 1000 else "{:,.0f}".format(rc.balance) }}</td>
-            <td style="text-align:right" class="money money-red">{% if rc.late > 0 %}${{ "{:,.1f}k".format(rc.late / 1000) if rc.late >= 1000 else "{:,.0f}".format(rc.late) }}{% else %}-{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% endif %}
-    </div>
-
-    <!-- Upcoming Jobs -->
-    <div class="perf-card">
-      <div class="perf-card-header">
-        <h3>Upcoming jobs</h3>
-        <a href="{{ url_for('jobs_page') }}" class="perf-chevron"><i class="bi bi-chevron-right"></i></a>
-      </div>
-      <div class="perf-subtitle">This week</div>
-      <div class="perf-big-number">${{ "{:,.0f}".format(upcoming_jobs_value) }}</div>
-    </div>
-
-    <!-- Revenue Summary -->
-    <div class="perf-card">
-      <div class="perf-card-header">
-        <h3>Revenue Summary</h3>
-      </div>
-      <div class="perf-fin-rows">
-        <div class="perf-fin-row">
-          <span>Total Invoiced</span>
-          <span class="money money-green">${{ "{:,.0f}".format(total_invoiced) }}</span>
+      <div class="card-body">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:var(--space-3);">
+          <span class="perf-big-number" style="margin:0;">${{ "{:,.0f}".format(total_outstanding) }}</span>
+          <span style="font-size:var(--font-size-xs); color:var(--color-text-muted);">{{ receivables_count }} client{{ 's' if receivables_count != 1 }}</span>
         </div>
-        <div class="perf-fin-row">
-          <span>Total Paid</span>
-          <span class="money money-green">${{ "{:,.0f}".format(total_paid) }}</span>
-        </div>
-        <div class="perf-fin-row">
-          <span>Outstanding</span>
-          <span class="money money-orange">${{ "{:,.0f}".format(total_outstanding) }}</span>
-        </div>
-        <div class="perf-fin-row">
-          <span>Overdue</span>
-          <span class="money money-red">${{ "{:,.0f}".format(total_overdue) }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Expiring Contracts -->
-    <div class="perf-card">
-      <div class="perf-card-header">
-        <h3><i class="bi bi-clock-history" style="color: var(--color-warning); margin-right: 4px;"></i> Expiring Contracts</h3>
-        <a href="{{ url_for('contracts.contract_list') }}?expiring_soon=1" class="perf-chevron"><i class="bi bi-chevron-right"></i></a>
-      </div>
-      {% if expiring_contracts %}
-      <div style="margin-top: var(--space-2);">
-        {% for c in expiring_contracts %}
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border-light);">
-          <div style="min-width: 0; flex: 1;">
-            <a href="{{ url_for('contracts.contract_detail', contract_id=c.id) }}" style="font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); text-decoration: none; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              {{ c.title }}
-            </a>
-            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
-              {{ c.client.display_name if c.client else '---' }} · {{ c.contract_number }}
-            </div>
-          </div>
-          <div style="text-align: right; margin-left: var(--space-2); flex-shrink: 0;">
-            {% set days = c.days_until_expiry %}
-            <span class="badge {% if days <= 7 %}badge-danger{% elif days <= 14 %}badge-pending{% else %}badge-draft{% endif %}">{{ days }}d</span>
-            <div style="font-size: 0.65rem; color: var(--color-text-muted);">{{ c.end_date.strftime('%b %d') }}</div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div style="text-align: center; padding: var(--space-4) 0; color: var(--color-text-muted); font-size: var(--font-size-sm);">
-        <i class="bi bi-check-circle" style="color: var(--color-success); display: block; font-size: 1.5rem; margin-bottom: var(--space-2);"></i>
-        No contracts expiring in 30 days
-      </div>
-      {% endif %}
-    </div>
-
-    <!-- SLA Performance -->
-    <div class="perf-card">
-      <div class="perf-card-header">
-        <h3><i class="bi bi-shield-check" style="color: var(--color-accent); margin-right: 4px;"></i> SLA Performance</h3>
-        <span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">30 days</span>
-      </div>
-      {% if sla_perf_pct is not none %}
-      <div style="text-align: center; margin: var(--space-3) 0;">
-        <div style="font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: {% if sla_perf_pct >= 90 %}var(--color-success){% elif sla_perf_pct >= 70 %}var(--color-warning){% else %}var(--color-danger){% endif %};">
-          {{ sla_perf_pct }}%
-        </div>
-        <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
-          Resolution Rate · {{ sla_jobs_count }} jobs
-        </div>
-        <div style="height: 6px; background: var(--color-border); border-radius: var(--radius-full); margin-top: var(--space-2); overflow: hidden;">
-          <div style="height: 100%; width: {{ sla_perf_pct }}%; background: {% if sla_perf_pct >= 90 %}var(--color-success){% elif sla_perf_pct >= 70 %}var(--color-warning){% else %}var(--color-danger){% endif %}; border-radius: var(--radius-full);"></div>
-        </div>
-      </div>
-      {% else %}
-      <div style="text-align: center; padding: var(--space-3) 0; color: var(--color-text-muted); font-size: var(--font-size-sm);">
-        <i class="bi bi-bar-chart" style="display: block; font-size: 1.5rem; margin-bottom: var(--space-2);"></i>
-        No SLA data yet this month
-      </div>
-      {% endif %}
-
-      {% if sla_alert_jobs %}
-      <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-3); margin-top: var(--space-3);">
-        <div style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--color-text-muted); margin-bottom: var(--space-2);">
-          <i class="bi bi-exclamation-triangle" style="color: var(--color-danger);"></i>
-          Needs Attention ({{ sla_alert_jobs|length }})
-        </div>
-        {% for job in sla_alert_jobs[:3] %}
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
-          <div style="min-width: 0; flex: 1;">
-            <a href="{{ url_for('job_detail', job_id=job.id) }}" style="font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); text-decoration: none; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              {{ (job.title or 'Job #' ~ job.id) }}
-            </a>
-            <div style="font-size: 0.65rem; color: var(--color-text-muted);">
-              {{ job.contract.contract_number if job.contract else '' }}
-            </div>
-          </div>
-          <span class="badge {% if job.sla_resolution_breached %}badge-danger{% else %}badge-pending{% endif %}" style="margin-left: var(--space-2);">
-            {{ 'Breached' if job.sla_resolution_breached else 'At Risk' }}
-          </span>
-        </div>
-        {% endfor %}
-        {% if sla_alert_jobs|length > 3 %}
-        <div style="font-size: var(--font-size-xs); text-align: center; color: var(--color-text-muted);">
-          +{{ sla_alert_jobs|length - 3 }} more
-        </div>
+        {% if receivables_clients %}
+        <table class="perf-table">
+          <thead><tr><th>Client</th><th style="text-align:right">Balance</th><th style="text-align:right">Late</th></tr></thead>
+          <tbody>
+            {% for rc in receivables_clients[:4] %}
+            <tr>
+              <td class="perf-client-name">
+                {% if rc.client_type == 'commercial' and rc.company_name %}{{ rc.company_name[:25] }}{% else %}{{ (rc.first_name or '') ~ ' ' ~ (rc.last_name or '') }}{% endif %}
+              </td>
+              <td style="text-align:right" class="money">${{ "{:,.0f}".format(rc.balance) }}</td>
+              <td style="text-align:right" class="money money-red">{% if rc.late > 0 %}${{ "{:,.0f}".format(rc.late) }}{% else %}-{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         {% endif %}
       </div>
-      {% endif %}
     </div>
+
+    <!-- Contracts & SLA -->
+    {% if expiring_contracts or sla_perf_pct is not none %}
+    <div class="card">
+      <div class="card-body" style="padding:var(--space-4) var(--space-5);">
+        {% if sla_perf_pct is not none %}
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-3);">
+          <div>
+            <div style="font-size:var(--font-size-xs); color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.05em;">SLA Performance (30d)</div>
+            <div style="font-size:var(--font-size-xl); font-weight:var(--font-weight-bold); color:{% if sla_perf_pct >= 90 %}var(--color-success){% elif sla_perf_pct >= 70 %}var(--color-warning){% else %}var(--color-danger){% endif %};">{{ sla_perf_pct }}%</div>
+          </div>
+          <div style="width:60px; height:6px; background:var(--color-border); border-radius:var(--radius-full); overflow:hidden;">
+            <div style="height:100%; width:{{ sla_perf_pct }}%; background:{% if sla_perf_pct >= 90 %}var(--color-success){% elif sla_perf_pct >= 70 %}var(--color-warning){% else %}var(--color-danger){% endif %}; border-radius:var(--radius-full);"></div>
+          </div>
+        </div>
+        {% endif %}
+        {% if expiring_contracts %}
+        <div style="font-size:var(--font-size-xs); color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:var(--space-2);">
+          <i class="bi bi-clock-history" style="color:var(--color-warning);"></i> {{ expiring_contracts|length }} contract{{ 's' if expiring_contracts|length != 1 }} expiring
+        </div>
+        {% for c in expiring_contracts[:3] %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:var(--space-1) 0; font-size:var(--font-size-sm);">
+          <a href="{{ url_for('contracts.contract_detail', contract_id=c.id) }}" style="font-weight:var(--font-weight-medium); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">{{ c.title }}</a>
+          {% set days = c.days_until_expiry %}
+          <span class="badge {% if days <= 7 %}badge-danger{% elif days <= 14 %}badge-pending{% else %}badge-draft{% endif %}">{{ days }}d</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
   </div>
 </div>
+
 {% endblock %}

@@ -99,7 +99,7 @@
           </a>
         </li>
         <li class="sidebar__item">
-          <a href="{{ url_for('invoices_page') }}?status=paid"
+          <a href="{{ url_for('payments.payment_list') }}"
              class="sidebar__link {% if active_page == 'payments' %}is-active{% endif %}">
             <i class="bi bi-credit-card sidebar__link-icon" aria-hidden="true"></i>
             <span class="sidebar__link-text">Payments</span>
