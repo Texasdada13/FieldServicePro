@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(venv/Scripts/python.exe web/app.py)",
+      "Bash(disown sleep:*)"
     ]
   }
 }

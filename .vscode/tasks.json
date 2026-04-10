@@ -10,10 +10,20 @@
       "runOptions": {
         "runOn": "folderOpen"
       },
-      "problemMatcher": [],
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*Serving Flask app.*$",
+          "endsPattern": "^.*Running on http.*$"
+        }
+      },
       "presentation": {
         "reveal": "silent",
-        "panel": "dedicated"
+        "panel": "dedicated",
+        "close": false
       }
     }
   ]
