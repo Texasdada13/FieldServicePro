@@ -56,6 +56,7 @@ from web.routes.portal_routes import portal_bp
 from web.routes.portal_admin_routes import portal_admin_bp
 from web.routes.request_routes import requests_bp
 from web.routes.payment_routes import payments_bp
+from web.routes.schedule_routes import schedule_api_bp
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -123,6 +124,7 @@ app.register_blueprint(portal_bp)
 app.register_blueprint(portal_admin_bp)
 app.register_blueprint(requests_bp)
 app.register_blueprint(payments_bp)
+app.register_blueprint(schedule_api_bp)
 
 
 @app.before_request

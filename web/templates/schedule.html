@@ -3,666 +3,608 @@
 {% block title %}Schedule - FieldServicePro{% endblock %}
 
 {% block head %}
+<!-- FullCalendar CDN -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <style>
 /* ══════ SCHEDULE LAYOUT ══════ */
-.schedule-container { display: flex; gap: 0; height: calc(100vh - 80px); overflow: hidden; }
-.schedule-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.schedule-sidebar {
-    width: 280px; border-left: 1px solid var(--border); background: white;
-    display: flex; flex-direction: column; flex-shrink: 0;
-}
-.schedule-sidebar.collapsed { width: 0; overflow: hidden; border: none; }
+.sched-wrap { display:flex; height:calc(100vh - 80px); overflow:hidden; }
 
-/* ══════ TOOLBAR ══════ */
-.schedule-toolbar {
-    display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border); background: white; flex-shrink: 0; flex-wrap: wrap;
+/* Left Panel */
+.sched-left {
+    width:280px; flex-shrink:0; background:var(--color-surface);
+    border-right:1px solid var(--color-border); display:flex; flex-direction:column; overflow:hidden;
 }
-.sched-nav { display: flex; align-items: center; gap: 0.25rem; }
-.sched-nav-btn {
-    background: none; border: 1px solid var(--border); border-radius: 6px;
-    padding: 0.35rem 0.6rem; cursor: pointer; font-size: 0.8rem; color: var(--text-primary);
-    transition: all 0.15s;
+.sched-left-tabs {
+    display:flex; border-bottom:2px solid var(--color-border); flex-shrink:0;
 }
-.sched-nav-btn:hover { background: #f1f5f9; }
-.sched-date-label { font-weight: 600; font-size: 1rem; min-width: 180px; }
-.sched-today-btn {
-    background: white; border: 1px solid var(--border); border-radius: 6px;
-    padding: 0.35rem 0.75rem; cursor: pointer; font-size: 0.8rem; font-weight: 500;
+.sched-left-tab {
+    flex:1; padding:var(--space-2); text-align:center; font-size:var(--font-size-xs);
+    font-weight:600; cursor:pointer; border:none; background:none; color:var(--color-text-muted);
+    border-bottom:2px solid transparent; margin-bottom:-2px; font-family:inherit;
 }
-.sched-today-btn:hover { background: #f1f5f9; }
+.sched-left-tab.active { color:var(--color-accent); border-bottom-color:var(--color-accent); }
+.sched-left-search {
+    padding:var(--space-2); border-bottom:1px solid var(--color-border); flex-shrink:0;
+}
+.sched-left-search input {
+    width:100%; padding:6px 10px 6px 30px; border:1px solid var(--color-border);
+    border-radius:var(--radius-md); font-size:var(--font-size-xs); font-family:inherit;
+}
+.sched-left-body { flex:1; overflow-y:auto; padding:var(--space-2); }
+.sched-panel { display:none; }
+.sched-panel.active { display:block; }
 
-/* View toggle buttons */
-.sched-view-toggle { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-left: auto; }
-.sched-view-btn {
-    background: white; border: none; border-right: 1px solid var(--border);
-    padding: 0.35rem 0.75rem; cursor: pointer; font-size: 0.8rem; color: var(--text-secondary);
-    transition: all 0.15s;
+/* Tech Cards */
+.tech-card {
+    background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-md);
+    padding:var(--space-2); margin-bottom:var(--space-2); cursor:grab;
+    transition:box-shadow 0.15s, transform 0.1s;
 }
-.sched-view-btn:last-child { border-right: none; }
-.sched-view-btn:hover { background: #f1f5f9; }
-.sched-view-btn.active { background: var(--primary); color: white; }
+.tech-card:hover { box-shadow:0 2px 8px rgba(0,0,0,0.08); transform:translateY(-1px); }
+.tech-card:active { cursor:grabbing; }
+.tech-card__name { font-weight:600; font-size:var(--font-size-sm); }
+.tech-card__meta { font-size:var(--font-size-xs); color:var(--color-text-muted); display:flex; align-items:center; gap:var(--space-1); margin-top:2px; }
+.tech-card__dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.tech-card__dot--green { background:#16a34a; }
+.tech-card__dot--amber { background:#d97706; }
+.tech-card__dot--red { background:#dc2626; }
 
-.sched-sidebar-toggle {
-    background: none; border: 1px solid var(--border); border-radius: 6px;
-    padding: 0.35rem 0.6rem; cursor: pointer; font-size: 0.85rem; color: var(--text-secondary);
-    position: relative;
+/* Unassigned Job Cards */
+.unassigned-card {
+    background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-md);
+    padding:var(--space-2); margin-bottom:var(--space-2); cursor:grab;
+    transition:box-shadow 0.15s;
 }
-.sched-sidebar-toggle:hover { background: #f1f5f9; }
-.sched-sidebar-toggle .count-badge {
-    position: absolute; top: -6px; right: -6px; background: var(--danger);
-    color: white; font-size: 0.6rem; padding: 1px 5px; border-radius: 10px; font-weight: 600;
-}
+.unassigned-card:hover { box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+.unassigned-card__num { font-weight:600; font-size:var(--font-size-xs); color:var(--color-accent); }
+.unassigned-card__title { font-size:var(--font-size-xs); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.unassigned-card__client { font-size:0.65rem; color:var(--color-text-muted); }
 
-/* ══════ CALENDAR GRID (WEEK) ══════ */
-.cal-header-row {
-    display: grid; grid-template-columns: 60px repeat(7, 1fr);
-    border-bottom: 1px solid var(--border); background: #f8fafc; flex-shrink: 0;
+/* Right Panel */
+.sched-right { flex:1; display:flex; flex-direction:column; min-width:0; overflow:hidden; }
+.sched-filters {
+    display:flex; gap:var(--space-2); padding:var(--space-2) var(--space-3);
+    border-bottom:1px solid var(--color-border); align-items:center; flex-shrink:0; flex-wrap:wrap;
 }
-.cal-header-cell {
-    padding: 0.5rem; text-align: center; font-size: 0.75rem; font-weight: 600;
-    color: var(--text-secondary); text-transform: uppercase; border-right: 1px solid var(--border);
+.sched-filter-pill {
+    display:inline-block; font-size:var(--font-size-xs); font-weight:600;
+    padding:3px 12px; border-radius:999px; cursor:pointer; border:none;
+    background:var(--color-surface-raised); color:var(--color-text-muted); font-family:inherit;
+    transition:all 0.15s;
 }
-.cal-header-cell:first-child { border-right: 1px solid var(--border); }
-.cal-header-cell:last-child { border-right: none; }
-.cal-header-cell .day-num { font-size: 1.1rem; color: var(--text-primary); display: block; }
-.cal-header-cell .day-num.today { background: var(--primary); color: white; border-radius: 50%; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; }
-.cal-header-cell .visit-count { font-size: 0.65rem; color: var(--text-secondary); font-weight: 400; }
+.sched-filter-pill.active { background:var(--color-accent); color:#fff; }
+.sched-calendar { flex:1; padding:var(--space-2) var(--space-3); overflow:auto; }
 
-.cal-body { flex: 1; overflow-y: auto; }
+/* FullCalendar Overrides */
+.fc { font-family:inherit; }
+.fc .fc-toolbar-title { font-size:var(--font-size-base)!important; font-weight:600; }
+.fc .fc-button { font-size:var(--font-size-xs)!important; padding:4px 10px; border-radius:var(--radius-sm); }
+.fc .fc-button-primary { background:var(--color-accent); border-color:var(--color-accent); }
+.fc .fc-button-primary:not(:disabled).fc-button-active { background:var(--color-accent-dark, #0b7e74); border-color:var(--color-accent-dark, #0b7e74); }
+.fc .fc-button-primary:hover { background:var(--color-accent-dark, #0b7e74); border-color:var(--color-accent-dark, #0b7e74); }
+.fc .fc-event { border-radius:4px!important; font-size:0.7rem!important; padding:2px 4px; border:none!important; }
+.fc .fc-event-title { font-weight:500; }
+.fc .fc-timegrid-slot { height:28px; }
+.fc .fc-col-header-cell { font-size:var(--font-size-xs); font-weight:600; }
+.fc .fc-daygrid-day-number { font-size:var(--font-size-sm); }
+.fc-theme-standard td, .fc-theme-standard th { border-color:var(--color-border)!important; }
+.fc .fc-now-indicator-line { border-color:var(--color-danger); }
+.fc-timegrid-event .fc-event-main { padding:2px 4px; }
 
-/* Week view - all-day / block layout */
-.cal-week-grid {
-    display: grid; grid-template-columns: 60px repeat(7, 1fr); min-height: 100%;
-}
-.cal-time-gutter { border-right: 1px solid var(--border); }
-.cal-time-label {
-    height: 60px; padding: 0 0.35rem 0 0; text-align: right;
-    font-size: 0.65rem; color: var(--text-secondary); position: relative; top: -8px;
-}
-.cal-day-col {
-    border-right: 1px solid var(--border); position: relative; min-height: 100%;
-}
-.cal-day-col:last-child { border-right: none; }
-.cal-hour-slot { height: 60px; border-bottom: 1px solid #f1f5f9; }
-.cal-day-col.today-col { background: #fafcff; }
-
-/* Event blocks */
-.cal-event {
-    position: absolute; left: 2px; right: 2px; border-radius: 4px;
-    padding: 2px 6px; font-size: 0.7rem; color: white; cursor: pointer;
-    overflow: hidden; z-index: 2; line-height: 1.3; min-height: 22px;
-    border-left: 3px solid rgba(0,0,0,0.2); transition: opacity 0.15s;
-}
-.cal-event:hover { opacity: 0.85; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10; }
-.cal-event-time { font-weight: 600; font-size: 0.65rem; }
-.cal-event-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* All-day events row */
-.cal-allday-row {
-    display: grid; grid-template-columns: 60px repeat(7, 1fr);
-    border-bottom: 1px solid var(--border); min-height: 28px;
-}
-.cal-allday-label { font-size: 0.65rem; color: var(--text-secondary); padding: 4px; text-align: right; border-right: 1px solid var(--border); }
-.cal-allday-cell { border-right: 1px solid var(--border); padding: 2px; }
-.cal-allday-cell:last-child { border-right: none; }
-
-/* ══════ MONTH VIEW ══════ */
-.cal-month-grid {
-    display: grid; grid-template-columns: repeat(7, 1fr); flex: 1;
-    border-top: 1px solid var(--border); overflow-y: auto;
-}
-.cal-month-header {
-    display: grid; grid-template-columns: repeat(7, 1fr);
-    background: #f8fafc; border-bottom: 1px solid var(--border); flex-shrink: 0;
-}
-.cal-month-header-cell {
-    padding: 0.5rem; text-align: center; font-size: 0.75rem; font-weight: 600;
-    color: var(--text-secondary); text-transform: uppercase;
-}
-.cal-month-day {
-    border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
-    min-height: 100px; padding: 0.25rem; display: flex; flex-direction: column;
-}
-.cal-month-day:nth-child(7n) { border-right: none; }
-.cal-month-day.other-month { background: #fafafa; }
-.cal-month-day.today-cell { background: #eff6ff; }
-.cal-month-day .month-day-num {
-    font-size: 0.8rem; font-weight: 500; color: var(--text-secondary);
-    margin-bottom: 0.25rem; padding: 0 0.25rem;
-}
-.cal-month-day.today-cell .month-day-num { color: var(--primary); font-weight: 700; }
-.cal-month-event {
-    padding: 1px 4px; border-radius: 3px; font-size: 0.65rem; color: white;
-    margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    cursor: pointer; line-height: 1.4;
-}
-.cal-month-event:hover { opacity: 0.85; }
-.cal-month-more { font-size: 0.65rem; color: var(--primary); cursor: pointer; padding: 0 4px; }
-
-/* ══════ DAY VIEW ══════ */
-.cal-day-view-grid {
-    display: grid; grid-template-columns: 60px 1fr; min-height: 100%;
+/* Event tooltip */
+.sched-tooltip {
+    position:absolute; z-index:9999; background:#fff; border:1px solid var(--color-border);
+    border-radius:var(--radius-md); padding:var(--space-3); box-shadow:0 4px 12px rgba(0,0,0,0.15);
+    font-size:var(--font-size-sm); max-width:280px; pointer-events:none;
 }
 
-/* ══════ LIST VIEW ══════ */
-.schedule-list { flex: 1; overflow-y: auto; }
-.schedule-list-group { margin-bottom: 0.5rem; }
-.schedule-list-date {
-    padding: 0.5rem 1rem; background: #f8fafc; font-size: 0.8rem;
-    font-weight: 600; color: var(--text-secondary); border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 1;
+/* Assign Modal */
+.sched-modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;
+    display:flex; align-items:center; justify-content:center;
 }
-.schedule-item {
-    display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border); transition: background 0.1s; cursor: pointer;
+.sched-modal {
+    background:#fff; border-radius:var(--radius-lg); width:90%; max-width:480px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.3);
 }
-.schedule-item:hover { background: #f8fafc; }
-.schedule-time { font-size: 0.8rem; color: var(--text-secondary); min-width: 55px; font-variant-numeric: tabular-nums; }
-.schedule-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.schedule-details { flex: 1; min-width: 0; }
-.schedule-title { font-weight: 500; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.schedule-meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px; }
-.schedule-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
-
-/* ══════ POPOVER ══════ */
-.cal-popover {
-    position: fixed; z-index: 100; background: white; border-radius: 10px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.18); width: 320px; max-height: 400px;
-    overflow-y: auto; display: none;
+.sched-modal__header {
+    padding:var(--space-3) var(--space-4); border-bottom:1px solid var(--color-border);
+    display:flex; justify-content:space-between; align-items:center;
 }
-.cal-popover.show { display: block; }
-.cal-popover-header {
-    padding: 1rem 1rem 0.5rem; border-bottom: 1px solid var(--border);
-}
-.cal-popover-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.15rem; }
-.cal-popover-subtitle { font-size: 0.8rem; color: var(--text-secondary); }
-.cal-popover-body { padding: 0.75rem 1rem; }
-.cal-popover-row { display: flex; gap: 0.5rem; margin-bottom: 0.6rem; font-size: 0.8rem; }
-.cal-popover-row i { color: var(--text-secondary); width: 16px; text-align: center; margin-top: 2px; }
-.cal-popover-row .label { color: var(--text-secondary); min-width: 60px; }
-.cal-popover-actions {
-    padding: 0.75rem 1rem; border-top: 1px solid var(--border);
-    display: flex; gap: 0.5rem;
-}
-.cal-popover-actions .btn { flex: 1; justify-content: center; font-size: 0.8rem; padding: 0.4rem; }
-
-/* ══════ UNSCHEDULED SIDEBAR ══════ */
-.sched-sidebar-header {
-    padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
-    font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between;
-}
-.sched-sidebar-header .count { color: var(--text-secondary); font-weight: 400; }
-.sched-sidebar-search {
-    padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border);
-}
-.sched-sidebar-search input {
-    width: 100%; padding: 0.4rem 0.6rem; border: 1px solid var(--border);
-    border-radius: 6px; font-size: 0.8rem;
-}
-.sched-sidebar-list { flex: 1; overflow-y: auto; padding: 0.25rem 0; }
-.unsched-item {
-    padding: 0.6rem 0.75rem; border-bottom: 1px solid #f1f5f9; cursor: pointer;
-    transition: background 0.1s;
-}
-.unsched-item:hover { background: #f8fafc; }
-.unsched-item-title { font-size: 0.8rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.unsched-item-meta { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
-.unsched-item-badge {
-    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-    margin-right: 4px; vertical-align: middle;
+.sched-modal__header h3 { margin:0; font-size:var(--font-size-base); }
+.sched-modal__body { padding:var(--space-4); }
+.sched-modal__footer {
+    padding:var(--space-3) var(--space-4); border-top:1px solid var(--color-border);
+    display:flex; justify-content:flex-end; gap:var(--space-2);
 }
 
-/* ══════ TECHNICIAN ROW ══════ */
-.tech-row {
-    display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid #f1f5f9;
+/* Responsive */
+@media (max-width:768px) {
+    .sched-wrap { flex-direction:column; height:auto; }
+    .sched-left { width:100%; height:200px; border-right:none; border-bottom:1px solid var(--color-border); }
+    .sched-calendar { min-height:500px; }
 }
-.tech-avatar-sm {
-    width: 26px; height: 26px; border-radius: 50%; display: flex;
-    align-items: center; justify-content: center; color: white;
-    font-size: 0.65rem; font-weight: 600; flex-shrink: 0;
-}
-.tech-name { font-size: 0.8rem; font-weight: 500; }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Phase Conflict Warning -->
-{% if phases_with_conflicts is defined and phases_with_conflicts %}
-<div style="padding: var(--space-3) var(--space-4); background: rgba(245,158,11,0.08); border-radius: var(--radius-md); margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2);">
-  <i class="bi bi-exclamation-triangle-fill" style="color: var(--color-warning); font-size: 1.2rem;"></i>
-  <div style="font-size: var(--font-size-sm);">
-    <strong>Scheduling Conflicts:</strong>
-    {% for p in phases_with_conflicts %}
-    <a href="/jobs/{{ p.job_id }}#phases" class="badge badge-pending" style="text-decoration:none;margin-right:4px;">{{ p.job.job_number }} P{{ p.phase_number }}</a>
-    {% endfor %}
-    <span style="color: var(--color-text-secondary);">-- Same technician assigned to overlapping dates</span>
-  </div>
-</div>
-{% endif %}
-
-<!-- Popover (hidden) -->
-<div class="cal-popover" id="calPopover">
-    <div class="cal-popover-header">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-                <div class="cal-popover-title" id="popTitle"></div>
-                <div class="cal-popover-subtitle" id="popSubtitle"></div>
+<div class="sched-wrap">
+    <!-- ══════ LEFT PANEL ══════ -->
+    <div class="sched-left">
+        <div class="sched-left-tabs">
+            <button class="sched-left-tab active" onclick="switchLeftTab('techs')">Technicians</button>
+            <button class="sched-left-tab" onclick="switchLeftTab('unassigned')">Unassigned</button>
+        </div>
+        <div class="sched-left-search">
+            <div style="position:relative;">
+                <i class="bi bi-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:0.7rem;"></i>
+                <input type="text" id="leftSearch" placeholder="Filter..." oninput="filterLeftPanel()">
             </div>
-            <button onclick="closePopover()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--text-secondary);padding:0;">&times;</button>
         </div>
-    </div>
-    <div class="cal-popover-body">
-        <div class="cal-popover-row"><i class="bi bi-person"></i> <span id="popClient"></span></div>
-        <div class="cal-popover-row"><i class="bi bi-clipboard"></i> <span id="popJobNum"></span></div>
-        <div class="cal-popover-row"><i class="bi bi-people"></i> <span id="popTech"></span></div>
-        <div class="cal-popover-row"><i class="bi bi-geo-alt"></i> <span id="popLocation"></span></div>
-        <div class="cal-popover-row"><i class="bi bi-calendar3"></i> <span id="popDates"></span></div>
-        <div class="cal-popover-row"><i class="bi bi-currency-dollar"></i> <span id="popAmount"></span></div>
-    </div>
-    <div class="cal-popover-actions">
-        <a id="popEditBtn" href="#" class="btn btn-secondary"><i class="bi bi-pencil"></i> Edit</a>
-        <a id="popViewBtn" href="#" class="btn btn-primary"><i class="bi bi-eye"></i> View Details</a>
-    </div>
-</div>
-
-<div class="schedule-container">
-    <div class="schedule-main">
-        <!-- Toolbar -->
-        <div class="schedule-toolbar">
-            <button class="sched-today-btn" onclick="goToday()">Today</button>
-            <div class="sched-nav">
-                <button class="sched-nav-btn" onclick="goPrev()"><i class="bi bi-chevron-left"></i></button>
-                <button class="sched-nav-btn" onclick="goNext()"><i class="bi bi-chevron-right"></i></button>
-            </div>
-            <div class="sched-date-label" id="schedDateLabel"></div>
-
-            <div class="sched-view-toggle">
-                <button class="sched-view-btn" data-view="day" onclick="setView('day')">Day</button>
-                <button class="sched-view-btn active" data-view="week" onclick="setView('week')">Week</button>
-                <button class="sched-view-btn" data-view="month" onclick="setView('month')">Month</button>
-                <button class="sched-view-btn" data-view="list" onclick="setView('list')">List</button>
-            </div>
-
-            <button class="sched-sidebar-toggle" onclick="toggleSidebar()" title="Unscheduled jobs">
-                <i class="bi bi-layout-sidebar-reverse"></i>
-                {% if unscheduled %}<span class="count-badge">{{ unscheduled|length }}</span>{% endif %}
-            </button>
-        </div>
-
-        <!-- Calendar content area -->
-        <div id="calendarContent" style="flex:1; display:flex; flex-direction:column; overflow:hidden;"></div>
-    </div>
-
-    <!-- Unscheduled Sidebar -->
-    <div class="schedule-sidebar" id="schedSidebar">
-        <div class="sched-sidebar-header">
-            Unscheduled <span class="count" id="unschedCount">{{ unscheduled|length }}</span>
-        </div>
-        <div class="sched-sidebar-search">
-            <input type="text" placeholder="Search unscheduled..." oninput="filterUnscheduled(this.value)">
-        </div>
-        <div class="sched-sidebar-list" id="unschedList"></div>
-
-        {% if technicians %}
-        <div class="sched-sidebar-header" style="border-top: 1px solid var(--border);">
-            Team <span class="count">{{ technicians|length }}</span>
-        </div>
-        <div style="overflow-y: auto; max-height: 180px;">
-            {% for tech in technicians %}
-            <div class="tech-row">
-                <div class="tech-avatar-sm" style="background: {{ tech.color }}">
-                    {{ tech.first_name[0] }}{{ tech.last_name[0] if tech.last_name else '' }}
+        <div class="sched-left-body">
+            <!-- Technicians Panel -->
+            <div class="sched-panel active" id="panel-techs">
+                {% for tech in technicians %}
+                <div class="tech-card"
+                     data-tech-id="{{ tech.id }}"
+                     data-tech-name="{{ tech.full_name }}"
+                     data-searchable="{{ tech.full_name|lower }}">
+                    <div class="tech-card__name">{{ tech.full_name }}</div>
+                    <div class="tech-card__meta">
+                        <span class="tech-card__dot tech-card__dot--green" id="techDot{{ tech.id }}"></span>
+                        <span id="techCount{{ tech.id }}">0 jobs today</span>
+                        {% if tech.division_id %}
+                        <span style="display:inline-block;font-size:0.55rem;font-weight:600;padding:1px 5px;border-radius:999px;background:{{ tech.color or '#2563eb' }};color:#fff;">
+                            {% for d in divisions if d.id == tech.division_id %}{{ d.name[:4] }}{% endfor %}
+                        </span>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="tech-name">{{ tech.full_name }}</div>
+                {% endfor %}
             </div>
-            {% endfor %}
+
+            <!-- Unassigned Jobs Panel -->
+            <div class="sched-panel" id="panel-unassigned">
+                <div id="unassignedList">
+                    <!-- Populated via JS -->
+                    <div style="padding:var(--space-3);color:var(--color-text-muted);font-size:var(--font-size-xs);text-align:center;">Loading...</div>
+                </div>
+            </div>
         </div>
-        {% endif %}
+    </div>
+
+    <!-- ══════ RIGHT PANEL ══════ -->
+    <div class="sched-right">
+        <!-- Filters -->
+        <div class="sched-filters">
+            <button class="sched-filter-pill active" onclick="filterDivision(null, this)">All</button>
+            {% for div in divisions %}
+            <button class="sched-filter-pill" onclick="filterDivision({{ div.id }}, this)" style="{% if div.color %}border:1px solid {{ div.color }};{% endif %}">{{ div.name }}</button>
+            {% endfor %}
+            <select id="techFilter" class="form-control" style="width:auto;min-width:140px;font-size:var(--font-size-xs);margin-left:auto;" onchange="filterTechnician(this.value)">
+                <option value="">All Technicians</option>
+                {% for tech in technicians %}
+                <option value="{{ tech.id }}">{{ tech.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Calendar -->
+        <div class="sched-calendar" id="calendarEl"></div>
     </div>
 </div>
 
+<!-- ══════ ASSIGN MODAL ══════ -->
+<div class="sched-modal-overlay" id="assignModal" style="display:none;">
+    <div class="sched-modal">
+        <div class="sched-modal__header">
+            <h3 id="assignModalTitle">Assign Job</h3>
+            <button onclick="closeAssignModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--color-text-muted);">&times;</button>
+        </div>
+        <div class="sched-modal__body">
+            <div id="assignConflictWarning" style="display:none;padding:var(--space-2);background:rgba(245,158,11,0.1);border:1px solid var(--color-warning);border-radius:var(--radius-sm);margin-bottom:var(--space-3);font-size:var(--font-size-sm);color:var(--color-warning);">
+                <i class="bi bi-exclamation-triangle"></i> <span id="conflictText"></span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Technician</label>
+                <select id="assignTechSelect" class="form-control">
+                    <option value="">Select technician...</option>
+                    {% for tech in technicians %}
+                    <option value="{{ tech.id }}">{{ tech.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Job</label>
+                <select id="assignJobSelect" class="form-control">
+                    <option value="">Select job...</option>
+                </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);">
+                <div class="form-group">
+                    <label class="form-label">Start Time</label>
+                    <input type="datetime-local" id="assignStart" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">End Time</label>
+                    <input type="datetime-local" id="assignEnd" class="form-control">
+                </div>
+            </div>
+        </div>
+        <div class="sched-modal__footer">
+            <button class="btn btn-ghost" onclick="closeAssignModal()">Cancel</button>
+            <button class="btn btn-accent" id="assignSubmitBtn" onclick="submitAssignment()">Assign</button>
+        </div>
+    </div>
+</div>
+
+<!-- Tooltip container -->
+<div class="sched-tooltip" id="eventTooltip" style="display:none;"></div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-// ══════ DATA ══════
-const EVENTS = {{ events_json | tojson }};
-const UNSCHEDULED = {{ unscheduled_json | tojson }};
+const CAN_EDIT = {{ 'true' if user.role in ('owner', 'admin', 'dispatcher') else 'false' }};
+let calendar;
+let currentDivisionFilter = null;
+let currentTechFilter = null;
 
-// ══════ STATE ══════
-let currentView = 'week';
-let currentDate = new Date();
-const today = new Date();
-today.setHours(0,0,0,0);
+// ══════ FULLCALENDAR INIT ══════
+document.addEventListener('DOMContentLoaded', function() {
+    const calEl = document.getElementById('calendarEl');
 
-const DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    calendar = new FullCalendar.Calendar(calEl, {
+        initialView: 'timeGridWeek',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'timeGridDay,timeGridWeek,dayGridMonth'
+        },
+        slotDuration: '00:30:00',
+        slotMinTime: '06:00:00',
+        slotMaxTime: '20:00:00',
+        businessHours: { daysOfWeek: [1,2,3,4,5], startTime: '07:00', endTime: '18:00' },
+        nowIndicator: true,
+        editable: CAN_EDIT,
+        droppable: CAN_EDIT,
+        selectable: CAN_EDIT,
+        eventOverlap: true,
+        height: '100%',
+        allDaySlot: false,
 
-// ══════ HELPERS ══════
-function sameDay(a, b) { return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
-function startOfWeek(d) { const s = new Date(d); s.setDate(s.getDate() - s.getDay()); s.setHours(0,0,0,0); return s; }
-function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate()+n); return r; }
-function fmtTime(iso) { if (!iso) return ''; const d = new Date(iso); const h = d.getHours(); const m = d.getMinutes(); return (h > 12 ? h-12 : h||12) + ':' + String(m).padStart(2,'0') + (h >= 12 ? 'pm' : 'am'); }
-function fmtDate(d) { return MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
-function fmtDateShort(d) { return (d.getMonth()+1) + '/' + d.getDate(); }
-function eventsOnDay(date) {
-    return EVENTS.filter(e => {
-        if (!e.start) return false;
-        const s = new Date(e.start); s.setHours(0,0,0,0);
-        return sameDay(s, date);
+        // Load events from API
+        events: function(info, successCallback, failureCallback) {
+            let url = '/api/schedule/events?start=' + info.startStr + '&end=' + info.endStr;
+            if (currentDivisionFilter) url += '&division=' + currentDivisionFilter;
+            if (currentTechFilter) url += '&technician_id=' + currentTechFilter;
+            fetch(url).then(r => r.json()).then(successCallback).catch(failureCallback);
+        },
+
+        // Drop from external (tech or unassigned job)
+        drop: function(info) {
+            // Don't add event yet — modal will handle it
+        },
+
+        eventReceive: function(info) {
+            // External event dropped on calendar
+            info.event.remove(); // Remove the auto-created event
+            const props = info.event.extendedProps;
+            if (props.technicianId) {
+                // Tech dropped — open modal to select job
+                openAssignModal({
+                    techId: props.technicianId,
+                    techName: info.event.title,
+                    start: info.event.start,
+                    end: info.event.end || new Date(info.event.start.getTime() + 2*60*60000),
+                });
+            } else if (props.jobId) {
+                // Unassigned job dropped — open modal to select tech
+                openAssignModal({
+                    jobId: props.jobId,
+                    jobTitle: info.event.title,
+                    start: info.event.start,
+                    end: info.event.end || new Date(info.event.start.getTime() + 2*60*60000),
+                });
+            }
+        },
+
+        // Drag existing event to reschedule
+        eventDrop: function(info) {
+            if (!CAN_EDIT) { info.revert(); return; }
+            const jobId = info.event.extendedProps.jobId;
+            if (!jobId) { info.revert(); return; }
+
+            fetch('/api/schedule/reschedule', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    job_id: jobId,
+                    new_start: info.event.start.toISOString(),
+                    new_end: info.event.end ? info.event.end.toISOString() : null,
+                }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert('Error: ' + data.error); info.revert(); }
+            })
+            .catch(() => info.revert());
+        },
+
+        // Resize event
+        eventResize: function(info) {
+            if (!CAN_EDIT) { info.revert(); return; }
+            const jobId = info.event.extendedProps.jobId;
+            if (!jobId) { info.revert(); return; }
+
+            fetch('/api/schedule/reschedule', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    job_id: jobId,
+                    new_start: info.event.start.toISOString(),
+                    new_end: info.event.end ? info.event.end.toISOString() : null,
+                }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert('Error: ' + data.error); info.revert(); }
+            })
+            .catch(() => info.revert());
+        },
+
+        // Click on empty time to create
+        select: function(info) {
+            if (!CAN_EDIT) return;
+            openAssignModal({ start: info.start, end: info.end });
+        },
+
+        // Tooltip on hover
+        eventMouseEnter: function(info) {
+            const p = info.event.extendedProps;
+            const tip = document.getElementById('eventTooltip');
+            tip.innerHTML = `
+                <div style="font-weight:600;margin-bottom:4px;">${p.jobNumber || ''} — ${p.jobTitle || ''}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">
+                    <div><i class="bi bi-person"></i> ${p.clientName || ''}</div>
+                    <div><i class="bi bi-wrench"></i> ${p.technicianName || 'Unassigned'}</div>
+                    ${p.propertyAddress ? '<div><i class="bi bi-geo-alt"></i> ' + p.propertyAddress + '</div>' : ''}
+                    <div style="margin-top:4px;">
+                        <span style="text-transform:capitalize;">${p.priority || ''}</span> · ${p.division || ''} · ${p.status || ''}
+                    </div>
+                </div>
+                <a href="/jobs/${p.jobId}" style="font-size:var(--font-size-xs);color:var(--color-accent);margin-top:4px;display:block;">View Job →</a>
+            `;
+            tip.style.display = 'block';
+
+            const rect = info.el.getBoundingClientRect();
+            tip.style.top = (rect.top + window.scrollY - 10) + 'px';
+            tip.style.left = (rect.right + 8) + 'px';
+        },
+
+        eventMouseLeave: function() {
+            document.getElementById('eventTooltip').style.display = 'none';
+        },
+
+        // Event content
+        eventContent: function(arg) {
+            const p = arg.event.extendedProps;
+            return {
+                html: `<div style="padding:1px 2px;line-height:1.2;">
+                    <div style="font-weight:600;font-size:0.65rem;">${arg.event.title}</div>
+                    <div style="font-size:0.6rem;opacity:0.85;">${p.clientName || ''}</div>
+                    <div style="font-size:0.55rem;opacity:0.7;">${p.technicianName || ''}</div>
+                </div>`
+            };
+        },
     });
-}
-function hourFromISO(iso) { const d = new Date(iso); return d.getHours() + d.getMinutes()/60; }
 
-// ══════ POPOVER ══════
-function showPopover(evt, target) {
-    const pop = document.getElementById('calPopover');
-    document.getElementById('popTitle').textContent = evt.title;
-    document.getElementById('popSubtitle').innerHTML = '<span class="badge badge-' + evt.status + '">' + evt.status.replace('_',' ') + '</span> ' + (evt.division || '');
-    document.getElementById('popClient').textContent = evt.client || '—';
-    document.getElementById('popJobNum').textContent = evt.job_number || '—';
-    document.getElementById('popTech').textContent = evt.technician || 'Unassigned';
-    document.getElementById('popLocation').textContent = evt.location || '—';
-    const startStr = evt.start ? fmtDate(new Date(evt.start)) + ' ' + fmtTime(evt.start) : 'TBD';
-    const endStr = evt.end ? fmtTime(evt.end) : '';
-    document.getElementById('popDates').textContent = startStr + (endStr ? ' - ' + endStr : '');
-    document.getElementById('popAmount').textContent = '$' + (evt.estimated_amount||0).toLocaleString('en-US', {minimumFractionDigits:2});
-    document.getElementById('popEditBtn').href = '/jobs/' + evt.id;
-    document.getElementById('popViewBtn').href = '/jobs/' + evt.id;
+    calendar.render();
 
-    // Position near click target
-    const rect = target.getBoundingClientRect();
-    let left = rect.right + 8;
-    let top = rect.top;
-    if (left + 330 > window.innerWidth) left = rect.left - 330;
-    if (top + 400 > window.innerHeight) top = window.innerHeight - 410;
-    if (top < 10) top = 10;
-    pop.style.left = left + 'px';
-    pop.style.top = top + 'px';
-    pop.classList.add('show');
-}
-function closePopover() { document.getElementById('calPopover').classList.remove('show'); }
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.cal-event') && !e.target.closest('.cal-month-event') && !e.target.closest('.schedule-item') && !e.target.closest('.cal-popover')) {
-        closePopover();
+    // ══════ DRAGGABLE TECH CARDS ══════
+    if (CAN_EDIT) {
+        new FullCalendar.Draggable(document.getElementById('panel-techs'), {
+            itemSelector: '.tech-card',
+            eventData: function(el) {
+                return {
+                    title: el.dataset.techName,
+                    duration: '02:00',
+                    extendedProps: { technicianId: parseInt(el.dataset.techId) },
+                };
+            },
+        });
     }
+
+    // Load unassigned jobs
+    loadUnassignedJobs();
+    loadTechCounts();
 });
 
-// ══════ RENDER WEEK VIEW ══════
-function renderWeek() {
-    const container = document.getElementById('calendarContent');
-    const weekStart = startOfWeek(currentDate);
+// ══════ LEFT PANEL TABS ══════
+function switchLeftTab(tab) {
+    document.querySelectorAll('.sched-left-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.sched-panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+}
 
-    // Header
-    let headerHTML = '<div class="cal-header-row"><div class="cal-header-cell"></div>';
-    for (let i = 0; i < 7; i++) {
-        const d = addDays(weekStart, i);
-        const isToday = sameDay(d, today);
-        const dayEvents = eventsOnDay(d);
-        headerHTML += '<div class="cal-header-cell">' +
-            DAYS[i] +
-            '<span class="day-num' + (isToday ? ' today' : '') + '">' + d.getDate() + '</span>' +
-            (dayEvents.length ? '<span class="visit-count">' + dayEvents.length + ' visit' + (dayEvents.length!==1?'s':'') + '</span>' : '') +
-            '</div>';
-    }
-    headerHTML += '</div>';
+function filterLeftPanel() {
+    const q = document.getElementById('leftSearch').value.toLowerCase();
+    document.querySelectorAll('.tech-card, .unassigned-card').forEach(card => {
+        const s = (card.dataset.searchable || card.textContent).toLowerCase();
+        card.style.display = s.includes(q) ? '' : 'none';
+    });
+}
 
-    // Time grid
-    let gridHTML = '<div class="cal-body"><div class="cal-week-grid">';
-    // Time gutter
-    gridHTML += '<div class="cal-time-gutter">';
-    for (let h = 6; h <= 20; h++) {
-        const label = h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h-12) + 'pm';
-        gridHTML += '<div class="cal-time-label">' + label + '</div>';
-    }
-    gridHTML += '</div>';
-
-    // Day columns
-    for (let i = 0; i < 7; i++) {
-        const d = addDays(weekStart, i);
-        const isToday = sameDay(d, today);
-        const dayEvents = eventsOnDay(d);
-
-        gridHTML += '<div class="cal-day-col' + (isToday ? ' today-col' : '') + '">';
-        // Hour slots
-        for (let h = 6; h <= 20; h++) {
-            gridHTML += '<div class="cal-hour-slot"></div>';
+// ══════ UNASSIGNED JOBS ══════
+function loadUnassignedJobs() {
+    fetch('/api/schedule/unassigned-jobs')
+    .then(r => r.json())
+    .then(jobs => {
+        const container = document.getElementById('unassignedList');
+        if (!jobs.length) {
+            container.innerHTML = '<div style="padding:var(--space-3);color:var(--color-text-muted);font-size:var(--font-size-xs);text-align:center;">All jobs assigned</div>';
+            return;
         }
-        // Event blocks
-        dayEvents.forEach(evt => {
-            const startHour = evt.start ? hourFromISO(evt.start) : 8;
-            const endHour = evt.end ? hourFromISO(evt.end) : startHour + 1;
-            const topPx = (Math.max(startHour, 6) - 6) * 60;
-            const heightPx = Math.max((endHour - Math.max(startHour, 6)) * 60, 22);
+        container.innerHTML = jobs.map(j => `
+            <div class="unassigned-card"
+                 data-job-id="${j.id}"
+                 data-job-title="${j.jobNumber} — ${j.title}"
+                 data-estimated-hours="02:00"
+                 data-searchable="${j.jobNumber.toLowerCase()} ${j.title.toLowerCase()} ${j.clientName.toLowerCase()}">
+                <div class="unassigned-card__num">${j.jobNumber}</div>
+                <div class="unassigned-card__title">${j.title}</div>
+                <div class="unassigned-card__client">${j.clientName}</div>
+                <div style="display:flex;gap:4px;margin-top:2px;">
+                    <span style="font-size:0.55rem;font-weight:600;padding:1px 5px;border-radius:999px;background:${
+                        j.priority === 'emergency' ? 'rgba(220,38,38,0.1)' :
+                        j.priority === 'high' ? 'rgba(217,119,6,0.1)' : 'var(--color-surface-raised)'
+                    };color:${
+                        j.priority === 'emergency' ? 'var(--color-danger)' :
+                        j.priority === 'high' ? 'var(--color-warning)' : 'var(--color-text-muted)'
+                    };">${j.priority}</span>
+                    <span style="font-size:0.55rem;font-weight:600;padding:1px 5px;border-radius:999px;background:${j.divisionColor};color:#fff;">${j.division.substring(0,4)}</span>
+                </div>
+            </div>
+        `).join('');
 
-            gridHTML += '<div class="cal-event" style="top:' + topPx + 'px;height:' + heightPx + 'px;background:' + evt.color + ';" ' +
-                'onclick="showPopover(EVENTS[' + EVENTS.indexOf(evt) + '], this)" data-evt-id="' + evt.id + '">' +
-                '<div class="cal-event-time">' + fmtTime(evt.start) + '</div>' +
-                '<div class="cal-event-title">' + escHTML(evt.job_number ? evt.job_number + ' - ' + evt.title : evt.title) + '</div>' +
-                '<div style="font-size:0.6rem;opacity:0.9;">' + escHTML(evt.client) + '</div>' +
-                '</div>';
-        });
-        gridHTML += '</div>';
-    }
-    gridHTML += '</div></div>';
-
-    container.innerHTML = headerHTML + gridHTML;
-
-    // Scroll to 7am
-    const body = container.querySelector('.cal-body');
-    if (body) body.scrollTop = 60; // 1 hour below 6am = 7am
-}
-
-// ══════ RENDER MONTH VIEW ══════
-function renderMonth() {
-    const container = document.getElementById('calendarContent');
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const startDate = addDays(firstDay, -firstDay.getDay());
-
-    let html = '<div class="cal-month-header">';
-    DAYS.forEach(d => { html += '<div class="cal-month-header-cell">' + d + '</div>'; });
-    html += '</div><div class="cal-month-grid">';
-
-    let d = new Date(startDate);
-    for (let i = 0; i < 42; i++) {
-        const isOther = d.getMonth() !== month;
-        const isToday = sameDay(d, today);
-        const dayEvents = eventsOnDay(d);
-
-        html += '<div class="cal-month-day' + (isOther ? ' other-month' : '') + (isToday ? ' today-cell' : '') + '">';
-        html += '<div class="month-day-num">' + d.getDate() + '</div>';
-
-        const maxShow = 3;
-        dayEvents.slice(0, maxShow).forEach(evt => {
-            const idx = EVENTS.indexOf(evt);
-            html += '<div class="cal-month-event" style="background:' + evt.color + '" onclick="showPopover(EVENTS[' + idx + '], this)">' +
-                (evt.start ? fmtTime(evt.start) + ' ' : '') + escHTML(evt.title) + '</div>';
-        });
-        if (dayEvents.length > maxShow) {
-            html += '<div class="cal-month-more">+' + (dayEvents.length - maxShow) + ' more</div>';
+        // Make them draggable
+        if (CAN_EDIT) {
+            new FullCalendar.Draggable(container, {
+                itemSelector: '.unassigned-card',
+                eventData: function(el) {
+                    return {
+                        title: el.dataset.jobTitle,
+                        duration: el.dataset.estimatedHours || '02:00',
+                        extendedProps: { jobId: parseInt(el.dataset.jobId) },
+                    };
+                },
+            });
         }
-        html += '</div>';
-        d = addDays(d, 1);
-    }
-    html += '</div>';
-    container.innerHTML = html;
+    });
 }
 
-// ══════ RENDER DAY VIEW ══════
-function renderDay() {
-    const container = document.getElementById('calendarContent');
-    const dayEvents = eventsOnDay(currentDate);
-    const isToday = sameDay(currentDate, today);
-
-    let html = '<div class="cal-header-row" style="grid-template-columns: 60px 1fr;">' +
-        '<div class="cal-header-cell"></div>' +
-        '<div class="cal-header-cell">' + DAYS[currentDate.getDay()] +
-        '<span class="day-num' + (isToday ? ' today' : '') + '">' + currentDate.getDate() + '</span>' +
-        '<span class="visit-count">' + dayEvents.length + ' visit' + (dayEvents.length!==1?'s':'') + '</span></div></div>';
-
-    html += '<div class="cal-body"><div class="cal-day-view-grid">';
-    // Time gutter
-    html += '<div class="cal-time-gutter">';
-    for (let h = 6; h <= 20; h++) {
-        const label = h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h-12) + 'pm';
-        html += '<div class="cal-time-label">' + label + '</div>';
-    }
-    html += '</div>';
-
-    // Single day column
-    html += '<div class="cal-day-col' + (isToday ? ' today-col' : '') + '">';
-    for (let h = 6; h <= 20; h++) {
-        html += '<div class="cal-hour-slot"></div>';
-    }
-    dayEvents.forEach(evt => {
-        const startHour = evt.start ? hourFromISO(evt.start) : 8;
-        const endHour = evt.end ? hourFromISO(evt.end) : startHour + 1;
-        const topPx = (Math.max(startHour, 6) - 6) * 60;
-        const heightPx = Math.max((endHour - Math.max(startHour, 6)) * 60, 28);
-        const idx = EVENTS.indexOf(evt);
-
-        html += '<div class="cal-event" style="top:' + topPx + 'px;height:' + heightPx + 'px;background:' + evt.color + ';right:20%;" ' +
-            'onclick="showPopover(EVENTS[' + idx + '], this)">' +
-            '<div class="cal-event-time">' + fmtTime(evt.start) + '</div>' +
-            '<div class="cal-event-title">' + escHTML(evt.job_number ? evt.job_number + ' - ' + evt.title : evt.title) + '</div>' +
-            '<div style="font-size:0.7rem;opacity:0.9;">' + escHTML(evt.client) + ' &bull; ' + escHTML(evt.technician) + '</div>' +
-            '</div>';
+// ══════ TECH JOB COUNTS ══════
+function loadTechCounts() {
+    const today = new Date().toISOString().split('T')[0];
+    {% for tech in technicians %}
+    fetch('/api/schedule/tech-availability?technician_id={{ tech.id }}&date=' + today)
+    .then(r => r.json())
+    .then(data => {
+        const count = data.count || 0;
+        const countEl = document.getElementById('techCount{{ tech.id }}');
+        const dotEl = document.getElementById('techDot{{ tech.id }}');
+        if (countEl) countEl.textContent = count + ' job' + (count !== 1 ? 's' : '') + ' today';
+        if (dotEl) {
+            dotEl.className = 'tech-card__dot tech-card__dot--' + (count < 3 ? 'green' : count < 5 ? 'amber' : 'red');
+        }
     });
-    html += '</div></div></div>';
-
-    container.innerHTML = html;
-    const body = container.querySelector('.cal-body');
-    if (body) body.scrollTop = 60;
+    {% endfor %}
 }
 
-// ══════ RENDER LIST VIEW ══════
-function renderList() {
-    const container = document.getElementById('calendarContent');
-    // Group events by date
-    const grouped = {};
-    EVENTS.forEach(evt => {
-        if (!evt.start) return;
-        const d = new Date(evt.start);
-        const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(evt);
-    });
+// ══════ CALENDAR FILTERS ══════
+function filterDivision(divId, btn) {
+    currentDivisionFilter = divId;
+    document.querySelectorAll('.sched-filter-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    calendar.refetchEvents();
+}
 
-    const sortedKeys = Object.keys(grouped).sort();
-    let html = '<div class="schedule-list">';
-    if (sortedKeys.length === 0) {
-        html += '<div style="padding:3rem;text-align:center;color:var(--text-secondary);"><i class="bi bi-calendar-x" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>No scheduled jobs</div>';
+function filterTechnician(techId) {
+    currentTechFilter = techId || null;
+    calendar.refetchEvents();
+}
+
+// ══════ ASSIGN MODAL ══════
+let pendingAssignment = {};
+
+function openAssignModal(opts) {
+    pendingAssignment = opts;
+    const modal = document.getElementById('assignModal');
+    const techSelect = document.getElementById('assignTechSelect');
+    const jobSelect = document.getElementById('assignJobSelect');
+    const startInput = document.getElementById('assignStart');
+    const endInput = document.getElementById('assignEnd');
+
+    document.getElementById('assignConflictWarning').style.display = 'none';
+
+    // Set times
+    if (opts.start) {
+        const s = new Date(opts.start);
+        startInput.value = s.toISOString().slice(0, 16);
     }
-    sortedKeys.forEach(key => {
-        const d = new Date(key + 'T00:00:00');
-        const isToday = sameDay(d, today);
-        const label = isToday ? 'Today - ' + fmtDate(d) : DAYS[d.getDay()] + ' - ' + fmtDate(d);
-        html += '<div class="schedule-list-group"><div class="schedule-list-date">' + label + ' <span style="font-weight:400;">(' + grouped[key].length + ')</span></div>';
-        grouped[key].forEach(evt => {
-            const idx = EVENTS.indexOf(evt);
-            html += '<div class="schedule-item" onclick="showPopover(EVENTS[' + idx + '], this)">' +
-                '<div class="schedule-time">' + fmtTime(evt.start) + '</div>' +
-                '<div class="schedule-dot" style="background:' + evt.color + '"></div>' +
-                '<div class="schedule-details">' +
-                    '<div class="schedule-title">' + escHTML(evt.job_number ? evt.job_number + ' - ' + evt.title : evt.title) + '</div>' +
-                    '<div class="schedule-meta">' + escHTML(evt.client) + ' &bull; ' + escHTML(evt.technician) + '</div>' +
-                '</div>' +
-                '<div class="schedule-right">' +
-                    '<span class="badge badge-' + evt.status + '">' + evt.status.replace('_',' ') + '</span>' +
-                    (evt.estimated_amount ? '<span style="font-size:0.8rem;font-weight:500;">$' + evt.estimated_amount.toLocaleString() + '</span>' : '') +
-                '</div>' +
-                '</div>';
+    if (opts.end) {
+        const e = new Date(opts.end);
+        endInput.value = e.toISOString().slice(0, 16);
+    }
+
+    // Pre-select tech if provided
+    if (opts.techId) techSelect.value = opts.techId;
+    else techSelect.value = '';
+
+    // Load unassigned jobs into dropdown
+    fetch('/api/schedule/unassigned-jobs')
+    .then(r => r.json())
+    .then(jobs => {
+        jobSelect.innerHTML = '<option value="">Select job...</option>';
+        jobs.forEach(j => {
+            const opt = document.createElement('option');
+            opt.value = j.id;
+            opt.textContent = j.jobNumber + ' — ' + j.title + ' (' + j.clientName + ')';
+            jobSelect.appendChild(opt);
         });
-        html += '</div>';
+        if (opts.jobId) jobSelect.value = opts.jobId;
     });
-    html += '</div>';
-    container.innerHTML = html;
+
+    modal.style.display = 'flex';
 }
 
-// ══════ UNSCHEDULED SIDEBAR ══════
-function renderUnscheduled(filter) {
-    const list = document.getElementById('unschedList');
-    const filterLower = (filter || '').toLowerCase();
-    let items = UNSCHEDULED;
-    if (filterLower) {
-        items = items.filter(e => (e.title + ' ' + e.client + ' ' + e.job_number).toLowerCase().includes(filterLower));
-    }
-    document.getElementById('unschedCount').textContent = items.length;
-
-    let html = '';
-    items.forEach(evt => {
-        html += '<div class="unsched-item" onclick="window.location.href=\'/jobs/' + evt.id + '\'">' +
-            '<div class="unsched-item-title"><span class="unsched-item-badge" style="background:' + evt.color + '"></span>' +
-            escHTML(evt.job_number ? evt.job_number + ' - ' + evt.title : evt.title) + '</div>' +
-            '<div class="unsched-item-meta">' + escHTML(evt.client) + (evt.technician !== 'Unassigned' ? ' &bull; ' + escHTML(evt.technician) : '') + '</div>' +
-            '</div>';
-    });
-    if (!items.length) {
-        html = '<div style="padding:1.5rem;text-align:center;color:var(--text-secondary);font-size:0.8rem;"><i class="bi bi-check-circle" style="display:block;font-size:1.5rem;margin-bottom:0.5rem;"></i>All jobs scheduled</div>';
-    }
-    list.innerHTML = html;
+function closeAssignModal() {
+    document.getElementById('assignModal').style.display = 'none';
+    pendingAssignment = {};
 }
-function filterUnscheduled(val) { renderUnscheduled(val); }
 
-// ══════ NAVIGATION ══════
-function updateDateLabel() {
-    const label = document.getElementById('schedDateLabel');
-    if (currentView === 'month') {
-        label.textContent = MONTHS[currentDate.getMonth()] + ' ' + currentDate.getFullYear();
-    } else if (currentView === 'week') {
-        const ws = startOfWeek(currentDate);
-        const we = addDays(ws, 6);
-        if (ws.getMonth() === we.getMonth()) {
-            label.textContent = MONTHS[ws.getMonth()] + ' ' + ws.getDate() + ' - ' + we.getDate() + ', ' + ws.getFullYear();
+function submitAssignment() {
+    const techId = document.getElementById('assignTechSelect').value;
+    const jobId = document.getElementById('assignJobSelect').value;
+    const startTime = document.getElementById('assignStart').value;
+    const endTime = document.getElementById('assignEnd').value;
+
+    if (!jobId || !startTime) {
+        alert('Please select a job and start time.');
+        return;
+    }
+
+    const btn = document.getElementById('assignSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Assigning...';
+
+    fetch('/api/schedule/assign', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            job_id: parseInt(jobId),
+            technician_id: techId ? parseInt(techId) : null,
+            start_time: new Date(startTime).toISOString(),
+            end_time: endTime ? new Date(endTime).toISOString() : null,
+        }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.textContent = 'Assign';
+        if (data.success) {
+            closeAssignModal();
+            calendar.refetchEvents();
+            loadUnassignedJobs();
+            loadTechCounts();
         } else {
-            label.textContent = MONTHS[ws.getMonth()].slice(0,3) + ' ' + ws.getDate() + ' - ' + MONTHS[we.getMonth()].slice(0,3) + ' ' + we.getDate() + ', ' + we.getFullYear();
+            alert('Error: ' + (data.error || 'Unknown error'));
         }
-    } else if (currentView === 'day') {
-        label.textContent = DAYS[currentDate.getDay()] + ', ' + fmtDate(currentDate);
-    } else {
-        label.textContent = 'All Scheduled Jobs';
-    }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.textContent = 'Assign';
+    });
 }
-
-function setView(view) {
-    currentView = view;
-    document.querySelectorAll('.sched-view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-    render();
-}
-
-function goToday() { currentDate = new Date(); currentDate.setHours(0,0,0,0); render(); }
-function goPrev() {
-    if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() - 1);
-    else if (currentView === 'week') currentDate = addDays(currentDate, -7);
-    else if (currentView === 'day') currentDate = addDays(currentDate, -1);
-    render();
-}
-function goNext() {
-    if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + 1);
-    else if (currentView === 'week') currentDate = addDays(currentDate, 7);
-    else if (currentView === 'day') currentDate = addDays(currentDate, 1);
-    render();
-}
-
-function toggleSidebar() {
-    document.getElementById('schedSidebar').classList.toggle('collapsed');
-}
-
-function render() {
-    closePopover();
-    updateDateLabel();
-    if (currentView === 'week') renderWeek();
-    else if (currentView === 'month') renderMonth();
-    else if (currentView === 'day') renderDay();
-    else renderList();
-}
-
-function escHTML(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-
-// ══════ INIT ══════
-currentDate.setHours(0,0,0,0);
-render();
-renderUnscheduled();
 </script>
 {% endblock %}
