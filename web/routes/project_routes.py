@@ -173,17 +173,60 @@ def project_detail(project_id):
 
         # Change orders on project jobs
         cos = []
+        co_approved_total = 0
+        co_pending = []
         if job_ids:
-            cos = db.query(ChangeOrder).filter(ChangeOrder.job_id.in_(job_ids)).all()
+            cos = db.query(ChangeOrder).filter(ChangeOrder.job_id.in_(job_ids)).order_by(desc(ChangeOrder.created_at)).all()
+            co_approved_total = sum(
+                float(co.revised_amount or 0) - float(co.original_amount or 0)
+                for co in cos if co.status == 'approved'
+            )
+            co_pending = [co for co in cos if co.status in ('submitted', 'pending_approval')]
+
+        # Lien waivers and checklists
+        from models.lien_waiver import LienWaiver
+        from models.checklist import CompletedChecklist
+        lien_waivers = []
+        completed_checklists = []
+        if job_ids:
+            lien_waivers = db.query(LienWaiver).filter(LienWaiver.job_id.in_(job_ids)).all()
+            completed_checklists = db.query(CompletedChecklist).filter(CompletedChecklist.job_id.in_(job_ids)).all()
+
+        # Job status counts
+        from collections import Counter
+        job_status_counts = Counter(j.status for j in jobs)
+
+        # Available jobs for linking
+        available_jobs = db.query(Job).filter(
+            Job.organization_id == current_user.organization_id,
+            Job.project_id == None,
+            Job.client_id == project.client_id
+        ).order_by(desc(Job.created_at)).all()
+
+        # Documents
+        from models.document import Document
+        from sqlalchemy import or_
+        doc_filter = [Document.project_id == project.id]
+        if job_ids:
+            doc_filter.append(Document.entity_type == 'job')
+            doc_filter.append(Document.entity_id.in_(job_ids))
+        documents = db.query(Document).filter(or_(*doc_filter)).order_by(desc(Document.created_at)).all()
+
+        active_tab = request.args.get('tab', 'overview')
 
         return render_template('projects/project_detail.html',
             **_tpl_vars(
                 project=project, jobs=jobs, invoices=invoices,
                 purchase_orders=pos, permits=permits_list, notes=notes,
-                change_orders=cos,
+                change_orders=cos, co_approved_total=co_approved_total,
+                co_pending=co_pending, lien_waivers=lien_waivers,
+                completed_checklists=completed_checklists,
+                job_status_counts=dict(job_status_counts),
+                available_jobs=available_jobs, documents=documents,
                 total_estimated=total_estimated, total_invoiced=total_invoiced,
                 total_paid=total_paid, total_outstanding=total_outstanding,
                 budget=budget, budget_variance=budget_variance,
+                active_tab=active_tab,
             ))
     finally:
         db.close()
