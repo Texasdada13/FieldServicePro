@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Time Entry Approvals{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div><h1 style="margin:0;">Approvals</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ pending_count }} pending &middot; {{ pending_hours }}h &middot; ${{ "{:,.2f}".format(pending_cost) }}</p></div>
+    <div style="display:flex;gap:var(--space-2);">
+        <button class="btn btn-accent" onclick="bulkApprove()"><i class="bi bi-check-all"></i> Approve Selected</button>
+    </div>
+</div>
+
+{% for tid, group in by_tech.items() %}
+<div class="card" style="margin-bottom:var(--space-3);">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 class="card-title">{{ group.name }} <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">({{ group.entries|length }} entries, {{ "%.1f"|format(group.total_hours) }}h, ${{ "{:,.2f}".format(group.total_cost) }})</span></h3>
+        <label style="display:flex;align-items:center;gap:4px;font-size:var(--font-size-xs);cursor:pointer;"><input type="checkbox" class="select-all-tech" data-tech="{{ tid }}" style="accent-color:var(--color-accent);" onchange="toggleTech({{ tid }}, this.checked)"> Select All</label>
+    </div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:1px solid var(--color-border);">
+            <th style="width:30px;padding:var(--space-1) var(--space-2);"></th>
+            <th style="padding:var(--space-1) var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted);">Date</th>
+            <th style="padding:var(--space-1) var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted);">Job</th>
+            <th style="padding:var(--space-1) var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted);">Type</th>
+            <th style="padding:var(--space-1) var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Hours</th>
+            <th style="padding:var(--space-1) var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Cost</th>
+            <th style="padding:var(--space-1) var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted);">Description</th>
+        </tr></thead>
+        <tbody>
+        {% for e in group.entries %}
+        <tr style="border-bottom:1px solid var(--color-border);">
+            <td style="padding:var(--space-1) var(--space-2);"><input type="checkbox" class="entry-cb" data-tech="{{ tid }}" value="{{ e.id }}" style="accent-color:var(--color-accent);"></td>
+            <td style="padding:var(--space-1) var(--space-2);font-size:var(--font-size-sm);">{{ e.date.strftime('%b %d') if e.date else '' }}</td>
+            <td style="padding:var(--space-1) var(--space-2);font-size:var(--font-size-sm);">{{ e.job.job_number if e.job else '' }}</td>
+            <td style="padding:var(--space-1) var(--space-2);"><span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:999px;background:var(--color-surface-raised);">{{ e.type_display }}</span></td>
+            <td style="padding:var(--space-1) var(--space-2);text-align:right;font-weight:600;">{{ e.duration_hours }}</td>
+            <td style="padding:var(--space-1) var(--space-2);text-align:right;font-size:var(--font-size-sm);">${{ "{:,.2f}".format(e.labor_cost or 0) }}</td>
+            <td style="padding:var(--space-1) var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ e.description or '' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endfor %}
+
+{% if not by_tech %}<div class="card" style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><i class="bi bi-check-circle" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>No entries pending approval.</div>{% endif %}
+
+<script>
+function toggleTech(techId, checked) {
+    document.querySelectorAll('.entry-cb[data-tech="'+techId+'"]').forEach(cb => cb.checked = checked);
+}
+
+function getSelectedIds() {
+    return Array.from(document.querySelectorAll('.entry-cb:checked')).map(cb => parseInt(cb.value));
+}
+
+function bulkApprove() {
+    const ids = getSelectedIds();
+    if (!ids.length) { alert('Select entries first.'); return; }
+    fetch('{{ url_for("time_tracking.api_approve") }}', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({entry_ids: ids}),
+    }).then(r => r.json()).then(d => {
+        if (d.success) window.location.reload();
+        else alert(d.error || 'Error');
+    });
+}
+</script>
+{% endblock %}

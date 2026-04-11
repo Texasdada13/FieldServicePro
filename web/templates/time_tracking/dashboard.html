@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Time Tracking{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <h1 style="margin:0;">Time Tracking</h1>
+    <div style="display:flex;gap:var(--space-2);">
+        <a href="{{ url_for('time_tracking.tt_entry_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Entry</a>
+        {% if can_admin %}<a href="{{ url_for('time_tracking.tt_approvals') }}" class="btn btn-ghost"><i class="bi bi-check-circle"></i> Approvals {% if pending_count %}<span class="sidebar__badge" style="background:var(--color-warning);color:#000;">{{ pending_count }}</span>{% endif %}</a>{% endif %}
+    </div>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ active_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Clocked In</div></div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-info);"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ total_hours }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Hours Today</div></div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);"><div style="font-size:var(--font-size-xl);font-weight:700;">${{ "{:,.0f}".format(total_cost) }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Labor Cost Today</div></div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-warning);"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ pending_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Pending Approval</div></div>
+    {% if ot_alerts %}<div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-danger);"><div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-danger);">{{ ot_alerts|length }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">OT Alerts</div></div>{% endif %}
+</div>
+
+<!-- Active Clocks -->
+{% if active_clocks %}
+<div class="card" style="margin-bottom:var(--space-4);">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-clock" style="color:var(--color-accent);"></i> Currently Clocked In</h3></div>
+    <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Technician</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Job</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Since</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Elapsed</th></tr></thead>
+            <tbody>
+                {% for c in active_clocks %}
+                <tr style="border-bottom:1px solid var(--color-border);">
+                    <td style="padding:var(--space-2) var(--space-3);font-weight:500;">{{ c.technician.full_name if c.technician else 'Unknown' }}</td>
+                    <td style="padding:var(--space-2) var(--space-3);"><a href="/jobs/{{ c.job_id }}" style="color:var(--color-accent);text-decoration:none;">{{ c.job.job_number if c.job else '' }}</a> {{ c.job.title if c.job else '' }}</td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ c.clock_in_time.strftime('%I:%M %p') if c.clock_in_time else '' }}</td>
+                    <td style="padding:var(--space-2) var(--space-3);font-weight:600;color:var(--color-accent);">{{ c.elapsed_display() }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Navigation -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-3);">
+    <a href="{{ url_for('time_tracking.tt_entries') }}" class="card" style="padding:var(--space-4);text-align:center;text-decoration:none;color:inherit;"><i class="bi bi-list-ul" style="font-size:2rem;color:var(--color-accent);display:block;margin-bottom:var(--space-2);"></i><strong>All Entries</strong><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">View and manage time entries</div></a>
+    {% if can_admin %}<a href="{{ url_for('time_tracking.tt_approvals') }}" class="card" style="padding:var(--space-4);text-align:center;text-decoration:none;color:inherit;"><i class="bi bi-check-circle" style="font-size:2rem;color:var(--color-warning);display:block;margin-bottom:var(--space-2);"></i><strong>Approvals</strong><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ pending_count }} pending</div></a>{% endif %}
+    {% if can_admin %}<a href="{{ url_for('time_tracking.tt_export') }}" class="card" style="padding:var(--space-4);text-align:center;text-decoration:none;color:inherit;"><i class="bi bi-download" style="font-size:2rem;color:var(--color-success);display:block;margin-bottom:var(--space-2);"></i><strong>Payroll Export</strong><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Export approved entries</div></a>{% endif %}
+</div>
+{% endblock %}

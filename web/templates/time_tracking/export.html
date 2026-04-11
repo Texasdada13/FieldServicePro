@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Payroll Export{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('time_tracking.tt_dashboard') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a></div>
+<h1 style="margin:0 0 var(--space-4);">Payroll Export</h1>
+
+<div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <input type="date" name="date_from" class="form-control" style="width:auto;" value="{{ date_from }}">
+        <span style="color:var(--color-text-muted);">to</span>
+        <input type="date" name="date_to" class="form-control" style="width:auto;" value="{{ date_to }}">
+        <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Update</button>
+    </form>
+</div>
+
+{% if summary %}
+<div class="card" style="margin-bottom:var(--space-3);">
+    <div class="card-header"><h3 class="card-title">Summary ({{ entry_count }} approved entries)</h3></div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:2px solid var(--color-border);">
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Employee</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Regular</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">OT</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Total Hours</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Total Pay</th>
+        </tr></thead>
+        <tbody>
+        {% for tid, s in summary.items() %}
+        <tr style="border-bottom:1px solid var(--color-border);">
+            <td style="padding:var(--space-2) var(--space-3);font-weight:500;">{{ s.name }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ "%.1f"|format(s.regular_hours) }}h</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if s.ot_hours > 0 %}color:var(--color-warning);font-weight:600;{% endif %}">{{ "%.1f"|format(s.ot_hours) }}h</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;">{{ "%.1f"|format(s.total_hours) }}h</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;">${{ "{:,.2f}".format(s.total_pay) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<form method="POST">
+    <button type="submit" name="action" value="export_csv" class="btn btn-accent"><i class="bi bi-download"></i> Export CSV & Mark as Exported</button>
+</form>
+{% else %}
+<div class="card" style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">No approved entries for this period.</div>
+{% endif %}
+{% endblock %}

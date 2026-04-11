@@ -80,6 +80,13 @@
             <span class="sidebar__link-text">Equipment</span>
           </a>
         </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('time_tracking.tt_dashboard') }}"
+             class="sidebar__link {% if active_page == 'time_tracking' %}is-active{% endif %}">
+            <i class="bi bi-stopwatch sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Time Tracking</span>
+          </a>
+        </li>
       </ul>
     </div>
 

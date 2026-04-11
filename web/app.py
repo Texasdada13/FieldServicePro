@@ -59,6 +59,7 @@ from web.routes.payment_routes import payments_bp
 from web.routes.schedule_routes import schedule_api_bp
 from web.routes.equipment_routes import equipment_bp
 from web.routes.project_routes import projects_bp
+from web.routes.time_tracking_routes import time_tracking_bp
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -129,6 +130,7 @@ app.register_blueprint(payments_bp)
 app.register_blueprint(schedule_api_bp)
 app.register_blueprint(equipment_bp)
 app.register_blueprint(projects_bp)
+app.register_blueprint(time_tracking_bp)
 
 
 @app.before_request

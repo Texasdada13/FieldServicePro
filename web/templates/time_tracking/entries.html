@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Time Entries{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div><h1 style="margin:0;">Time Entries</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ entries|length }} entries &middot; {{ total_hours }}h &middot; ${{ "{:,.2f}".format(total_cost) }}</p></div>
+    <a href="{{ url_for('time_tracking.tt_entry_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Entry</a>
+</div>
+
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        {% if can_admin %}<select name="technician_id" class="form-control" style="width:auto;min-width:140px;" onchange="this.form.submit()"><option value="">All Techs</option>{% for t in technicians %}<option value="{{ t.id }}" {{ 'selected' if filter_tech == t.id }}>{{ t.full_name }}</option>{% endfor %}</select>{% endif %}
+        <select name="status" class="form-control" style="width:auto;min-width:120px;" onchange="this.form.submit()"><option value="">All Statuses</option>{% for s in ['draft','submitted','approved','rejected','exported'] %}<option value="{{ s }}" {{ 'selected' if filter_status == s }}>{{ s|title }}</option>{% endfor %}</select>
+        <input type="date" name="date_from" class="form-control" style="width:auto;" value="{{ filter_date_from or '' }}" onchange="this.form.submit()">
+        <input type="date" name="date_to" class="form-control" style="width:auto;" value="{{ filter_date_to or '' }}" onchange="this.form.submit()">
+        {% if filter_tech or filter_status or filter_date_from or filter_date_to %}<a href="{{ url_for('time_tracking.tt_entries') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>{% endif %}
+    </form>
+</div>
+
+<div class="card"><div style="overflow-x:auto;">
+{% if entries %}
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Technician</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Job</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Type</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Hours</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Cost</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+        <th style="width:40px;"></th>
+    </tr></thead>
+    <tbody>
+    {% for e in entries %}
+    <tr style="border-bottom:1px solid var(--color-border);{% if e.entry_type in ('overtime','double_time') %}background:rgba(245,158,11,0.04);{% endif %}">
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);white-space:nowrap;">{{ e.date.strftime('%b %d') if e.date else '' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-weight:500;font-size:var(--font-size-sm);">{{ e.technician.full_name if e.technician else '' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><a href="/jobs/{{ e.job_id }}" style="color:var(--color-accent);text-decoration:none;font-size:var(--font-size-sm);">{{ e.job.job_number if e.job else '' }}</a></td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:{% if e.entry_type == 'overtime' %}rgba(245,158,11,0.1){% elif e.entry_type == 'double_time' %}rgba(239,68,68,0.1){% else %}var(--color-surface-raised){% endif %};color:{% if e.entry_type == 'overtime' %}var(--color-warning){% elif e.entry_type == 'double_time' %}var(--color-danger){% else %}var(--color-text-muted){% endif %};">{{ e.type_display }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;">{{ e.duration_hours }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-sm);">${{ "{:,.2f}".format(e.labor_cost or 0) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ e.status_color }});">{{ e.status_display }}</span></td>
+        <td style="padding:var(--space-2);">{% if e.is_editable %}<form method="POST" action="{{ url_for('time_tracking.tt_entry_delete', entry_id=e.id) }}" onsubmit="return confirm('Delete?')" style="display:inline;"><button type="submit" class="btn btn-ghost" style="padding:2px 6px;font-size:var(--font-size-xs);color:var(--color-danger);"><i class="bi bi-trash"></i></button></form>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><i class="bi bi-clock-history" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>No time entries found.</div>
+{% endif %}
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

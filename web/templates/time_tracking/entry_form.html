@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if entry else 'New' }} Time Entry{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('time_tracking.tt_entries') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a></div>
+<div style="max-width:700px;">
+<div class="card">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-clock" style="color:var(--color-accent);"></i> {{ 'Edit' if entry else 'New' }} Time Entry</h3></div>
+    <div class="card-body">
+        <form method="POST">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                {% if can_admin %}
+                <div class="form-group"><label class="form-label">Technician *</label>
+                    <select name="technician_id" class="form-control" required>
+                        {% for t in technicians %}<option value="{{ t.id }}" {{ 'selected' if (entry and entry.technician_id == t.id) or (not entry and default_tech_id == t.id) }}>{{ t.full_name }}</option>{% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="form-group"><label class="form-label">Job *</label>
+                    <select name="job_id" class="form-control" required>
+                        <option value="">Select...</option>
+                        {% for j in jobs %}<option value="{{ j.id }}" {{ 'selected' if entry and entry.job_id == j.id }}>{{ j.job_number }} — {{ j.title[:30] }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+                <div class="form-group"><label class="form-label">Date *</label><input type="date" name="date" class="form-control" required value="{{ entry.date.isoformat() if entry and entry.date else today.isoformat() }}"></div>
+                <div class="form-group"><label class="form-label">Start Time</label><input type="time" name="start_time" class="form-control" value="{{ entry.start_time.strftime('%H:%M') if entry and entry.start_time else '' }}"></div>
+                <div class="form-group"><label class="form-label">End Time</label><input type="time" name="end_time" class="form-control" value="{{ entry.end_time.strftime('%H:%M') if entry and entry.end_time else '' }}"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+                <div class="form-group"><label class="form-label">Duration (hours)</label><input type="number" name="duration_hours" class="form-control" step="0.25" min="0" max="16" value="{{ entry.duration_hours if entry else '' }}" placeholder="Auto from times"></div>
+                <div class="form-group"><label class="form-label">Type</label>
+                    <select name="entry_type" class="form-control">
+                        {% for val, label in [('regular','Regular'),('overtime','Overtime'),('travel','Travel'),('break','Break'),('callback','Callback'),('warranty','Warranty')] %}<option value="{{ val }}" {{ 'selected' if entry and entry.entry_type == val }}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-group"><label class="form-label">Hourly Rate</label><input type="number" name="hourly_rate" class="form-control" step="0.01" value="{{ entry.hourly_rate if entry else default_rate }}"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2">{{ entry.description if entry else '' }}</textarea></div>
+            <div style="display:flex;gap:var(--space-2);justify-content:flex-end;margin-top:var(--space-3);">
+                <a href="{{ url_for('time_tracking.tt_entries') }}" class="btn btn-ghost">Cancel</a>
+                <button type="submit" name="action" value="draft" class="btn btn-ghost">Save Draft</button>
+                <button type="submit" name="action" value="submit" class="btn btn-accent">Save & Submit</button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}
