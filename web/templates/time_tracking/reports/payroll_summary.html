@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Payroll Summary{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('time_tracking.tt_dashboard') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a></div>
+<h1 style="margin:0 0 var(--space-4);">Payroll Summary</h1>
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;">
+        <input type="date" name="date_from" class="form-control" style="width:auto;" value="{{ start.isoformat() }}">
+        <span style="color:var(--color-text-muted);">to</span>
+        <input type="date" name="date_to" class="form-control" style="width:auto;" value="{{ end.isoformat() }}">
+        <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Update</button>
+    </form>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ grand_total_hours }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Hours</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-success);">${{ "{:,.2f}".format(grand_total_pay) }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Payroll</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ by_tech|length }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Technicians</div></div>
+</div>
+<div class="card"><div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Employee</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Regular</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">OT</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">DT</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total Hours</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Reg Pay</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">OT Pay</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total Pay</th>
+    </tr></thead>
+    <tbody>
+    {% for tid, t in by_tech.items() %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ t.name }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ t.regular_hours }}h</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if t.ot_hours > 0 %}color:var(--color-warning);font-weight:600;{% endif %}">{{ t.ot_hours }}h</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if t.dt_hours > 0 %}color:var(--color-danger);font-weight:600;{% endif %}">{{ t.dt_hours }}h</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">{{ t.total_hours }}h</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(t.regular_pay) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(t.ot_pay) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">${{ "{:,.2f}".format(t.total_pay) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr style="border-top:2px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);font-weight:700;">Grand Total</td>
+        <td colspan="3"></td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">{{ grand_total_hours }}h</td>
+        <td colspan="2"></td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">${{ "{:,.2f}".format(grand_total_pay) }}</td>
+    </tr></tfoot>
+</table>
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

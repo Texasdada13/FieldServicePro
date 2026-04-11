@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Labor Utilization{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('time_tracking.tt_dashboard') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a></div>
+<h1 style="margin:0 0 var(--space-4);">Labor Utilization — {{ start.strftime('%b %d') }} to {{ end.strftime('%b %d, %Y') }}</h1>
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;">
+        <a href="?period=week" class="btn {% if period == 'week' %}btn-accent{% else %}btn-ghost{% endif %}" style="font-size:var(--font-size-sm);">Week</a>
+        <a href="?period=month" class="btn {% if period == 'month' %}btn-accent{% else %}btn-ghost{% endif %}" style="font-size:var(--font-size-sm);">Month</a>
+        <input type="date" name="date_from" class="form-control" style="width:auto;" value="{{ start.isoformat() }}">
+        <input type="date" name="date_to" class="form-control" style="width:auto;" value="{{ end.isoformat() }}">
+        <button type="submit" name="period" value="custom" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Custom</button>
+    </form>
+</div>
+<div class="card"><div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Technician</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Billable</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Non-Bill</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;min-width:120px;">Utilization</th>
+        {% if can_admin %}<th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Revenue</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Cost</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Margin</th>{% endif %}
+    </tr></thead>
+    <tbody>
+    {% for tid, t in by_tech.items() %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ t.name }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ t.total_hours }}h</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ t.billable_hours }}h</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ t.non_billable_hours }}h</td>
+        <td style="padding:var(--space-2) var(--space-3);">
+            <div style="display:flex;align-items:center;gap:var(--space-2);">
+                <div style="flex:1;height:6px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;">
+                    <div style="height:100%;width:{{ t.utilization }}%;background:{% if t.utilization >= 80 %}var(--color-success){% elif t.utilization >= 60 %}var(--color-warning){% else %}var(--color-danger){% endif %};border-radius:var(--radius-full);"></div>
+                </div>
+                <span style="font-weight:600;font-size:var(--font-size-sm);">{{ t.utilization }}%</span>
+            </div>
+        </td>
+        {% if can_admin %}<td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(t.revenue) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(t.cost) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;color:{% if t.revenue - t.cost > 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">${{ "{:,.2f}".format(t.revenue - t.cost) }}</td>{% endif %}
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

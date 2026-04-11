@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Job Labor Report{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('time_tracking.tt_dashboard') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a></div>
+<h1 style="margin:0 0 var(--space-4);">Job Labor Report</h1>
+<div class="card"><div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Job</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Client</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Actual Hours</th>
+        {% if can_admin %}<th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Labor Cost</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Billable</th>{% endif %}
+    </tr></thead>
+    <tbody>
+    {% for jd in job_data %}
+    {% if jd.actual_hours > 0 %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);"><a href="/jobs/{{ jd.job.id }}" style="font-weight:600;color:var(--color-accent);text-decoration:none;">#{{ jd.job_number }}</a></td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ jd.client_name }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;">{{ "%.1f"|format(jd.actual_hours) }}h</td>
+        {% if can_admin %}<td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(jd.labor_cost) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(jd.billable_amount) }}</td>{% endif %}
+    </tr>
+    {% endif %}
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}
