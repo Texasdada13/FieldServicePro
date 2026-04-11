@@ -36,6 +36,7 @@ from .portal_settings import PortalSettings
 from .service_request import ServiceRequest
 from .equipment import Equipment
 from .project import Project, ProjectNote, ProjectStatus, ProjectPriority
+from .time_entry import TimeEntry, ActiveClock
 
 __all__ = [
     'Base', 'get_session', 'init_db', 'engine',
@@ -71,4 +72,5 @@ __all__ = [
     'ServiceRequest',
     'Equipment',
     'Project', 'ProjectNote', 'ProjectStatus', 'ProjectPriority',
+    'TimeEntry', 'ActiveClock',
 ]
