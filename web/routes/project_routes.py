@@ -276,3 +276,79 @@ def project_add_note(project_id):
         return redirect(url_for('projects_bp.project_detail', project_id=project_id))
     finally:
         db.close()
+
+
+@projects_bp.route('/projects/<int:project_id>/link-job', methods=['POST'])
+@login_required
+@role_required('owner', 'admin', 'dispatcher')
+def project_link_job(project_id):
+    """Link an existing standalone job to this project."""
+    db = get_session()
+    try:
+        project = db.query(Project).filter_by(
+            id=project_id, organization_id=current_user.organization_id
+        ).first()
+        if not project:
+            abort(404)
+
+        job_id = request.form.get('job_id', '').strip()
+        if job_id:
+            job = db.query(Job).filter_by(id=int(job_id), organization_id=current_user.organization_id).first()
+            if job:
+                job.project_id = project.id
+                db.commit()
+                flash(f'Job {job.job_number} linked to project.', 'success')
+            else:
+                flash('Job not found.', 'danger')
+        return redirect(url_for('projects_bp.project_detail', project_id=project_id))
+    finally:
+        db.close()
+
+
+@projects_bp.route('/projects/<int:project_id>/unlink-job/<int:job_id>', methods=['POST'])
+@login_required
+@role_required('owner', 'admin')
+def project_unlink_job(project_id, job_id):
+    """Remove a job from this project (doesn't delete the job)."""
+    db = get_session()
+    try:
+        job = db.query(Job).filter_by(
+            id=job_id, organization_id=current_user.organization_id
+        ).first()
+        if job and job.project_id == project_id:
+            job.project_id = None
+            db.commit()
+            flash(f'Job {job.job_number} removed from project.', 'success')
+        return redirect(url_for('projects_bp.project_detail', project_id=project_id))
+    finally:
+        db.close()
+
+
+@projects_bp.route('/projects/<int:project_id>/delete', methods=['POST'])
+@login_required
+@role_required('owner', 'admin')
+def project_delete(project_id):
+    """Delete a project (unlinks all related entities, doesn't delete them)."""
+    db = get_session()
+    try:
+        project = db.query(Project).filter_by(
+            id=project_id, organization_id=current_user.organization_id
+        ).first()
+        if not project:
+            abort(404)
+
+        # Unlink related entities
+        db.query(Job).filter_by(project_id=project.id).update({Job.project_id: None})
+        db.query(Invoice).filter_by(project_id=project.id).update({Invoice.project_id: None})
+        db.query(PurchaseOrder).filter_by(project_id=project.id).update({PurchaseOrder.project_id: None})
+        db.query(Permit).filter_by(project_id=project.id).update({Permit.project_id: None})
+
+        # Delete notes
+        db.query(ProjectNote).filter_by(project_id=project.id).delete()
+
+        db.delete(project)
+        db.commit()
+        flash(f'Project {project.project_number} deleted.', 'success')
+        return redirect(url_for('projects_bp.project_list'))
+    finally:
+        db.close()

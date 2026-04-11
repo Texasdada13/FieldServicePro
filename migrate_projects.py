@@ -24,7 +24,7 @@ def migrate():
         print(f"  [{status}] {table}")
 
     # Add project_id columns to existing tables
-    tables_needing_project_id = ['jobs', 'invoices', 'purchase_orders', 'permits']
+    tables_needing_project_id = ['jobs', 'invoices', 'purchase_orders', 'permits', 'documents']
     with engine.connect() as conn:
         for table in tables_needing_project_id:
             if table in existing:

@@ -26,6 +26,7 @@ class Document(Base):
     # Polymorphic: job, permit, insurance_policy, certification,
     # checklist, lien_waiver, contract, quote, invoice
     entity_id             = Column(Integer, nullable=True)
+    project_id            = Column(Integer, ForeignKey('projects.id'), nullable=True, index=True)
 
     uploaded_by           = Column(Integer, ForeignKey('users.id'), nullable=True)
     uploaded_by_portal_user_id = Column(Integer, ForeignKey('portal_users.id'), nullable=True)
