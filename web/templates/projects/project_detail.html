@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}{{ project.project_number }} — {{ project.title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);">
+    <a href="{{ url_for('projects_bp.project_list') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back to Projects</a>
+</div>
+
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">{{ project.title }}</h1>
+        <div style="display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-1);flex-wrap:wrap;">
+            <span style="font-family:monospace;color:var(--color-text-muted);font-size:var(--font-size-sm);">{{ project.project_number }}</span>
+            <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:{% if project.status == 'active' %}rgba(13,148,136,0.1){% elif project.status == 'completed' %}rgba(16,185,129,0.1){% elif project.status == 'on_hold' %}rgba(245,158,11,0.1){% else %}var(--color-surface-raised){% endif %};color:var(--color-{{ project.status_color }});">{{ project.status_label }}</span>
+            <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ project.priority_color }});">{{ project.priority_label }}</span>
+            {% if project.is_behind_schedule %}<span style="font-size:var(--font-size-xs);font-weight:600;color:var(--color-danger);"><i class="bi bi-exclamation-triangle"></i> Behind Schedule</span>{% endif %}
+        </div>
+    </div>
+    <a href="{{ url_for('projects_bp.project_edit', project_id=project.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-pencil"></i> Edit</a>
+</div>
+
+<!-- Progress + Budget KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ project.percent_complete }}%</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Complete</div>
+        <div style="height:4px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;margin-top:4px;">
+            <div style="height:100%;width:{{ project.percent_complete }}%;background:var(--color-accent);border-radius:var(--radius-full);"></div>
+        </div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-info);">
+        <div style="font-size:var(--font-size-xl);font-weight:700;">${{ "{:,.0f}".format(budget) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Budget</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="font-size:var(--font-size-xl);font-weight:700;">${{ "{:,.0f}".format(total_invoiced) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Invoiced</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="font-size:var(--font-size-xl);font-weight:700;">${{ "{:,.0f}".format(total_paid) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Collected</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if total_outstanding > 0 %}var(--color-danger){% else %}var(--color-text-muted){% endif %};">
+        <div style="font-size:var(--font-size-xl);font-weight:700;{% if total_outstanding > 0 %}color:var(--color-danger);{% endif %}">${{ "{:,.0f}".format(total_outstanding) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Outstanding</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if budget_variance < 0 %}var(--color-danger){% else %}var(--color-success){% endif %};">
+        <div style="font-size:var(--font-size-xl);font-weight:700;color:{% if budget_variance < 0 %}var(--color-danger){% else %}var(--color-success){% endif %};">${{ "{:,.0f}".format(budget_variance) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Budget Variance</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <!-- Left -->
+    <div>
+        <!-- Jobs -->
+        <div class="card" style="margin-bottom:var(--space-3);">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <h3 class="card-title"><i class="bi bi-briefcase" style="color:var(--color-accent);"></i> Jobs ({{ jobs|length }})</h3>
+            </div>
+            {% if jobs %}
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:1px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Job</th>
+                        <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+                        <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Amount</th>
+                    </tr></thead>
+                    <tbody>
+                        {% for j in jobs %}
+                        <tr onclick="window.location.href='/jobs/{{ j.id }}'" style="cursor:pointer;border-bottom:1px solid var(--color-border);">
+                            <td style="padding:var(--space-2) var(--space-3);"><span style="font-weight:600;color:var(--color-accent);">{{ j.job_number }}</span> {{ j.title }}</td>
+                            <td style="padding:var(--space-2) var(--space-3);"><span class="badge badge-{{ j.status }}">{{ j.status|replace('_',' ') }}</span></td>
+                            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;">${{ "{:,.2f}".format(j.estimated_amount or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="padding:var(--space-4);color:var(--color-text-muted);font-size:var(--font-size-sm);display:flex;align-items:center;gap:var(--space-2);"><i class="bi bi-briefcase"></i> No jobs linked to this project yet.</div>
+            {% endif %}
+        </div>
+
+        <!-- Invoices -->
+        {% if invoices %}
+        <div class="card" style="margin-bottom:var(--space-3);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-receipt" style="color:var(--color-accent);"></i> Invoices ({{ invoices|length }})</h3></div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:1px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Invoice</th>
+                        <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+                        <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Total</th>
+                        <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Balance</th>
+                    </tr></thead>
+                    <tbody>
+                        {% for i in invoices %}
+                        <tr onclick="window.location.href='/invoices/{{ i.id }}'" style="cursor:pointer;border-bottom:1px solid var(--color-border);">
+                            <td style="padding:var(--space-2) var(--space-3);font-weight:600;color:var(--color-accent);">{{ i.invoice_number }}</td>
+                            <td style="padding:var(--space-2) var(--space-3);"><span class="badge badge-{{ i.status }}">{{ i.status }}</span></td>
+                            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;">${{ "{:,.2f}".format(i.total or 0) }}</td>
+                            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;{% if (i.balance_due or 0) > 0 %}color:var(--color-danger);{% endif %}">${{ "{:,.2f}".format(i.balance_due or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Notes -->
+        <div class="card">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <h3 class="card-title"><i class="bi bi-sticky" style="color:var(--color-accent);"></i> Notes ({{ notes|length }})</h3>
+            </div>
+            <form method="POST" action="{{ url_for('projects_bp.project_add_note', project_id=project.id) }}" style="padding:var(--space-3);border-bottom:1px solid var(--color-border);background:var(--color-surface-raised);">
+                <div style="display:flex;gap:var(--space-2);">
+                    <input type="text" name="content" class="form-control" placeholder="Add a note..." required style="flex:1;">
+                    <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Add</button>
+                </div>
+            </form>
+            {% for note in notes %}
+            <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);">
+                <div style="font-size:var(--font-size-sm);">{{ note.content }}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:2px;">
+                    {{ note.author.full_name if note.author else '' }} &middot; {{ note.created_at.strftime('%b %d, %Y %I:%M %p') if note.created_at else '' }}
+                </div>
+            </div>
+            {% endfor %}
+            {% if not notes %}
+            <div style="padding:var(--space-4);color:var(--color-text-muted);font-size:var(--font-size-sm);">No notes yet.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div>
+        <!-- Info -->
+        <div class="card" style="margin-bottom:var(--space-3);">
+            <div class="card-header"><h3 class="card-title">Details</h3></div>
+            <div class="card-body">
+                <div style="display:grid;gap:var(--space-2);">
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Client</span><strong>{{ project.client.display_name if project.client else '' }}</strong></div>
+                    {% if project.division %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Division</span><strong>{{ project.division.name }}</strong></div>{% endif %}
+                    {% if project.project_manager %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Project Manager</span><strong>{{ project.project_manager.full_name }}</strong></div>{% endif %}
+                    {% if project.site_supervisor %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Site Supervisor</span><strong>{{ project.site_supervisor.full_name }}</strong></div>{% endif %}
+                    {% if project.estimated_start_date %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Start</span><strong>{{ project.estimated_start_date.strftime('%b %d, %Y') }}</strong></div>{% endif %}
+                    {% if project.estimated_end_date %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">End</span><strong>{{ project.estimated_end_date.strftime('%b %d, %Y') }}{% if project.days_remaining is not none %} <span style="font-size:var(--font-size-xs);color:{% if project.days_remaining < 0 %}var(--color-danger){% else %}var(--color-text-muted){% endif %};">({{ project.days_remaining }}d)</span>{% endif %}</strong></div>{% endif %}
+                    {% if project.contract %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Contract</span><a href="{{ url_for('contracts.contract_detail', contract_id=project.contract_id) }}" style="font-weight:600;color:var(--color-accent);text-decoration:none;">{{ project.contract.contract_number }}</a></div>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if project.description %}
+        <div class="card" style="margin-bottom:var(--space-3);">
+            <div class="card-header"><h3 class="card-title">Description</h3></div>
+            <div class="card-body"><p style="margin:0;white-space:pre-wrap;font-size:var(--font-size-sm);">{{ project.description }}</p></div>
+        </div>
+        {% endif %}
+
+        {% if project.client_contact_name %}
+        <div class="card" style="margin-bottom:var(--space-3);">
+            <div class="card-header"><h3 class="card-title">Client Contact</h3></div>
+            <div class="card-body" style="font-size:var(--font-size-sm);">
+                <div style="font-weight:600;">{{ project.client_contact_name }}</div>
+                {% if project.client_contact_phone %}<div><i class="bi bi-telephone" style="font-size:0.7rem;"></i> {{ project.client_contact_phone }}</div>{% endif %}
+                {% if project.client_contact_email %}<div><i class="bi bi-envelope" style="font-size:0.7rem;"></i> {{ project.client_contact_email }}</div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if purchase_orders %}
+        <div class="card" style="margin-bottom:var(--space-3);">
+            <div class="card-header"><h3 class="card-title">Purchase Orders</h3></div>
+            <div class="card-body" style="padding:0;">
+                {% for po in purchase_orders %}
+                <a href="{{ url_for('purchase_orders.po_detail', po_id=po.id) }}" style="display:block;padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);text-decoration:none;color:inherit;">
+                    <div style="font-weight:600;color:var(--color-accent);font-size:var(--font-size-sm);">{{ po.po_number }}</div>
+                    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">${{ "{:,.2f}".format(po.amount_authorized) }} authorized</div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

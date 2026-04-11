@@ -28,6 +28,7 @@ class Job(Base):
     property_id = Column(Integer, ForeignKey('properties.id'))
     quote_id = Column(Integer, ForeignKey('quotes.id'))
     contract_id = Column(Integer, ForeignKey('contracts.id'), nullable=True, index=True)
+    project_id  = Column(Integer, ForeignKey('projects.id'), nullable=True, index=True)
 
     # Job details
     job_number = Column(String(50), unique=True, index=True)
@@ -87,6 +88,7 @@ class Job(Base):
     notes = relationship("JobNote", back_populates="job", cascade="all, delete-orphan")
     invoices = relationship("Invoice", back_populates="job")
     contract = relationship("Contract", back_populates="jobs", lazy='select')
+    project = relationship("Project", backref="jobs", foreign_keys=[project_id], lazy='select')
     sla = relationship("SLA", lazy='select')
     phases = relationship("JobPhase", back_populates="job", cascade="all, delete-orphan",
                           order_by="JobPhase.sort_order, JobPhase.phase_number", lazy='select')

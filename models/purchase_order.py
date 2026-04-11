@@ -25,6 +25,7 @@ class PurchaseOrder(Base):
     po_number         = Column(String(100), nullable=False, index=True)
     client_id         = Column(Integer, ForeignKey('clients.id'), nullable=False)
     contract_id       = Column(Integer, ForeignKey('contracts.id'), nullable=True)
+    project_id        = Column(Integer, ForeignKey('projects.id'), nullable=True, index=True)
 
     description       = Column(Text, nullable=True)
     status            = Column(String(20), nullable=False, default=POStatus.active.value, index=True)
@@ -50,6 +51,7 @@ class PurchaseOrder(Base):
     contract  = relationship('Contract', backref='purchase_orders')
     invoices  = relationship('Invoice', back_populates='purchase_order')
     creator   = relationship('User', foreign_keys=[created_by])
+    project   = relationship('Project', backref='purchase_orders', foreign_keys=[project_id])
     updater   = relationship('User', foreign_keys=[updated_by])
     attachments = relationship('POAttachment', back_populates='purchase_order',
                                 cascade='all, delete-orphan', lazy='select')

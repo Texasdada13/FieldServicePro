@@ -30,6 +30,13 @@
           </a>
         </li>
         <li class="sidebar__item">
+          <a href="{{ url_for('projects_bp.project_list') }}"
+             class="sidebar__link {% if active_page == 'projects' %}is-active{% endif %}">
+            <i class="bi bi-kanban sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Projects</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
           <a href="{{ url_for('jobs_page') }}"
              class="sidebar__link {% if active_page == 'jobs' %}is-active{% endif %}">
             <i class="bi bi-briefcase sidebar__link-icon" aria-hidden="true"></i>

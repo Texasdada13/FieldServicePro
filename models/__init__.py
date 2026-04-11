@@ -35,6 +35,7 @@ from .portal_notification import PortalNotification
 from .portal_settings import PortalSettings
 from .service_request import ServiceRequest
 from .equipment import Equipment
+from .project import Project, ProjectNote, ProjectStatus, ProjectPriority
 
 __all__ = [
     'Base', 'get_session', 'init_db', 'engine',
@@ -69,4 +70,5 @@ __all__ = [
     'PortalSettings',
     'ServiceRequest',
     'Equipment',
+    'Project', 'ProjectNote', 'ProjectStatus', 'ProjectPriority',
 ]

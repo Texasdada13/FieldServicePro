@@ -12,6 +12,7 @@ class Permit(Base):
     id                = Column(Integer, primary_key=True)
     permit_number     = Column(String(100), nullable=True)
     job_id            = Column(Integer, ForeignKey('jobs.id'), nullable=False, index=True)
+    project_id        = Column(Integer, ForeignKey('projects.id'), nullable=True, index=True)
     phase_id          = Column(Integer, ForeignKey('job_phases.id'), nullable=True)
 
     permit_type       = Column(String(50), nullable=False, default='other')

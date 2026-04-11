@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if project else 'New' }} Project{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);">
+    <a href="{{ url_for('projects_bp.project_list') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back to Projects</a>
+</div>
+
+<div style="max-width:900px;">
+    <h1 style="margin:0 0 var(--space-4);">{{ 'Edit' if project else 'New' }} Project</h1>
+
+    <form method="POST">
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+            <div>
+                <div class="card" style="margin-bottom:var(--space-3);">
+                    <div class="card-header"><h3 class="card-title">Project Details</h3></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Title *</label>
+                            <input type="text" name="title" class="form-control" required value="{{ project.title if project else '' }}" placeholder="e.g. Weber Place HVAC Retrofit">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="3">{{ project.description if project else '' }}</textarea>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+                            <div class="form-group">
+                                <label class="form-label">Client *</label>
+                                <select name="client_id" class="form-control" required>
+                                    <option value="">Select client...</option>
+                                    {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if project and project.client_id == c.id }}>{{ c.display_name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Division</label>
+                                <select name="division_id" class="form-control">
+                                    <option value="">Select...</option>
+                                    {% for d in divisions %}<option value="{{ d.id }}" {{ 'selected' if project and project.division_id == d.id }}>{{ d.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Status</label>
+                                <select name="status" class="form-control">
+                                    {% for val, label in [('planning','Planning'),('approved','Approved'),('active','Active'),('on_hold','On Hold'),('completed','Completed'),('closed','Closed'),('cancelled','Cancelled')] %}
+                                    <option value="{{ val }}" {{ 'selected' if project and project.status == val }}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+                            <div class="form-group">
+                                <label class="form-label">Priority</label>
+                                <select name="priority" class="form-control">
+                                    {% for val, label in [('low','Low'),('medium','Medium'),('high','High'),('critical','Critical')] %}
+                                    <option value="{{ val }}" {{ 'selected' if project and project.priority == val else ('selected' if not project and val == 'medium' else '') }}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Estimated Budget</label>
+                                <input type="number" name="estimated_budget" class="form-control" step="0.01" value="{{ project.estimated_budget if project and project.estimated_budget else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Approved Budget</label>
+                                <input type="number" name="approved_budget" class="form-control" step="0.01" value="{{ project.approved_budget if project and project.approved_budget else '' }}">
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                            <div class="form-group">
+                                <label class="form-label">Est. Start Date</label>
+                                <input type="date" name="estimated_start_date" class="form-control" value="{{ project.estimated_start_date.isoformat() if project and project.estimated_start_date else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Est. End Date</label>
+                                <input type="date" name="estimated_end_date" class="form-control" value="{{ project.estimated_end_date.isoformat() if project and project.estimated_end_date else '' }}">
+                            </div>
+                        </div>
+                        {% if project %}
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+                            <div class="form-group">
+                                <label class="form-label">Actual Start</label>
+                                <input type="date" name="actual_start_date" class="form-control" value="{{ project.actual_start_date.isoformat() if project.actual_start_date else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Actual End</label>
+                                <input type="date" name="actual_end_date" class="form-control" value="{{ project.actual_end_date.isoformat() if project.actual_end_date else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">% Complete</label>
+                                <input type="number" name="percent_complete" class="form-control" min="0" max="100" value="{{ project.percent_complete }}">
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card" style="margin-bottom:var(--space-3);">
+                    <div class="card-header"><h3 class="card-title">People</h3></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Project Manager</label>
+                            <select name="project_manager_id" class="form-control">
+                                <option value="">None</option>
+                                {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if project and project.project_manager_id == u.id }}>{{ u.full_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Site Supervisor</label>
+                            <select name="site_supervisor_id" class="form-control">
+                                <option value="">None</option>
+                                {% for t in techs %}<option value="{{ t.id }}" {{ 'selected' if project and project.site_supervisor_id == t.id }}>{{ t.full_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group"><label class="form-label">Client Contact Name</label><input type="text" name="client_contact_name" class="form-control" value="{{ project.client_contact_name if project else '' }}"></div>
+                        <div class="form-group"><label class="form-label">Client Contact Phone</label><input type="text" name="client_contact_phone" class="form-control" value="{{ project.client_contact_phone if project else '' }}"></div>
+                        <div class="form-group"><label class="form-label">Client Contact Email</label><input type="email" name="client_contact_email" class="form-control" value="{{ project.client_contact_email if project else '' }}"></div>
+                    </div>
+                </div>
+
+                <div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="3">{{ project.notes if project else '' }}</textarea></div>
+
+                <div style="display:flex;gap:var(--space-2);margin-top:var(--space-3);">
+                    <button type="submit" class="btn btn-accent" style="flex:1;">{{ 'Update' if project else 'Create' }} Project</button>
+                    <a href="{{ url_for('projects_bp.project_list') }}" class="btn btn-ghost">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

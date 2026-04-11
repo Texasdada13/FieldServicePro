@@ -40,7 +40,7 @@ def get_session():
 
 def init_db():
     """Initialize the database, creating all tables."""
-    from . import user, division, client, job, quote, invoice, technician, sla, contract, purchase_order, po_attachment, app_settings, settings, job_phase, change_order, document, permit, insurance, certification, checklist, lien_waiver, portal_user, portal_message, portal_notification, portal_settings, service_request, equipment  # noqa: F401
+    from . import user, division, client, job, quote, invoice, technician, sla, contract, purchase_order, po_attachment, app_settings, settings, job_phase, change_order, document, permit, insurance, certification, checklist, lien_waiver, portal_user, portal_message, portal_notification, portal_settings, service_request, equipment, project  # noqa: F401
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables initialized successfully.")

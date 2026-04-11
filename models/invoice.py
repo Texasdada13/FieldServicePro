@@ -31,6 +31,7 @@ class Invoice(Base):
     organization_id = Column(Integer, ForeignKey('organizations.id'), nullable=False)
     client_id = Column(Integer, ForeignKey('clients.id'), nullable=False)
     job_id = Column(Integer, ForeignKey('jobs.id'))
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True, index=True)
 
     invoice_number = Column(String(50), unique=True, index=True)
     status = Column(String(20), default=InvoiceStatus.DRAFT.value, index=True)
@@ -78,6 +79,7 @@ class Invoice(Base):
     items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="invoice", cascade="all, delete-orphan")
     purchase_order = relationship("PurchaseOrder", back_populates="invoices")
+    project = relationship("Project", backref="invoices", foreign_keys=[project_id])
     approver = relationship("User", foreign_keys=[approved_by])
 
     @property

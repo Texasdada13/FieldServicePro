@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Projects - FieldServicePro{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Projects</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ projects|length }} project{{ 's' if projects|length != 1 else '' }}</p>
+    </div>
+    <a href="{{ url_for('projects_bp.project_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Project</a>
+</div>
+
+<!-- KPI Stats -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ total }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Projects</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-info);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ active_count }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Active</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-text-muted);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ planning_count }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Planning</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ completed_count }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Completed</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <select name="status" class="form-control" style="width:auto;min-width:130px;" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for val, label in [('planning','Planning'),('approved','Approved'),('active','Active'),('on_hold','On Hold'),('completed','Completed'),('closed','Closed'),('cancelled','Cancelled')] %}
+            <option value="{{ val }}" {{ 'selected' if filter_status == val }}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <div style="position:relative;margin-left:auto;">
+            <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:0.8rem;"></i>
+            <input type="text" name="search" class="form-control" placeholder="Search projects..." value="{{ search or '' }}" style="padding-left:2rem;width:220px;">
+        </div>
+        {% if filter_status or search %}
+        <a href="{{ url_for('projects_bp.project_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Projects Table -->
+<div class="card">
+    <div style="overflow-x:auto;">
+        {% if projects %}
+        <table id="projectsTable" style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom:2px solid var(--color-border);">
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Project #</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:180px;">Title</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:130px;">Client</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:80px;">Status</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:80px;">Priority</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Progress</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:90px;">Budget</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Timeline</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in projects %}
+                <tr onclick="window.location.href='{{ url_for('projects_bp.project_detail', project_id=p.id) }}'" style="cursor:pointer;border-bottom:1px solid var(--color-border);transition:background 0.1s;{% if p.is_behind_schedule %}border-left:3px solid var(--color-danger);{% endif %}">
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <span style="font-weight:600;color:var(--color-accent);">{{ p.project_number }}</span>
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <div style="font-weight:500;">{{ p.title }}</div>
+                        {% if p.division %}<span style="font-size:0.6rem;font-weight:600;padding:1px 5px;border-radius:999px;background:{{ p.division.color if p.division.color else '#666' }};color:#fff;">{{ p.division.name }}</span>{% endif %}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ p.client.display_name if p.client else '' }}</td>
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:{% if p.status == 'active' %}rgba(13,148,136,0.1){% elif p.status == 'completed' %}rgba(16,185,129,0.1){% elif p.status == 'on_hold' %}rgba(245,158,11,0.1){% elif p.status == 'cancelled' %}rgba(239,68,68,0.1){% else %}var(--color-surface-raised){% endif %};color:var(--color-{{ p.status_color }});">{{ p.status_label }}</span>
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:{% if p.priority == 'critical' %}rgba(239,68,68,0.1){% elif p.priority == 'high' %}rgba(245,158,11,0.1){% else %}var(--color-surface-raised){% endif %};color:var(--color-{{ p.priority_color }});">{{ p.priority_label }}</span>
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <div style="min-width:80px;">
+                            <div style="height:5px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;margin-bottom:2px;">
+                                <div style="height:100%;width:{{ p.percent_complete }}%;background:var(--color-accent);border-radius:var(--radius-full);"></div>
+                            </div>
+                            <div style="font-size:0.6rem;color:var(--color-text-muted);">{{ p.percent_complete }}%</div>
+                        </div>
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;white-space:nowrap;">${{ "{:,.0f}".format(p.approved_budget or p.estimated_budget or 0) }}</td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);white-space:nowrap;">
+                        {% if p.estimated_start_date %}{{ p.estimated_start_date.strftime('%b %Y') }}{% endif %}
+                        {% if p.estimated_end_date %} — {{ p.estimated_end_date.strftime('%b %Y') }}{% endif %}
+                        {% if p.is_behind_schedule %}<span style="color:var(--color-danger);font-size:var(--font-size-xs);font-weight:600;margin-left:4px;"><i class="bi bi-exclamation-triangle"></i> Behind</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="padding:var(--space-6);text-align:center;">
+            <i class="bi bi-kanban" style="font-size:3rem;color:var(--color-text-muted);"></i>
+            <h3 style="margin:var(--space-2) 0 var(--space-1);">No projects</h3>
+            <p style="color:var(--color-text-muted);">Create your first project to start managing complex work.</p>
+            <a href="{{ url_for('projects_bp.project_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Project</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<style>#projectsTable tbody tr:hover { background:var(--color-surface-raised); }</style>
+{% endblock %}
