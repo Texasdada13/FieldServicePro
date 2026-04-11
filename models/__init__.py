@@ -34,6 +34,7 @@ from .portal_message import PortalMessage
 from .portal_notification import PortalNotification
 from .portal_settings import PortalSettings
 from .service_request import ServiceRequest
+from .equipment import Equipment
 
 __all__ = [
     'Base', 'get_session', 'init_db', 'engine',
@@ -67,4 +68,5 @@ __all__ = [
     'PortalNotification',
     'PortalSettings',
     'ServiceRequest',
+    'Equipment',
 ]

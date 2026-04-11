@@ -202,9 +202,15 @@ def tech_availability():
             return jsonify({'assignments': []})
 
         try:
-            target_date = datetime.fromisoformat(date_str).date()
-        except ValueError:
-            return jsonify({'assignments': []})
+            # Handle both "2026-04-10" and "2026-04-10T00:00:00" formats
+            if 'T' in date_str:
+                target_date = datetime.fromisoformat(date_str.replace('Z', '')).date()
+            else:
+                from datetime import date as date_type
+                parts = date_str.split('-')
+                target_date = date_type(int(parts[0]), int(parts[1]), int(parts[2]))
+        except (ValueError, IndexError):
+            return jsonify({'assignments': [], 'count': 0})
 
         day_start = datetime.combine(target_date, datetime.min.time())
         day_end = day_start + timedelta(days=1)

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ item.name }} - FieldServicePro{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);">
+    <a href="{{ url_for('equipment.equipment_list') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);">
+        <i class="bi bi-arrow-left"></i> Back to Equipment
+    </a>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">{{ item.name }}</h1>
+        <div style="display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-1);">
+            <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-secondary);">{{ item.type_display }}</span>
+            <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:{% if item.status == 'available' %}rgba(16,185,129,0.1){% elif item.status == 'assigned' %}rgba(13,148,136,0.1){% elif item.status == 'in_maintenance' %}rgba(245,158,11,0.1){% elif item.status == 'out_of_service' %}rgba(239,68,68,0.1){% else %}var(--color-surface-raised){% endif %};color:var(--color-{{ item.status_color }});">{{ item.status_display }}</span>
+        </div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <div>
+        <div class="card" style="margin-bottom:var(--space-3);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-tools" style="color:var(--color-accent);"></i> Details</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                    <div>
+                        <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Make / Model</span>
+                        <strong>{{ item.make_model or '---' }}{% if item.year %} ({{ item.year }}){% endif %}</strong>
+                    </div>
+                    <div>
+                        <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Serial / ID</span>
+                        <strong style="font-family:monospace;">{{ item.serial_number or item.identifier or '---' }}</strong>
+                    </div>
+                    <div>
+                        <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Division</span>
+                        <strong>{{ item.division.name if item.division else '---' }}</strong>
+                    </div>
+                    <div>
+                        <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Rate</span>
+                        <strong>{% if item.daily_rate %}${{ "{:,.2f}".format(item.daily_rate) }}/day{% elif item.hourly_rate %}${{ "{:,.2f}".format(item.hourly_rate) }}/hr{% else %}---{% endif %}</strong>
+                    </div>
+                </div>
+                {% if item.notes %}
+                <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--color-border);">
+                    <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;margin-bottom:var(--space-1);">Notes</span>
+                    <p style="margin:0;white-space:pre-wrap;">{{ item.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="card" style="margin-bottom:var(--space-3);">
+            <div class="card-header"><h3 class="card-title">Maintenance</h3></div>
+            <div class="card-body">
+                <div style="margin-bottom:var(--space-2);">
+                    <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Last Maintenance</span>
+                    <strong>{{ item.last_maintenance.strftime('%b %d, %Y') if item.last_maintenance else 'None recorded' }}</strong>
+                </div>
+                <div style="margin-bottom:var(--space-2);">
+                    <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Next Due</span>
+                    <strong style="{% if item.maintenance_overdue %}color:var(--color-danger);{% endif %}">
+                        {{ item.next_maintenance.strftime('%b %d, %Y') if item.next_maintenance else 'Not scheduled' }}
+                        {% if item.maintenance_overdue %}<i class="bi bi-exclamation-triangle"></i> Overdue{% endif %}
+                    </strong>
+                </div>
+                {% if item.warranty_expiry %}
+                <div>
+                    <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:block;">Warranty Expires</span>
+                    <strong>{{ item.warranty_expiry.strftime('%b %d, %Y') }}</strong>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

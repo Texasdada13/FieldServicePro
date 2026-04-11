@@ -63,6 +63,13 @@
             {% endif %}
           </a>
         </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('equipment.equipment_list') }}"
+             class="sidebar__link {% if active_page == 'equipment' %}is-active{% endif %}">
+            <i class="bi bi-tools sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Equipment</span>
+          </a>
+        </li>
       </ul>
     </div>
 

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Equipment - FieldServicePro{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Equipment & Assets</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ items|length }} item{{ 's' if items|length != 1 else '' }}</p>
+    </div>
+</div>
+
+<!-- KPI Stats -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ total }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Assets</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ available }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Available</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-info);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ assigned }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Assigned</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-warning);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ in_maintenance }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">In Maintenance</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-danger);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ out_of_service }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Out of Service</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <select name="type" class="form-control" style="width:auto;min-width:130px;" onchange="this.form.submit()">
+            <option value="">All Types</option>
+            {% for val, label in type_choices %}
+            <option value="{{ val }}" {{ 'selected' if filter_type == val }}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select name="status" class="form-control" style="width:auto;min-width:130px;" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for val, label in status_choices %}
+            <option value="{{ val }}" {{ 'selected' if filter_status == val }}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <div style="position:relative;margin-left:auto;">
+            <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:0.8rem;"></i>
+            <input type="text" name="search" class="form-control" placeholder="Search equipment..." value="{{ search or '' }}" style="padding-left:2rem;width:220px;">
+        </div>
+        {% if filter_type or filter_status or search %}
+        <a href="{{ url_for('equipment.equipment_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Equipment Table -->
+<div class="card">
+    <div style="overflow-x:auto;">
+        {% if items %}
+        <table id="equipTable" style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom:2px solid var(--color-border);">
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:180px;">Name</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:90px;">Type</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:90px;">Status</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:120px;">Identifier</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:80px;">Rate</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Last Maint.</th>
+                    <th style="padding:var(--space-2) var(--space-3);text-align:left;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;min-width:100px;">Next Due</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for eq in items %}
+                <tr onclick="window.location.href='{{ url_for('equipment.equipment_detail', equip_id=eq.id) }}'" style="cursor:pointer;border-bottom:1px solid var(--color-border);transition:background 0.1s;">
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <div style="font-weight:600;color:var(--color-accent);">{{ eq.name }}</div>
+                        {% if eq.make_model %}<div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ eq.make_model }}{% if eq.year %} ({{ eq.year }}){% endif %}</div>{% endif %}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-secondary);">{{ eq.type_display }}</span>
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);">
+                        <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:{% if eq.status == 'available' %}rgba(16,185,129,0.1){% elif eq.status == 'assigned' %}rgba(13,148,136,0.1){% elif eq.status == 'in_maintenance' %}rgba(245,158,11,0.1){% elif eq.status == 'out_of_service' %}rgba(239,68,68,0.1){% else %}var(--color-surface-raised){% endif %};color:var(--color-{{ eq.status_color }});">{{ eq.status_display }}</span>
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);color:var(--color-text-secondary);font-family:monospace;">{{ eq.serial_number or eq.identifier or '' }}</td>
+                    <td style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-sm);">
+                        {% if eq.daily_rate %}${{ "{:,.0f}".format(eq.daily_rate) }}/day{% elif eq.hourly_rate %}${{ "{:,.0f}".format(eq.hourly_rate) }}/hr{% endif %}
+                    </td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ eq.last_maintenance.strftime('%b %d, %Y') if eq.last_maintenance else '' }}</td>
+                    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);{% if eq.maintenance_overdue %}color:var(--color-danger);font-weight:600;{% endif %}">
+                        {{ eq.next_maintenance.strftime('%b %d, %Y') if eq.next_maintenance else '' }}
+                        {% if eq.maintenance_overdue %}<i class="bi bi-exclamation-triangle" style="font-size:0.7rem;"></i>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="padding:var(--space-6);text-align:center;">
+            <i class="bi bi-tools" style="font-size:3rem;color:var(--color-text-muted);"></i>
+            <h3 style="margin:var(--space-2) 0 var(--space-1);">No equipment</h3>
+            <p style="color:var(--color-text-muted);">{% if search or filter_type or filter_status %}No equipment matches your filters.{% else %}No equipment or assets have been added yet.{% endif %}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+#equipTable tbody tr:hover { background: var(--color-surface-raised); }
+</style>
+{% endblock %}

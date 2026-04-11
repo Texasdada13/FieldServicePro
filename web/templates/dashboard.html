@@ -3,6 +3,25 @@
 {% block title %}Dashboard - FieldServicePro{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 
+{% block head %}
+<style>
+a.metric-card--link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+a.metric-card--link:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border-color: var(--color-accent);
+}
+a.metric-card--link:hover .metric-card__label {
+  color: var(--color-accent);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 
 <!-- ── Greeting ── -->
@@ -361,23 +380,5 @@
 
   </div>
 </div>
-
-<style>
-/* Clickable KPI cards */
-a.metric-card--link {
-  text-decoration: none;
-  color: inherit;
-  display: block;
-  transition: box-shadow 0.15s, border-color 0.15s;
-  cursor: pointer;
-}
-a.metric-card--link:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  border-color: var(--color-accent);
-}
-a.metric-card--link:hover .metric-card__label {
-  color: var(--color-accent);
-}
-</style>
 
 {% endblock %}

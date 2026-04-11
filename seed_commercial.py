@@ -923,6 +923,58 @@ def seed():
         counts['documents'] = doc_count
 
         # ══════════════════════════════════════════════════════════════
+        #  EQUIPMENT
+        # ══════════════════════════════════════════════════════════════
+        print("\n=== Equipment ===")
+        from models.equipment import Equipment
+
+        equip_defs = [
+            ('Service Van 01', 'vehicle', 'Ford', 'Transit', 2023, '1FTBW2CM5NKA12345', 'assigned', 85, None, div_plumbing,
+             today - timedelta(days=30), today + timedelta(days=60)),
+            ('Service Van 02', 'vehicle', 'Ford', 'Transit', 2022, '1FTBW2CM6NKA67890', 'available', 85, None, div_hvac,
+             today - timedelta(days=90), today + timedelta(days=7)),
+            ('Service Van 03', 'vehicle', 'Chevrolet', 'Express', 2021, '1GCGG25K371000001', 'in_maintenance', 75, None, div_electrical,
+             today - timedelta(days=3), today + timedelta(days=90)),
+            ('Mini Excavator', 'heavy_equipment', 'Kubota', 'KX040', 2020, 'KX040-5-12345', 'available', 250, 45, div_gc,
+             today - timedelta(days=60), today + timedelta(days=120)),
+            ('Boom Lift 30ft', 'heavy_equipment', 'JLG', '340AJ', 2019, 'JLG340AJ-99876', 'assigned', 180, None, div_gc,
+             today - timedelta(days=45), today + timedelta(days=135)),
+            ('Pipe Threading Machine', 'power_tool', 'Ridgid', '300', None, 'RDG-300-001', 'available', None, 15, div_plumbing,
+             today - timedelta(days=120), today + timedelta(days=60)),
+            ('Wire Puller', 'power_tool', 'Greenlee', '6001', None, 'GL-6001-002', 'assigned', None, None, div_electrical,
+             None, None),
+            ('Drain Camera', 'specialty', 'RIDGID', 'SeeSnake', None, 'SS-MINI-003', 'available', None, 25, div_plumbing,
+             today - timedelta(days=7), today + timedelta(days=180)),
+            ('Refrigerant Recovery Unit', 'specialty', 'Appion', 'G5Twin', None, 'APG5-004', 'available', None, None, div_hvac,
+             today - timedelta(days=90), today + timedelta(days=90)),
+            ('Electrical Test Kit', 'specialty', 'Fluke', '1587FC', None, 'FLK-1587-005', 'out_of_service', None, None, div_electrical,
+             today - timedelta(days=420), today - timedelta(days=30)),
+        ]
+
+        equip_count = 0
+        for name, etype, make, model_name, year, serial, status, daily, hourly, div, last_m, next_m in equip_defs:
+            if db.query(Equipment).filter_by(organization_id=org_id, name=name).first():
+                continue
+            eq = Equipment(
+                organization_id=org_id, name=name, equipment_type=etype,
+                make=make, model=model_name, year=year, serial_number=serial,
+                status=status, daily_rate=daily, hourly_rate=hourly,
+                division_id=div.id if div else None,
+                last_maintenance=last_m, next_maintenance=next_m,
+            )
+            if name == 'Service Van 03':
+                eq.notes = 'Engine oil leak repair in progress'
+            if name == 'Electrical Test Kit':
+                eq.notes = 'Needs annual calibration — overdue'
+                eq.warranty_expiry = today - timedelta(days=30)
+            db.add(eq)
+            equip_count += 1
+
+        db.flush()
+        print(f"  + {equip_count} equipment items")
+        counts['equipment'] = equip_count
+
+        # ══════════════════════════════════════════════════════════════
         #  COMMIT
         # ══════════════════════════════════════════════════════════════
         db.commit()

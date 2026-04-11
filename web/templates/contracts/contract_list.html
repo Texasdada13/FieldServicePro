@@ -137,7 +137,7 @@
         <td>
           {{ c.title }}
           {% if c.is_expiring_soon %}
-          <span class="badge badge-pending" style="margin-left: 4px;">{{ c.days_until_expiry }}d</span>
+          <span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(245,158,11,0.1);color:var(--color-warning);margin-left:6px;"><i class="bi bi-clock"></i> Expires in {{ c.days_until_expiry }}d</span>
           {% endif %}
         </td>
         <td>{{ c.client.display_name if c.client else '---' }}</td>

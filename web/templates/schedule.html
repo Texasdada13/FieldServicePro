@@ -485,7 +485,8 @@ function loadUnassignedJobs() {
 
 // ══════ TECH JOB COUNTS ══════
 function loadTechCounts() {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
     {% for tech in technicians %}
     fetch('/api/schedule/tech-availability?technician_id={{ tech.id }}&date=' + today)
     .then(r => r.json())

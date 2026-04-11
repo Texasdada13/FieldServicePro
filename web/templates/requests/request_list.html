@@ -77,7 +77,7 @@
             <br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ sr.contact_phone }}</span>
             {% endif %}
           </td>
-          <td>{{ sr.client.display_name if sr.client else '---' }}</td>
+          <td>{% if sr.client %}{{ sr.client.display_name }}{% elif sr.contact_name %}{{ sr.contact_name }} <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">(walk-in)</span>{% else %}<span style="color:var(--color-text-muted);">Walk-in</span>{% endif %}</td>
           <td>{{ sr.type_display }}</td>
           <td>
             <span class="badge" style="background:var(--color-{{ sr.priority_color }});color:#fff;">{{ sr.priority_display }}</span>
