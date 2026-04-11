@@ -79,6 +79,7 @@
                 <button class="cd-tab" data-tab="invoices">Invoices <span class="cd-tab-badge">{{ invoices|length }}</span></button>
                 <button class="cd-tab" data-tab="communications">Comms <span class="cd-tab-badge">{{ comm_total }}</span></button>
                 {% if client.client_type == 'commercial' %}
+                <button class="cd-tab" data-tab="client-projects">Projects {% if client_projects %}<span class="cd-tab-badge">{{ client_projects|length }}</span>{% endif %}</button>
                 <button class="cd-tab" data-tab="contracts">Contracts <span class="cd-tab-badge">{{ contracts|length }}</span></button>
                 <button class="cd-tab" data-tab="billing">Billing {% if aging.total > 0 %}<span class="cd-tab-badge" style="background:var(--color-danger);color:#fff;">${{ "{:,.0f}".format(aging.total) }}</span>{% endif %}</button>
                 <button class="cd-tab" data-tab="purchase-orders">POs {% if purchase_orders %}<span class="cd-tab-badge">{{ purchase_orders|length }}</span>{% endif %}</button>
@@ -291,6 +292,36 @@
             </div>
 
             {% if client.client_type == 'commercial' %}
+            <!-- Tab: Projects -->
+            <div class="cd-tab-content" id="tab-client-projects">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+                    <h5 style="margin:0;">Client Projects</h5>
+                    <a href="{{ url_for('projects_bp.project_new') }}?client_id={{ client.id }}" class="btn btn-accent" style="font-size:var(--font-size-sm);"><i class="bi bi-plus-lg"></i> New Project</a>
+                </div>
+                {% if client_projects %}
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:2px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Project</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+                        <th style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Budget</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;">Progress</th>
+                    </tr></thead>
+                    <tbody>
+                        {% for p in client_projects %}
+                        <tr onclick="window.location.href='{{ url_for('projects_bp.project_detail', project_id=p.id) }}'" style="cursor:pointer;border-bottom:1px solid var(--color-border);">
+                            <td style="padding:var(--space-2) var(--space-3);"><span style="font-weight:600;color:var(--color-accent);">{{ p.project_number }}</span> {{ p.title }}</td>
+                            <td style="padding:var(--space-2) var(--space-3);"><span style="display:inline-block;font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ p.status_color }});">{{ p.status_label }}</span></td>
+                            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;">${{ "{:,.0f}".format(p.approved_budget or p.estimated_budget or 0) }}</td>
+                            <td style="padding:var(--space-2) var(--space-3);"><div style="display:flex;align-items:center;gap:var(--space-2);"><div style="width:60px;height:5px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;"><div style="height:100%;width:{{ p.percent_complete }}%;background:var(--color-accent);border-radius:var(--radius-full);"></div></div><span style="font-size:var(--font-size-xs);">{{ p.percent_complete }}%</span></div></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="padding:var(--space-4);color:var(--color-text-muted);font-size:var(--font-size-sm);display:flex;align-items:center;gap:var(--space-2);"><i class="bi bi-kanban"></i> No projects yet. <a href="{{ url_for('projects_bp.project_new') }}?client_id={{ client.id }}" style="color:var(--color-accent);">Create one</a></div>
+                {% endif %}
+            </div>
+
             <!-- Tab: Contracts -->
             <div class="cd-tab-content" id="tab-contracts">
                 {% if sla_compliance_pct is not none %}

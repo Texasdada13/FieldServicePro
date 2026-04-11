@@ -234,6 +234,19 @@ def inject_approval_count():
         except Exception:
             pass
 
+    # Active project count
+    active_project_count = 0
+    if current_user.is_authenticated:
+        try:
+            from models.project import Project
+            db4 = get_session()
+            active_project_count = db4.query(Project).filter_by(
+                organization_id=current_user.organization_id, status='active'
+            ).count()
+            db4.close()
+        except Exception:
+            pass
+
     # Permission helpers for templates
     from web.utils.permissions import (
         can_manage_phase, can_approve_change_order,
@@ -243,6 +256,7 @@ def inject_approval_count():
         'pending_approval_count': count,
         'pending_co_count': co_count,
         'new_request_count': new_request_count,
+        'active_project_count': active_project_count,
         'can_manage_phase': can_manage_phase,
         'can_approve_change_order': can_approve_change_order,
         'can_edit_change_order': can_edit_change_order,
@@ -611,6 +625,13 @@ def jobs_page():
         if status_filter:
             q = q.filter_by(status=status_filter)
 
+        # Project filter
+        project_filter = request.args.get('project_filter', '')
+        if project_filter == 'has_project':
+            q = q.filter(Job.project_id.isnot(None))
+        elif project_filter == 'standalone':
+            q = q.filter(Job.project_id.is_(None))
+
         jobs = q.order_by(Job.created_at.desc()).all()
 
         # Get related data
@@ -618,6 +639,8 @@ def jobs_page():
         for job in jobs:
             jd = job.to_dict()
             jd['client_name'] = job.client.display_name if job.client else 'Unknown'
+            jd['project_number'] = job.project.project_number if job.project else None
+            jd['project_id'] = job.project_id
             jd['division_name'] = job.division.name if job.division else ''
             jd['division_color'] = job.division.color if job.division else '#666'
             jd['technician_name'] = job.technician.full_name if job.technician else 'Unassigned'
@@ -1304,6 +1327,7 @@ def client_detail(client_id):
             today=today_date,
             default_stmt_start=default_stmt_start,
             default_stmt_end=today_date,
+            client_projects=client.projects if hasattr(client, 'projects') else [],
         )
     finally:
         db.close()

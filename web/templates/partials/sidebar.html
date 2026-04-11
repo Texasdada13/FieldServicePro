@@ -34,6 +34,9 @@
              class="sidebar__link {% if active_page == 'projects' %}is-active{% endif %}">
             <i class="bi bi-kanban sidebar__link-icon" aria-hidden="true"></i>
             <span class="sidebar__link-text">Projects</span>
+            {% if active_project_count is defined and active_project_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-info); color: #fff;">{{ active_project_count }}</span>
+            {% endif %}
           </a>
         </li>
         <li class="sidebar__item">

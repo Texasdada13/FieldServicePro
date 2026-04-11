@@ -10,8 +10,14 @@
 <!-- Header -->
 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
     <div>
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-            <a href="{{ url_for('jobs_page') }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.85rem;">
+        <div style="display:flex;align-items:center;gap:var(--space-1);margin-bottom:0.25rem;font-size:var(--font-size-sm);">
+            {% if job_obj.project %}
+            <a href="{{ url_for('projects_bp.project_list') }}" style="color:var(--color-text-muted);text-decoration:none;">Projects</a>
+            <span style="color:var(--color-text-muted);">/</span>
+            <a href="{{ url_for('projects_bp.project_detail', project_id=job_obj.project_id) }}" style="color:var(--color-text-muted);text-decoration:none;">{{ job_obj.project.project_number }}</a>
+            <span style="color:var(--color-text-muted);">/</span>
+            {% endif %}
+            <a href="{{ url_for('jobs_page') }}" style="color:var(--color-text-muted);text-decoration:none;">
                 <i class="bi bi-arrow-left"></i> Jobs
             </a>
         </div>
@@ -21,6 +27,13 @@
         </div>
         <h1 style="font-size: 1.5rem; font-weight: 700; margin-top: 0.5rem;">{{ client_name }}</h1>
         <p style="color: var(--text-secondary); margin: 0;">{{ job.title }}</p>
+        {% if job_obj.project %}
+        <div style="margin-top:var(--space-2);padding:var(--space-1) var(--space-2);background:rgba(13,148,136,0.06);border-radius:var(--radius-sm);display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--font-size-sm);">
+            <i class="bi bi-kanban" style="color:var(--color-accent);"></i>
+            Part of <a href="{{ url_for('projects_bp.project_detail', project_id=job_obj.project_id) }}" style="font-weight:600;color:var(--color-accent);text-decoration:none;">{{ job_obj.project.project_number }}</a> — {{ job_obj.project.title }}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:1px 6px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ job_obj.project.status_color }});">{{ job_obj.project.status_label }}</span>
+        </div>
+        {% endif %}
     </div>
     <div style="display: flex; gap: 0.5rem; align-items: center;">
         <button class="btn btn-secondary" onclick="updateStatus('{{ job.id }}')"><i class="bi bi-pencil"></i> Edit</button>

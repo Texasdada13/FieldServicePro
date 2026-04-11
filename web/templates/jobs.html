@@ -94,6 +94,7 @@
                     <th style="min-width:140px;">Property</th>
                     <th style="min-width:100px;">Schedule</th>
                     <th style="min-width:90px;">Status</th>
+                    <th style="min-width:80px;">Project</th>
                     <th style="min-width:80px;">Contract</th>
                     <th style="min-width:80px;">SLA</th>
                     <th style="min-width:100px;">Progress</th>
@@ -126,6 +127,13 @@
                         {% endif %}
                     </td>
                     <td><span class="badge badge-{{ job.status }}">{{ job.status | replace('_', ' ') }}</span></td>
+                    <td>
+                        {% if job.project_id %}
+                        <a href="{{ url_for('projects_bp.project_detail', project_id=job.project_id) }}"
+                           style="display:inline-block;font-size:0.6rem;font-weight:600;padding:2px 6px;border-radius:999px;background:rgba(13,148,136,0.1);color:var(--color-accent);text-decoration:none;"
+                           onclick="event.stopPropagation();">{{ job.project_number }}</a>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if job.contract_id %}
                         <a href="{{ url_for('contracts.contract_detail', contract_id=job.contract_id) }}"
