@@ -259,11 +259,26 @@ def inject_approval_count():
         'pending_co_count': co_count,
         'new_request_count': new_request_count,
         'active_project_count': active_project_count,
+        'pending_time_approvals': _get_pending_time_approvals(),
         'can_manage_phase': can_manage_phase,
         'can_approve_change_order': can_approve_change_order,
         'can_edit_change_order': can_edit_change_order,
         'can_create_change_order_fn': can_create_change_order_fn,
     }
+
+
+def _get_pending_time_approvals():
+    """Get count of pending time entry approvals."""
+    try:
+        if current_user.is_authenticated and current_user.role in ('owner', 'admin'):
+            from models.time_entry import TimeEntry
+            db5 = get_session()
+            count = db5.query(TimeEntry).filter_by(status='submitted').count()
+            db5.close()
+            return count
+    except Exception:
+        pass
+    return 0
 
 
 # ========== HEALTH CHECK (Render uses this) ==========
