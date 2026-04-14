@@ -30,6 +30,20 @@ class OrganizationSettings(Base):
     # -- Statement Footer --
     statement_footer_text = Column(Text, nullable=True)
 
+    # -- Notifications --
+    notifications_enabled = Column(Boolean, default=True, nullable=False)
+    client_notifications_enabled = Column(Boolean, default=True, nullable=False)
+    email_from_name = Column(String(100), nullable=True)
+    email_from_address = Column(String(255), nullable=True)
+    email_reply_to = Column(String(255), nullable=True)
+    sms_enabled = Column(Boolean, default=False, nullable=False)
+    sms_provider = Column(String(20), nullable=True)
+    sms_api_key = Column(String(500), nullable=True)
+    sms_from_number = Column(String(20), nullable=True)
+    notification_polling_interval = Column(Integer, default=30)
+    appointment_reminder_hours = Column(Integer, default=24)
+    invoice_reminder_days = Column(String(50), default='[7, 14, 30]')
+
     # -- Audit --
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     updated_by = Column(Integer, ForeignKey('users.id'), nullable=True)

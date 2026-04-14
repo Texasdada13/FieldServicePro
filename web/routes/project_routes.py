@@ -214,6 +214,10 @@ def project_detail(project_id):
 
         active_tab = request.args.get('tab', 'overview')
 
+        # Materials rollup
+        from web.utils.project_utils import get_project_material_summary
+        material_summary = get_project_material_summary(db, project_id)
+
         return render_template('projects/project_detail.html',
             **_tpl_vars(
                 project=project, jobs=jobs, invoices=invoices,
@@ -227,6 +231,7 @@ def project_detail(project_id):
                 total_paid=total_paid, total_outstanding=total_outstanding,
                 budget=budget, budget_variance=budget_variance,
                 active_tab=active_tab,
+                material_summary=material_summary,
             ))
     finally:
         db.close()

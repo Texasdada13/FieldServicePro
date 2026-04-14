@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Stock Transfers{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Stock Transfers</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Move parts between locations</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        <a href="{{ url_for('inventory.dashboard') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-boxes"></i> Inventory</a>
+        {% if can_dispatch %}
+        <a href="{{ url_for('transfers.new_transfer') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Transfer</a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Status Filter -->
+<div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-3);">
+    <a href="{{ url_for('transfers.transfer_list') }}" class="btn {% if not status_filter %}btn-accent{% else %}btn-ghost{% endif %}" style="font-size:var(--font-size-sm);">All</a>
+    {% for val, label in statuses %}
+    <a href="{{ url_for('transfers.transfer_list') }}?status={{ val }}" class="btn {% if status_filter == val %}btn-accent{% else %}btn-ghost{% endif %}" style="font-size:var(--font-size-sm);">{{ label }}</a>
+    {% endfor %}
+</div>
+
+<div class="card"><div style="overflow-x:auto;">
+{% if transfers %}
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Transfer #</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">From</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">To</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Items</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Requested By</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date</th>
+        <th style="width:60px;"></th>
+    </tr></thead>
+    <tbody>
+    {% for t in transfers %}
+    {% set status_icons = {'requested':'clock','approved':'check-circle','in_transit':'truck','completed':'check2-circle','cancelled':'x-circle'} %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);"><code style="font-weight:600;">{{ t.transfer_number }}</code></td>
+        <td style="padding:var(--space-2) var(--space-3);font-weight:500;font-size:var(--font-size-sm);">{{ t.from_location.name }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-weight:500;font-size:var(--font-size-sm);">{{ t.to_location.name }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;font-size:var(--font-size-sm);">{{ t.items|length }}</td>
+        <td style="padding:var(--space-2) var(--space-3);">
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ t.status_color }});">
+                <i class="bi bi-{{ status_icons.get(t.status, 'question') }}" style="margin-right:2px;"></i>{{ t.status_display }}
+            </span>
+            {% if t.has_discrepancies %}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 6px;border-radius:999px;background:rgba(239,68,68,0.1);color:var(--color-danger);margin-left:4px;">Discrepancy</span>
+            {% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ t.requester.full_name if t.requester else '—' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ t.created_at.strftime('%b %d, %Y') if t.created_at else '' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);">
+            <a href="{{ url_for('transfers.transfer_detail', transfer_id=t.id) }}" class="btn btn-ghost" style="padding:2px 8px;font-size:var(--font-size-xs);">View</a>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-arrow-left-right" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4 style="color:var(--color-text-muted);">No transfers found</h4>
+    {% if can_dispatch %}<a href="{{ url_for('transfers.new_transfer') }}" style="color:var(--color-accent);">Create your first transfer</a>{% endif %}
+</div>
+{% endif %}
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

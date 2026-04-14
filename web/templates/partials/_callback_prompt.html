@@ -1,0 +1,65 @@
+{# Callback detection prompt — included in job creation forms #}
+{# Requires: recent_completed_jobs (list), lookback_days (int) #}
+
+{% if recent_completed_jobs %}
+<div style="display:flex;align-items:flex-start;gap:var(--space-3);background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius-md);padding:var(--space-3);margin-bottom:var(--space-4);" id="callbackCheckAlert">
+    <i class="bi bi-arrow-return-left" style="color:var(--color-info);font-size:1.2rem;flex-shrink:0;margin-top:2px;"></i>
+    <div style="flex:1;">
+        <strong style="font-size:var(--font-size-sm);">Possible Callback Detected</strong>
+        <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin:var(--space-1) 0 var(--space-2);">
+            This client has {{ recent_completed_jobs|length }} completed job(s) in the last {{ lookback_days }} days. Is this a callback or warranty return visit?
+        </p>
+        <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-2);">
+            <input type="checkbox" name="is_callback" value="1" id="isCallbackCheck" onchange="toggleCallbackFields()">
+            <span style="font-weight:600;font-size:var(--font-size-sm);">Yes, this is a callback for previous work</span>
+        </label>
+
+        <div id="callbackOriginalJob" style="display:none;margin-top:var(--space-2);">
+            <label style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Select the original job:</label>
+            <select name="original_job_id" id="originalJobSelect" class="form-control" style="margin-top:var(--space-1);" onchange="checkWarrantyStatus()">
+                <option value="">Select original job...</option>
+                {% for job in recent_completed_jobs %}
+                <option value="{{ job.id }}">
+                    {{ job.job_number }} — {{ job.title }}
+                    ({{ job.completed_at.strftime('%b %d') if job.completed_at else '' }})
+                    {% if job.warranties %} -- Has Warranty{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+
+            <div id="warrantyAlert" style="display:none;margin-top:var(--space-2);background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);">
+                <span style="font-size:var(--font-size-sm);color:var(--color-success);"><i class="bi bi-shield-check" style="margin-right:4px;"></i><strong>Warranty Coverage Detected!</strong></span>
+                <div id="warrantyDetails" style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:var(--space-1);"></div>
+                <small style="font-size:var(--font-size-xs);color:var(--color-text-muted);">This job will be linked to the warranty automatically.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleCallbackFields() {
+    document.getElementById('callbackOriginalJob').style.display =
+        document.getElementById('isCallbackCheck').checked ? 'block' : 'none';
+    if (!document.getElementById('isCallbackCheck').checked) {
+        document.getElementById('warrantyAlert').style.display = 'none';
+    }
+}
+
+function checkWarrantyStatus() {
+    var jobId = document.getElementById('originalJobSelect').value;
+    if (!jobId) { document.getElementById('warrantyAlert').style.display = 'none'; return; }
+    fetch('/warranties/api/job/' + jobId + '/warranty-status')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var alert = document.getElementById('warrantyAlert');
+            if (data.has_warranty) {
+                alert.style.display = 'block';
+                document.getElementById('warrantyDetails').innerHTML =
+                    'Warranty: <strong>' + data.warranty_number + '</strong> — expires ' + data.end_date;
+            } else {
+                alert.style.display = 'none';
+            }
+        });
+}
+</script>
+{% endif %}

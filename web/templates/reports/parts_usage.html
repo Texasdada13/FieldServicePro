@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Parts Usage Report{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Parts Usage Report</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Material consumption analysis</p>
+    </div>
+    <a href="{{ url_for('parts_reports.export_parts_usage') }}?date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-download"></i> Export CSV</a>
+</div>
+
+<!-- Date Range -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <label style="font-size:var(--font-size-sm);color:var(--color-text-muted);">From</label>
+        <input type="date" name="date_from" class="form-control" style="width:auto;" value="{{ date_from }}">
+        <label style="font-size:var(--font-size-sm);color:var(--color-text-muted);">To</label>
+        <input type="date" name="date_to" class="form-control" style="width:auto;" value="{{ date_to }}">
+        <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Apply</button>
+    </form>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);text-align:center;border-left:3px solid var(--color-accent);"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ totals.item_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Material Entries</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;border-left:3px solid var(--color-info);"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ totals.unique_parts }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Unique Parts</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;border-left:3px solid var(--color-danger);"><div style="font-size:var(--font-size-2xl);font-weight:700;">${{ "{:,.2f}".format(totals.total_cost) }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Cost</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;border-left:3px solid var(--color-success);"><div style="font-size:var(--font-size-2xl);font-weight:700;">${{ "{:,.2f}".format(totals.margin) }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Material Margin</div></div>
+</div>
+
+<!-- Tab Navigation -->
+<div style="display:flex;gap:var(--space-1);margin-bottom:var(--space-3);border-bottom:2px solid var(--color-border);">
+    <button onclick="showTab('part')" class="report-tab active" id="tab-part" style="padding:var(--space-2) var(--space-3);border:none;background:none;font-weight:600;font-size:var(--font-size-sm);cursor:pointer;border-bottom:2px solid var(--color-accent);margin-bottom:-2px;color:var(--color-accent);">By Part</button>
+    <button onclick="showTab('job')" class="report-tab" id="tab-job" style="padding:var(--space-2) var(--space-3);border:none;background:none;font-weight:500;font-size:var(--font-size-sm);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--color-text-muted);">By Job</button>
+    <button onclick="showTab('tech')" class="report-tab" id="tab-tech" style="padding:var(--space-2) var(--space-3);border:none;background:none;font-weight:500;font-size:var(--font-size-sm);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--color-text-muted);">By Technician</button>
+</div>
+
+<!-- By Part Tab -->
+<div id="panel-part" class="report-panel">
+<div class="card"><div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Part</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Qty Used</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Jobs</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total Cost</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total Sell</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Margin</th>
+    </tr></thead>
+    <tbody>
+    {% for row in by_part %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);">
+            {% if row.part_id %}<a href="{{ url_for('parts.part_detail', part_id=row.part_id) }}" style="text-decoration:none;color:var(--color-accent);font-weight:500;">{{ row.name }}</a><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);font-family:monospace;">{{ row.part_number }}</div>
+            {% else %}<span style="font-weight:500;color:var(--color-text-muted);">{{ row.name }}</span><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Custom item</div>{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ "{:.1f}".format(row.total_qty) }} {{ row.unit }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ row.job_count }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(row.total_cost) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;color:var(--color-accent);">${{ "{:,.2f}".format(row.total_sell) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;color:{% if row.total_sell >= row.total_cost %}var(--color-success){% else %}var(--color-danger){% endif %};">${{ "{:,.2f}".format(row.total_sell - row.total_cost) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No usage data for this period</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+</div>
+
+<!-- By Job Tab -->
+<div id="panel-job" class="report-panel" style="display:none;">
+<div class="card"><div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Job</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Items</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Material Cost</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Billable</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Margin</th>
+    </tr></thead>
+    <tbody>
+    {% for row in by_job %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);"><a href="/jobs/{{ row.job_id }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;">{{ row.job_title }}</a><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ row.job_number }}</div></td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ row.item_count }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(row.total_cost) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;color:var(--color-accent);">${{ "{:,.2f}".format(row.total_sell) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;color:{% if row.total_sell >= row.total_cost %}var(--color-success){% else %}var(--color-danger){% endif %};">${{ "{:,.2f}".format(row.total_sell - row.total_cost) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No data</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+</div>
+
+<!-- By Tech Tab -->
+<div id="panel-tech" class="report-panel" style="display:none;">
+<div class="card"><div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Technician</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Items Logged</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total Cost</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total Sell</th>
+    </tr></thead>
+    <tbody>
+    {% for row in by_tech %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);font-weight:500;">{{ row.name }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ row.item_count }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(row.total_cost) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;color:var(--color-accent);">${{ "{:,.2f}".format(row.total_sell) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No data</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+</div>
+
+<script>
+function showTab(name) {
+    document.querySelectorAll('.report-panel').forEach(function(p) { p.style.display = 'none'; });
+    document.querySelectorAll('.report-tab').forEach(function(t) { t.style.borderBottomColor = 'transparent'; t.style.color = 'var(--color-text-muted)'; t.style.fontWeight = '500'; });
+    document.getElementById('panel-' + name).style.display = 'block';
+    var tab = document.getElementById('tab-' + name);
+    tab.style.borderBottomColor = 'var(--color-accent)';
+    tab.style.color = 'var(--color-accent)';
+    tab.style.fontWeight = '600';
+}
+</script>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

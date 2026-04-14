@@ -81,10 +81,54 @@
           </a>
         </li>
         <li class="sidebar__item">
+          <a href="{{ url_for('vehicles.vehicle_dashboard') }}"
+             class="sidebar__link {% if active_page == 'vehicles' %}is-active{% endif %}">
+            <i class="bi bi-truck sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Fleet</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
           <a href="{{ url_for('time_tracking.tt_dashboard') }}"
              class="sidebar__link {% if active_page == 'time_tracking' %}is-active{% endif %}">
             <i class="bi bi-stopwatch sidebar__link-icon" aria-hidden="true"></i>
             <span class="sidebar__link-text">Time Tracking</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('recurring.schedule_list') }}"
+             class="sidebar__link {% if active_page == 'recurring' %}is-active{% endif %}">
+            <i class="bi bi-arrow-repeat sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Recurring Jobs</span>
+            {% if recurring_alert_count is defined and recurring_alert_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-danger); color: #fff;">{{ recurring_alert_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('parts.list_parts') }}"
+             class="sidebar__link {% if active_page == 'parts' %}is-active{% endif %}">
+            <i class="bi bi-box-seam sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Parts Catalog</span>
+            {% if low_stock_count is defined and low_stock_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-warning); color: #000;">{{ low_stock_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('inventory.dashboard') }}"
+             class="sidebar__link {% if active_page == 'inventory' %}is-active{% endif %}">
+            <i class="bi bi-boxes sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Inventory</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('expenses.expense_list') }}"
+             class="sidebar__link {% if active_page == 'expenses' %}is-active{% endif %}">
+            <i class="bi bi-receipt sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Expenses</span>
+            {% if pending_expenses_count is defined and pending_expenses_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-warning); color: #000;">{{ pending_expenses_count }}</span>
+            {% endif %}
           </a>
         </li>
       </ul>
@@ -160,6 +204,36 @@
             <span class="sidebar__link-text">Purchase Orders</span>
           </a>
         </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('warranty.warranty_list') }}"
+             class="sidebar__link {% if active_page == 'warranties' %}is-active{% endif %}">
+            <i class="bi bi-shield-check sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Warranties</span>
+            {% if warranty_expiring_count is defined and warranty_expiring_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-warning); color: #000;">{{ warranty_expiring_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('callback.callback_list') }}"
+             class="sidebar__link {% if active_page == 'callbacks' %}is-active{% endif %}">
+            <i class="bi bi-arrow-return-left sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Callbacks</span>
+            {% if open_callbacks_count is defined and open_callbacks_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-danger); color: #fff;">{{ open_callbacks_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('communications.communication_list') }}"
+             class="sidebar__link {% if active_page == 'communications' %}is-active{% endif %}">
+            <i class="bi bi-chat-dots sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Communications</span>
+            {% if overdue_followups_count is defined and overdue_followups_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-danger); color: #fff;">{{ overdue_followups_count }}</span>
+            {% endif %}
+          </a>
+        </li>
       </ul>
     </div>
 
@@ -209,8 +283,17 @@
     <div class="sidebar__group">
       <span class="sidebar__group-label">System</span>
       <ul class="sidebar__list" role="list">
+        {% if user and user.role in ('admin', 'owner') %}
         <li class="sidebar__item">
-          <a href="{{ url_for('portal_admin.portal_notifications') }}"
+          <a href="{{ url_for('payroll.payroll_dashboard') }}"
+             class="sidebar__link {% if active_page == 'payroll' %}is-active{% endif %}">
+            <i class="bi bi-cash-stack sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Payroll</span>
+          </a>
+        </li>
+        {% endif %}
+        <li class="sidebar__item">
+          <a href="{{ url_for('notifications.notification_center') }}"
              class="sidebar__link {% if active_page == 'notifications' %}is-active{% endif %}">
             <i class="bi bi-bell sidebar__link-icon" aria-hidden="true"></i>
             <span class="sidebar__link-text">Notifications</span>

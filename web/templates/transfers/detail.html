@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}{{ transfer.transfer_number }}{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div style="margin-bottom:var(--space-2);font-size:var(--font-size-sm);">
+    <a href="{{ url_for('transfers.transfer_list') }}" style="color:var(--color-text-muted);text-decoration:none;">Transfers</a>
+    <span style="color:var(--color-text-muted);margin:0 4px;">/</span>
+    <span>{{ transfer.transfer_number }}</span>
+</div>
+
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0 0 var(--space-1);">{{ transfer.transfer_number }}</h1>
+        <div style="display:flex;gap:var(--space-2);align-items:center;">
+            <span style="font-weight:500;">{{ transfer.from_location.name }}</span>
+            <i class="bi bi-arrow-right" style="color:var(--color-text-muted);"></i>
+            <span style="font-weight:500;">{{ transfer.to_location.name }}</span>
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ transfer.status_color }});">{{ transfer.status_display }}</span>
+            {% if transfer.has_discrepancies %}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.1);color:var(--color-danger);"><i class="bi bi-exclamation-triangle" style="margin-right:2px;"></i>Discrepancies</span>
+            {% endif %}
+        </div>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        {% if transfer.status == 'requested' and can_dispatch %}
+        <form method="POST" action="{{ url_for('transfers.approve_transfer_route', transfer_id=transfer.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn-accent" onclick="return confirm('Approve this transfer?')"><i class="bi bi-check-lg"></i> Approve</button>
+        </form>
+        <form method="POST" action="{{ url_for('transfers.cancel_transfer_route', transfer_id=transfer.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn-ghost" style="color:var(--color-danger);" onclick="return confirm('Cancel this transfer?')">Cancel</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+
+    <!-- Left: Items -->
+    <div>
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-box" style="color:var(--color-accent);"></i> Transfer Items</h3></div>
+
+            {% if transfer.status == 'approved' and can_dispatch %}
+            <!-- Dispatch Form -->
+            <form method="POST" action="{{ url_for('transfers.dispatch_transfer_route', transfer_id=transfer.id) }}">
+                <div class="card-body" style="padding:0;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="border-bottom:2px solid var(--color-border);">
+                            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Part</th>
+                            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Requested</th>
+                            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Qty to Send</th>
+                        </tr></thead>
+                        <tbody>
+                        {% for item in transfer.items %}
+                        <tr style="border-bottom:1px solid var(--color-border);">
+                            <td style="padding:var(--space-2) var(--space-3);">
+                                <div style="font-weight:500;">{{ item.part.name }}</div>
+                                <code style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ item.part.part_number }}</code>
+                            </td>
+                            <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ item.quantity_requested }}</td>
+                            <td style="padding:var(--space-2) var(--space-3);text-align:center;width:120px;">
+                                <input type="number" name="qty_sent_{{ item.id }}" class="form-control" style="text-align:center;width:80px;margin:0 auto;" value="{{ item.quantity_requested }}" min="0" max="{{ item.quantity_requested }}">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div style="padding:var(--space-2) var(--space-3);border-top:1px solid var(--color-border);">
+                    <button type="submit" class="btn btn-accent" style="background:var(--color-warning);border-color:var(--color-warning);color:#000;" onclick="return confirm('Dispatch? Items will be removed from source location.')">
+                        <i class="bi bi-truck"></i> Dispatch (Mark as In Transit)
+                    </button>
+                </div>
+            </form>
+
+            {% elif transfer.status == 'in_transit' and can_dispatch %}
+            <!-- Receive Form -->
+            <form method="POST" action="{{ url_for('transfers.receive_transfer_route', transfer_id=transfer.id) }}">
+                <div class="card-body" style="padding:0;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="border-bottom:2px solid var(--color-border);">
+                            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Part</th>
+                            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Requested</th>
+                            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Sent</th>
+                            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Qty Received</th>
+                        </tr></thead>
+                        <tbody>
+                        {% for item in transfer.items %}
+                        <tr style="border-bottom:1px solid var(--color-border);">
+                            <td style="padding:var(--space-2) var(--space-3);">
+                                <div style="font-weight:500;">{{ item.part.name }}</div>
+                                <code style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ item.part.part_number }}</code>
+                            </td>
+                            <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ item.quantity_requested }}</td>
+                            <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ item.quantity_sent or '—' }}</td>
+                            <td style="padding:var(--space-2) var(--space-3);text-align:center;width:120px;">
+                                <input type="number" name="qty_received_{{ item.id }}" class="form-control" style="text-align:center;width:80px;margin:0 auto;" value="{{ item.quantity_sent or 0 }}" min="0">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div style="padding:var(--space-2) var(--space-3);border-top:1px solid var(--color-border);">
+                    <button type="submit" class="btn btn-accent" onclick="return confirm('Confirm receipt? Items will be added to destination.')">
+                        <i class="bi bi-check2-circle"></i> Confirm Receipt
+                    </button>
+                </div>
+            </form>
+
+            {% else %}
+            <!-- Read-Only View -->
+            <div class="card-body" style="padding:0;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:2px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Part</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Requested</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Sent</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Received</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Discrepancy</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for item in transfer.items %}
+                    <tr style="border-bottom:1px solid var(--color-border);{% if item.has_discrepancy %}background:rgba(245,158,11,0.04);{% endif %}">
+                        <td style="padding:var(--space-2) var(--space-3);">
+                            <div style="font-weight:500;">{{ item.part.name }}</div>
+                            <code style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ item.part.part_number }}</code>
+                        </td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ item.quantity_requested }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ item.quantity_sent if item.quantity_sent is not none else '—' }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ item.quantity_received if item.quantity_received is not none else '—' }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;">
+                            {% if item.has_discrepancy %}
+                            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.1);color:var(--color-danger);">{{ item.discrepancy_amount }}</span>
+                            {% elif item.quantity_received is not none %}
+                            <span style="color:var(--color-success);font-weight:600;">&#10003;</span>
+                            {% else %}
+                            <span style="color:var(--color-text-muted);">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right: Details -->
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Transfer Details</h3></div>
+            <div class="card-body">
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Transfer Number</span><div style="font-weight:600;"><code>{{ transfer.transfer_number }}</code></div></div>
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">From Location</span><div style="font-weight:500;">{{ transfer.from_location.name }}</div></div>
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">To Location</span><div style="font-weight:500;">{{ transfer.to_location.name }}</div></div>
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Requested By</span><div>{{ transfer.requester.full_name if transfer.requester else '—' }}</div></div>
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Requested At</span><div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ transfer.created_at.strftime('%b %d, %Y %H:%M') if transfer.created_at else '' }}</div></div>
+                {% if transfer.approver %}
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Approved By</span><div>{{ transfer.approver.full_name }}</div></div>
+                {% endif %}
+                {% if transfer.completed_at %}
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Completed At</span><div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ transfer.completed_at.strftime('%b %d, %Y %H:%M') }}</div></div>
+                {% endif %}
+                {% if transfer.notes %}
+                <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Notes</span><div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ transfer.notes }}</div></div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if transfer.status not in ('completed', 'cancelled') and can_admin %}
+        <form method="POST" action="{{ url_for('transfers.cancel_transfer_route', transfer_id=transfer.id) }}">
+            <button type="submit" class="btn btn-ghost" style="width:100%;color:var(--color-danger);font-size:var(--font-size-sm);" onclick="return confirm('Cancel this transfer?')">
+                <i class="bi bi-x-circle"></i> Cancel Transfer
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

@@ -1,0 +1,91 @@
+{# Quick Communication Log Modal — included in base.html #}
+{% if user and user.is_authenticated %}
+<div id="quickLogOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1100;align-items:center;justify-content:center;">
+<div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:700px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+        <h3 style="margin:0;color:var(--color-accent);"><i class="bi bi-chat-square-plus" style="margin-right:var(--space-2);"></i>Quick Log Communication</h3>
+        <button onclick="closeQuickLog()" style="border:none;background:none;cursor:pointer;font-size:1.2rem;color:var(--color-text-muted);">&times;</button>
+    </div>
+    <form id="quickLogForm" method="POST" action="{{ url_for('communications.quick_log') }}">
+        <!-- Type Grid -->
+        <div style="margin-bottom:var(--space-3);">
+            <label style="font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;font-weight:600;">Type</label>
+            <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-1);" id="qlTypeGrid">
+                {% for val, icon, label in [
+                    ('phone_inbound','bi-telephone-inbound','Phone In'),
+                    ('phone_outbound','bi-telephone-outbound','Phone Out'),
+                    ('email_inbound','bi-envelope-arrow-down','Email In'),
+                    ('email_outbound','bi-envelope-arrow-up','Email Out'),
+                    ('text_inbound','bi-chat-left-text','Text In'),
+                    ('text_outbound','bi-chat-right-text','Text Out'),
+                    ('in_person','bi-people','In Person'),
+                    ('site_visit','bi-geo-alt','Site Visit'),
+                ] %}
+                <div class="ql-type-tile" data-type="{{ val }}" style="border:2px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-1) var(--space-2);text-align:center;cursor:pointer;min-width:70px;">
+                    <i class="bi {{ icon }}" style="font-size:1.1rem;display:block;"></i>
+                    <small style="font-size:0.65rem;">{{ label }}</small>
+                </div>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="communication_type" id="qlTypeInput" required>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 100px;gap:var(--space-2);margin-bottom:var(--space-2);">
+            <div class="form-group"><label class="form-label" style="font-size:var(--font-size-xs);">Client *</label>
+                <select name="client_id" id="qlClientSelect" class="form-control" required onchange="qlLoadEntities(this.value)">
+                    <option value="">Select client...</option>
+                    {% if all_clients is defined %}{% for c in all_clients %}<option value="{{ c.id }}">{{ c.display_name }}</option>{% endfor %}{% endif %}
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label" style="font-size:var(--font-size-xs);">Job</label>
+                <select name="job_id" id="qlJobSelect" class="form-control"><option value="">—</option></select>
+            </div>
+            <div class="form-group"><label class="form-label" style="font-size:var(--font-size-xs);">Minutes</label>
+                <input type="number" name="duration_minutes" class="form-control" min="1" placeholder="15">
+            </div>
+        </div>
+
+        {% if comm_templates is defined and comm_templates %}
+        <div class="form-group" style="margin-bottom:var(--space-2);">
+            <label class="form-label" style="font-size:var(--font-size-xs);">Template</label>
+            <select id="qlTemplateSelect" class="form-control" onchange="qlLoadTemplate(this.value)">
+                <option value="">— None —</option>
+                {% for t in comm_templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div class="form-group" style="margin-bottom:var(--space-2);">
+            <label class="form-label" style="font-size:var(--font-size-xs);">Subject *</label>
+            <input type="text" name="subject" id="qlSubject" class="form-control" required placeholder="Brief summary...">
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-2);">
+            <label class="form-label" style="font-size:var(--font-size-xs);">Notes</label>
+            <textarea name="description" class="form-control" rows="3" placeholder="Conversation details..."></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-2);margin-bottom:var(--space-2);">
+            <div class="form-group"><label class="form-label" style="font-size:var(--font-size-xs);">Outcome</label>
+                <input type="text" name="outcome" class="form-control" placeholder="What was decided?">
+            </div>
+            <div class="form-group"><label class="form-label" style="font-size:var(--font-size-xs);">Priority</label>
+                <select name="priority" class="form-control"><option value="low">Low</option><option value="normal" selected>Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+            </div>
+            <div class="form-group"><label class="form-label" style="font-size:var(--font-size-xs);">Sentiment</label>
+                <select name="sentiment" class="form-control"><option value="">—</option><option value="positive">Positive</option><option value="neutral">Neutral</option><option value="negative">Negative</option><option value="escalation">Escalation</option></select>
+            </div>
+        </div>
+        <div style="margin-bottom:var(--space-3);">
+            <label style="display:flex;align-items:center;gap:var(--space-1);cursor:pointer;font-size:var(--font-size-sm);">
+                <input type="checkbox" name="follow_up_required" id="qlFuCheck" onchange="document.getElementById('qlFuDate').style.display=this.checked?'inline-block':'none'"> Follow-up required
+            </label>
+            <input type="date" name="follow_up_date" id="qlFuDate" class="form-control" style="display:none;width:160px;margin-top:var(--space-1);">
+        </div>
+        <input type="hidden" name="communication_date" id="qlCommDate">
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+            <button type="button" onclick="closeQuickLog()" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg"></i> Save</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endif %}

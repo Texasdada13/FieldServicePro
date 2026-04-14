@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ tech.full_name }} - Time Entries{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <a href="{{ url_for('payroll.payroll_detail', period_id=period.id) }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> {{ period.period_name }}</a>
+        <h1 style="margin:var(--space-1) 0 0;">{{ tech.full_name }} - Time Entries</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:0;">{{ period.period_name }}</p>
+    </div>
+    {% if line_item %}
+    <div style="text-align:right;">
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Gross Pay</div>
+        <div style="font-size:1.5rem;font-weight:700;color:var(--color-success);">${{ "{:,.2f}".format(line_item.gross_pay) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ "%.2f"|format(line_item.total_hours) }} total hours</div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Summary -->
+{% if line_item %}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.3rem;font-weight:700;">{{ "%.2f"|format(line_item.regular_hours|float) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Regular Hrs</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">${{ "%.2f"|format(line_item.regular_rate|float) }}/hr</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);text-align:center;{% if line_item.overtime_hours|float > 0 %}border-color:var(--color-warning);{% endif %}">
+        <div style="font-size:1.3rem;font-weight:700;color:var(--color-warning);">{{ "%.2f"|format(line_item.overtime_hours|float) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">OT Hours</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">${{ "%.2f"|format(line_item.overtime_rate|float) }}/hr</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.3rem;font-weight:700;">{{ line_item.days_worked }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Days Worked</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.3rem;font-weight:700;color:var(--color-info);">${{ "{:,.2f}".format(line_item.reimbursable_expenses|float) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Reimbursements</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Entries Table -->
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Time Entries ({{ entries|length }})</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:2px solid var(--color-border);">
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Start</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">End</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Hours</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Job</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Type</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Description</th>
+        </tr></thead>
+        <tbody>
+        {% for e in entries %}
+        <tr style="border-bottom:1px solid var(--color-border);{% if e.status not in ('approved','completed','exported') %}background:rgba(255,193,7,0.1);{% endif %}">
+            <td style="padding:var(--space-2) var(--space-3);">{{ e.date.strftime('%a %m/%d') if e.date else '--' }}</td>
+            <td style="padding:var(--space-2) var(--space-3);">{{ e.start_time.strftime('%I:%M %p') if e.start_time else '--' }}</td>
+            <td style="padding:var(--space-2) var(--space-3);">{{ e.end_time.strftime('%I:%M %p') if e.end_time else '--' }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">{{ "%.2f"|format(e.duration_hours|float) if e.duration_hours else '--' }}</td>
+            <td style="padding:var(--space-2) var(--space-3);">{% if e.job %}<a href="{{ url_for('job_detail', job_id=e.job_id) }}" style="font-size:var(--font-size-xs);color:var(--color-accent);text-decoration:none;">{{ e.job.job_number }}</a>{% else %}--{% endif %}</td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ e.entry_type or 'regular' }}</td>
+            <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:{% if e.status == 'approved' %}var(--color-success){% elif e.status in ('completed','exported') %}var(--color-accent){% else %}var(--color-warning){% endif %};color:#fff;">{{ e.status }}</span></td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ (e.description or '')[:50] }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No time entries for this period.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

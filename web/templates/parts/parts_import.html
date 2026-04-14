@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Import Parts{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('parts.list_parts') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back to Parts</a></div>
+<h1 style="margin:0 0 var(--space-4);">Import Parts from CSV</h1>
+
+<div style="max-width:650px;">
+    <div class="card" style="margin-bottom:var(--space-4);">
+        <div class="card-body">
+            <h4 style="font-size:var(--font-size-sm);font-weight:600;margin:0 0 var(--space-2);">Instructions</h4>
+            <ol style="font-size:var(--font-size-sm);color:var(--color-text-muted);padding-left:var(--space-4);margin:0 0 var(--space-3);">
+                <li>Download the CSV template below</li>
+                <li>Fill in your parts data (one part per row)</li>
+                <li>Required columns: <code>part_number</code>, <code>name</code></li>
+                <li>Valid <code>category</code> values: pipe_fittings, valves, electrical, hvac_components, fixtures, fasteners, adhesives_sealants, wire_cable, ductwork, controls_thermostats, safety, tools_consumables, other</li>
+                <li>Valid <code>trade</code> values: plumbing, hvac, electrical, general, multi</li>
+                <li>Valid <code>unit_of_measure</code> values: each, foot, meter, roll, box, bag, gallon, pair, set, kit, pound, sheet</li>
+                <li>Existing parts (matched by part_number) will be updated</li>
+            </ol>
+            <a href="{{ url_for('parts.csv_template') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-download"></i> Download Template</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">CSV File *</label>
+                    <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                </div>
+                <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+                    <a href="{{ url_for('parts.list_parts') }}" class="btn btn-ghost">Cancel</a>
+                    <button type="submit" class="btn btn-accent"><i class="bi bi-upload"></i> Import Parts</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

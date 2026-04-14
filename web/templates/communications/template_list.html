@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Communication Templates{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Communication Templates</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Reusable templates for common communications</p>
+    </div>
+    <a href="{{ url_for('comm_templates.template_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Template</a>
+</div>
+
+<div class="card"><div style="overflow-x:auto;">
+{% if templates %}
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Name</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Type</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Subject</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Follow-up</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Priority</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+        <th style="width:80px;"></th>
+    </tr></thead>
+    <tbody>
+    {% for t in templates %}
+    <tr style="border-bottom:1px solid var(--color-border);{% if not t.is_active %}opacity:0.6;{% endif %}">
+        <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ t.name }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ dict(comm_types).get(t.communication_type, t.communication_type) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ t.subject_template[:40] }}{% if t.subject_template|length > 40 %}...{% endif %}</td>
+        <td style="padding:var(--space-2) var(--space-3);">{% if t.follow_up_required %}<span style="font-size:var(--font-size-xs);color:var(--color-warning);">{{ t.follow_up_days }}d</span>{% else %}—{% endif %}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ t.default_priority|title }}</td>
+        <td style="padding:var(--space-2) var(--space-3);">{% if t.is_active %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">Active</span>{% else %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Inactive</span>{% endif %}</td>
+        <td style="padding:var(--space-2);display:flex;gap:4px;">
+            <a href="{{ url_for('comm_templates.template_edit', tid=t.id) }}" class="btn btn-ghost" style="padding:2px 6px;font-size:var(--font-size-xs);"><i class="bi bi-pencil"></i></a>
+            <form method="POST" action="{{ url_for('comm_templates.template_delete', tid=t.id) }}" style="display:inline;" onsubmit="return confirm('Delete?')">
+                <button type="submit" class="btn btn-ghost" style="padding:2px 6px;font-size:var(--font-size-xs);color:var(--color-danger);"><i class="bi bi-trash"></i></button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-lightning-charge" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <p>No templates yet. <a href="{{ url_for('comm_templates.template_new') }}" style="color:var(--color-accent);">Create one</a></p>
+</div>
+{% endif %}
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

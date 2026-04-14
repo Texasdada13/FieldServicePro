@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Create Pay Period{% endblock %}
+
+{% block content %}
+<div style="max-width:560px;">
+    <a href="{{ url_for('payroll.payroll_dashboard') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Payroll</a>
+    <h1 style="margin:var(--space-2) 0 var(--space-4);"><i class="bi bi-calendar-plus" style="color:var(--color-success);"></i> Create Custom Pay Period</h1>
+
+    <div class="card" style="padding:var(--space-4);">
+        <form method="POST">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                <div class="form-group"><label class="form-label">Start Date *</label>
+                    <input type="date" name="start_date" class="form-control" required value="{{ today.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="form-group"><label class="form-label">End Date *</label>
+                    <input type="date" name="end_date" class="form-control" required>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:var(--space-4);">
+                <label class="form-label">Pay Frequency</label>
+                <select name="pay_frequency" class="form-select">
+                    {% for val, label in frequencies %}
+                    <option value="{{ val }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex;gap:var(--space-2);">
+                <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg"></i> Create Period</button>
+                <a href="{{ url_for('payroll.payroll_dashboard') }}" class="btn btn-ghost">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,369 @@
+{# Materials tab content — included in job_detail.html #}
+{# Required: job_obj, job_materials, material_summary, inv_locations, job_phases, can_admin #}
+
+{% set can_price = user.role in ('owner', 'admin', 'dispatcher') %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+    <div>
+        <h3 style="margin:0;font-size:var(--font-size-base);font-weight:600;">Materials Used</h3>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-xs);margin:var(--space-1) 0 0;">Parts and materials consumed on this job</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        {% if can_price and job_materials %}
+        <form method="POST" action="{{ url_for('materials.bulk_verify', job_id=job_obj.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="return confirm('Mark all logged materials as Verified?')"><i class="bi bi-check2-all"></i> Verify All</button>
+        </form>
+        {% endif %}
+        <button type="button" onclick="document.getElementById('addMaterialOverlay').style.display='flex'" class="btn btn-accent" style="font-size:var(--font-size-sm);"><i class="bi bi-plus-lg"></i> Add Material</button>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+{% if material_summary.count > 0 %}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:var(--space-2);margin-bottom:var(--space-3);">
+    <div style="background:var(--color-surface-raised);border-radius:var(--radius-md);padding:var(--space-2);text-align:center;">
+        <div style="font-weight:700;font-size:var(--font-size-lg);">{{ material_summary.count }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Items</div>
+    </div>
+    {% if can_price %}
+    <div style="background:var(--color-surface-raised);border-radius:var(--radius-md);padding:var(--space-2);text-align:center;">
+        <div style="font-weight:700;font-size:var(--font-size-lg);color:var(--color-danger);">${{ "{:,.2f}".format(material_summary.total_cost) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Cost</div>
+    </div>
+    <div style="background:var(--color-surface-raised);border-radius:var(--radius-md);padding:var(--space-2);text-align:center;">
+        <div style="font-weight:700;font-size:var(--font-size-lg);color:var(--color-accent);">${{ "{:,.2f}".format(material_summary.total_sell) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Billable Value</div>
+    </div>
+    <div style="background:var(--color-surface-raised);border-radius:var(--radius-md);padding:var(--space-2);text-align:center;">
+        <div style="font-weight:700;font-size:var(--font-size-lg);color:var(--color-success);">${{ "{:,.2f}".format(material_summary.margin) }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Margin ({{ material_summary.margin_pct }}%)</div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Materials Table -->
+{% if job_materials %}
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Item</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Qty</th>
+        {% if can_price %}
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Cost/Unit</th>
+        {% endif %}
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Sell/Unit</th>
+        {% if can_price %}
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total</th>
+        {% endif %}
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Billable</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Status</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Source</th>
+        <th style="width:40px;"></th>
+    </tr></thead>
+    <tbody>
+    {% for m in job_materials %}
+    <tr style="border-bottom:1px solid var(--color-border);{% if m.quantity < 0 %}opacity:0.6;{% endif %}{% if m.is_warranty_replacement %}background:rgba(245,158,11,0.04);{% endif %}">
+        <td style="padding:var(--space-2) var(--space-3);">
+            {% if m.part %}
+            <a href="{{ url_for('parts.part_detail', part_id=m.part_id) }}" style="text-decoration:none;color:var(--color-accent);font-weight:500;font-size:var(--font-size-sm);">{{ m.part.name }}</a>
+            <div style="font-size:0.65rem;color:var(--color-text-muted);font-family:monospace;">{{ m.part.part_number }}</div>
+            {% else %}
+            <span style="font-weight:500;font-size:var(--font-size-sm);">{{ m.custom_description or 'Custom Item' }}</span>
+            {% if m.quantity < 0 %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:1px 6px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);margin-left:4px;">Return</span>{% endif %}
+            {% endif %}
+            {% if m.is_warranty_replacement %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:1px 6px;border-radius:999px;background:rgba(245,158,11,0.15);color:var(--color-warning);margin-left:4px;">Warranty</span>{% endif %}
+            {% if m.notes %}<div style="font-size:0.7rem;color:var(--color-text-muted);">{{ m.notes }}</div>{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:600;{% if m.quantity < 0 %}color:var(--color-danger);{% endif %}">{{ m.quantity }} <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ m.unit_of_measure or '' }}</span></td>
+        {% if can_price %}
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-sm);color:var(--color-text-muted);">${{ "{:,.2f}".format(m.unit_cost|float) }}</td>
+        {% endif %}
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-sm);">${{ "{:,.2f}".format(m.sell_price_per_unit|float) }}</td>
+        {% if can_price %}
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;font-size:var(--font-size-sm);">${{ "{:,.2f}".format((m.total_sell or 0)|float|abs) }}</td>
+        {% endif %}
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">
+            {% if m.is_billable %}<i class="bi bi-check-circle-fill" style="color:var(--color-success);"></i>{% else %}<i class="bi bi-dash-circle" style="color:var(--color-text-muted);"></i>{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">
+            {% if can_price and m.quantity > 0 %}
+            <div style="position:relative;display:inline-block;" class="status-dd">
+                <button onclick="this.nextElementSibling.classList.toggle('show')" style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;border:none;cursor:pointer;background:var(--color-surface-raised);color:var(--color-{{ m.status_color }});">{{ m.status_display }} <i class="bi bi-chevron-down" style="font-size:0.6rem;"></i></button>
+                <div class="dropdown-menu-custom" style="display:none;position:absolute;right:0;top:100%;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:0 4px 12px rgba(0,0,0,0.1);min-width:110px;z-index:50;">
+                    {% for sval, slabel in [('logged','Logged'),('verified','Verified'),('invoiced','Invoiced')] %}
+                    <form method="POST" action="{{ url_for('materials.update_status', material_id=m.id) }}" style="display:block;">
+                        <input type="hidden" name="status" value="{{ sval }}">
+                        <button type="submit" style="display:block;width:100%;text-align:left;padding:4px 12px;border:none;background:none;cursor:pointer;font-size:var(--font-size-xs);{% if m.status == sval %}font-weight:700;{% endif %}">{{ slabel }}</button>
+                    </form>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ m.status_color }});">{{ m.status_display }}</span>
+            {% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ m.source_location.name if m.source_location else 'On-site' }}</td>
+        <td style="padding:var(--space-2);">
+            {% if m.quantity > 0 and m.part_id %}
+            <button onclick="showReturnModal({{ m.id }}, {{ m.quantity }}, '{{ m.display_name|replace("'", "\\'") }}')" class="btn btn-ghost" style="padding:1px 6px;font-size:var(--font-size-xs);color:var(--color-warning);" title="Return"><i class="bi bi-arrow-return-left"></i></button>
+            {% endif %}
+            {% if can_admin %}
+            <form method="POST" action="{{ url_for('materials.delete_material', material_id=m.id) }}" style="display:inline;" onsubmit="return confirm('Delete?')">
+                <button type="submit" class="btn btn-ghost" style="padding:1px 6px;font-size:var(--font-size-xs);color:var(--color-danger);" title="Delete"><i class="bi bi-trash"></i></button>
+            </form>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div style="text-align:center;padding:var(--space-4);color:var(--color-text-muted);">
+    <i class="bi bi-tools" style="font-size:1.5rem;opacity:0.3;display:block;margin-bottom:var(--space-1);"></i>
+    <p style="margin:0;">No materials logged yet. Click "Add Material" to log parts used.</p>
+</div>
+{% endif %}
+
+<!-- ── ADD MATERIAL MODAL ── -->
+<div id="addMaterialOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+<div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:650px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+        <h3 style="margin:0;"><i class="bi bi-plus-circle" style="color:var(--color-accent);margin-right:var(--space-2);"></i>Log Material</h3>
+        <button onclick="document.getElementById('addMaterialOverlay').style.display='none'" style="border:none;background:none;cursor:pointer;font-size:1.2rem;color:var(--color-text-muted);">&times;</button>
+    </div>
+    <form method="POST" action="{{ url_for('materials.add_material', job_id=job_obj.id) }}" id="addMaterialForm">
+        <!-- Mode Toggle -->
+        <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);">
+            <label style="flex:1;display:flex;align-items:center;gap:var(--space-1);padding:var(--space-2);border:2px solid var(--color-accent);border-radius:var(--radius-md);cursor:pointer;font-size:var(--font-size-sm);" id="modeCatalogLabel">
+                <input type="radio" name="mode" value="catalog" checked onchange="switchMode('catalog')"> <i class="bi bi-box-seam"></i> From Catalog
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:var(--space-1);padding:var(--space-2);border:2px solid var(--color-border);border-radius:var(--radius-md);cursor:pointer;font-size:var(--font-size-sm);" id="modeCustomLabel">
+                <input type="radio" name="mode" value="custom" onchange="switchMode('custom')"> <i class="bi bi-pencil"></i> Custom Item
+            </label>
+        </div>
+
+        <!-- Catalog Mode -->
+        <div id="catalogSection">
+            <div class="form-group" style="margin-bottom:var(--space-3);position:relative;">
+                <label class="form-label">Part *</label>
+                <input type="text" id="partSearch" class="form-control" placeholder="Search by name or part number..." autocomplete="off" oninput="searchParts(this.value)">
+                <input type="hidden" name="part_id" id="selectedPartId">
+                <div id="partSearchResults" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:0 4px 12px rgba(0,0,0,0.1);max-height:200px;overflow-y:auto;z-index:60;"></div>
+                <div id="selectedPartInfo" style="display:none;background:rgba(13,148,136,0.06);border-radius:var(--radius-md);padding:var(--space-2);margin-top:var(--space-1);">
+                    <strong id="selectedPartName"></strong>
+                    <span style="font-size:var(--font-size-xs);font-weight:600;padding:1px 6px;border-radius:999px;background:var(--color-surface-raised);margin-left:var(--space-1);" id="selectedPartNumber"></span>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">Source Location</label>
+                <select name="source_location_id" class="form-control">
+                    <option value="">On-site purchase (no inventory deduction)</option>
+                    {% for loc in inv_locations %}
+                    <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type_display }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Custom Mode -->
+        <div id="customSection" style="display:none;">
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">Description *</label>
+                <input type="text" name="custom_description" class="form-control" placeholder="e.g., Misc copper fittings from Home Depot">
+            </div>
+        </div>
+
+        <!-- Shared Fields -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Quantity *</label>
+                <input type="number" name="quantity" class="form-control" step="0.01" min="0.01" value="1" required oninput="recalcMaterialTotals()">
+            </div>
+            <div class="form-group"><label class="form-label">Unit</label>
+                <select name="unit_of_measure" id="materialUnit" class="form-control">
+                    {% for val, label in [('each','Each'),('foot','Foot'),('roll','Roll'),('box','Box'),('bag','Bag'),('gallon','Gallon'),('kit','Kit'),('pound','Pound'),('meter','Meter'),('set','Set')] %}
+                    <option value="{{ val }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        {% if can_price %}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Cost/Unit ($)</label>
+                <input type="number" name="unit_cost" id="materialCost" class="form-control" step="0.01" min="0" value="0" oninput="recalcMaterialTotals()">
+            </div>
+            <div class="form-group"><label class="form-label">Markup %</label>
+                <input type="number" name="markup_percentage" id="materialMarkup" class="form-control" step="0.1" min="0" value="0" oninput="recalcSellFromMarkup()">
+            </div>
+            <div class="form-group"><label class="form-label">Sell/Unit ($)</label>
+                <input type="number" name="sell_price_per_unit" id="materialSell" class="form-control" step="0.01" min="0" value="0" oninput="recalcMaterialTotals()">
+            </div>
+        </div>
+        <!-- Totals Preview -->
+        <div style="background:var(--color-surface-raised);border-radius:var(--radius-md);padding:var(--space-2);display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center;margin-bottom:var(--space-3);">
+            <div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Cost</div><div style="font-weight:700;" id="previewMatCost">$0.00</div></div>
+            <div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Sell</div><div style="font-weight:700;color:var(--color-accent);" id="previewMatSell">$0.00</div></div>
+            <div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Margin</div><div style="font-weight:700;color:var(--color-success);" id="previewMatMargin">$0.00</div></div>
+        </div>
+        {% else %}
+        <input type="hidden" name="unit_cost" id="materialCost" value="0">
+        <input type="hidden" name="markup_percentage" id="materialMarkup" value="0">
+        <input type="hidden" name="sell_price_per_unit" id="materialSell" value="0">
+        {% endif %}
+
+        {% if job_phases %}
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Phase (optional)</label>
+            <select name="phase_id" class="form-control">
+                <option value="">— No specific phase —</option>
+                {% for phase in job_phases %}
+                <option value="{{ phase.id }}">{{ phase.phase_number }} — {{ phase.title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <!-- Options -->
+        <div style="display:flex;gap:var(--space-4);margin-bottom:var(--space-3);">
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:var(--font-size-sm);">
+                <input type="checkbox" name="is_billable" value="true" checked id="matBillable"> Billable to client
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:var(--font-size-sm);">
+                <input type="checkbox" name="is_warranty_replacement" value="true" id="matWarranty" onchange="document.getElementById('matBillable').checked=!this.checked">
+                <span style="color:var(--color-warning);">Warranty replacement</span>
+            </label>
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Notes</label>
+            <input type="text" name="notes" class="form-control" placeholder="Optional notes">
+        </div>
+
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+            <button type="button" onclick="document.getElementById('addMaterialOverlay').style.display='none'" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg"></i> Log Material</button>
+        </div>
+    </form>
+</div>
+</div>
+
+<!-- ── RETURN MATERIAL MODAL ── -->
+<div id="returnMaterialOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+<div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:400px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 var(--space-3);">Return Material</h3>
+    <form method="POST" id="returnForm">
+        <p style="font-size:var(--font-size-sm);margin:0 0 var(--space-3);">Returning: <strong id="returnItemName"></strong></p>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Quantity to Return</label>
+            <input type="number" name="quantity_returned" id="returnQty" class="form-control" step="0.01" min="0.01" required>
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Reason / Notes</label>
+            <input type="text" name="notes" class="form-control" placeholder="e.g., Part not needed, wrong size">
+        </div>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+            <button type="button" onclick="document.getElementById('returnMaterialOverlay').style.display='none'" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-accent" style="background:var(--color-warning);border-color:var(--color-warning);color:#000;">Return Item</button>
+        </div>
+    </form>
+</div>
+</div>
+
+<script>
+var matSearchTimeout;
+function searchParts(q) {
+    clearTimeout(matSearchTimeout);
+    if (q.length < 2) { document.getElementById('partSearchResults').style.display='none'; return; }
+    matSearchTimeout = setTimeout(function() {
+        fetch('/api/parts/search?q=' + encodeURIComponent(q))
+            .then(function(r) { return r.json(); })
+            .then(function(parts) {
+                var el = document.getElementById('partSearchResults');
+                if (!parts.length) { el.style.display='none'; return; }
+                el.innerHTML = parts.map(function(p) {
+                    return '<div onclick="selectMatPart(' + p.id + ',\'' + p.name.replace(/'/g,"\\'") + '\',\'' + p.part_number + '\',' + (p.cost_price||0) + ',' + (p.sell_price||0) + ',' + (p.markup_percentage||0) + ',\'' + (p.unit_of_measure||'each') + '\')" style="padding:var(--space-2) var(--space-3);cursor:pointer;border-bottom:1px solid var(--color-border);font-size:var(--font-size-sm);"><div style="font-weight:500;">' + p.name + '</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);"><code>' + p.part_number + '</code></div></div>';
+                }).join('');
+                el.style.display='block';
+            });
+    }, 200);
+}
+
+function selectMatPart(id, name, number, cost, sell, markup, unit) {
+    document.getElementById('selectedPartId').value = id;
+    document.getElementById('partSearch').value = name;
+    document.getElementById('partSearchResults').style.display = 'none';
+    document.getElementById('selectedPartName').textContent = name;
+    document.getElementById('selectedPartNumber').textContent = number;
+    document.getElementById('selectedPartInfo').style.display = 'block';
+    var costEl = document.getElementById('materialCost');
+    var sellEl = document.getElementById('materialSell');
+    var markupEl = document.getElementById('materialMarkup');
+    var unitEl = document.getElementById('materialUnit');
+    if (costEl) costEl.value = cost.toFixed(2);
+    if (sellEl) sellEl.value = sell.toFixed(2);
+    if (markupEl) markupEl.value = markup.toFixed(1);
+    if (unitEl) unitEl.value = unit;
+    recalcMaterialTotals();
+}
+
+function switchMode(mode) {
+    document.getElementById('catalogSection').style.display = mode === 'catalog' ? 'block' : 'none';
+    document.getElementById('customSection').style.display = mode === 'custom' ? 'block' : 'none';
+    document.getElementById('modeCatalogLabel').style.borderColor = mode === 'catalog' ? 'var(--color-accent)' : 'var(--color-border)';
+    document.getElementById('modeCustomLabel').style.borderColor = mode === 'custom' ? 'var(--color-accent)' : 'var(--color-border)';
+    if (mode === 'custom') document.getElementById('selectedPartId').value = '';
+}
+
+function recalcSellFromMarkup() {
+    var cost = parseFloat(document.getElementById('materialCost').value) || 0;
+    var markup = parseFloat(document.getElementById('materialMarkup').value) || 0;
+    document.getElementById('materialSell').value = (cost * (1 + markup / 100)).toFixed(2);
+    recalcMaterialTotals();
+}
+
+function recalcMaterialTotals() {
+    var qty = parseFloat(document.querySelector('#addMaterialForm [name=quantity]').value) || 0;
+    var cost = parseFloat(document.getElementById('materialCost').value) || 0;
+    var sell = parseFloat(document.getElementById('materialSell').value) || 0;
+    var tc = document.getElementById('previewMatCost');
+    var ts = document.getElementById('previewMatSell');
+    var mg = document.getElementById('previewMatMargin');
+    if (tc) {
+        tc.textContent = '$' + (qty * cost).toFixed(2);
+        ts.textContent = '$' + (qty * sell).toFixed(2);
+        var margin = qty * sell - qty * cost;
+        mg.textContent = '$' + margin.toFixed(2);
+        mg.style.color = margin >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+    }
+}
+
+function showReturnModal(materialId, maxQty, name) {
+    document.getElementById('returnForm').action = '/materials/' + materialId + '/return';
+    document.getElementById('returnItemName').textContent = name;
+    document.getElementById('returnQty').value = maxQty;
+    document.getElementById('returnQty').max = maxQty;
+    document.getElementById('returnMaterialOverlay').style.display = 'flex';
+}
+
+// Close overlays on backdrop click
+['addMaterialOverlay','returnMaterialOverlay'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
+});
+
+// Close part search on outside click
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#partSearch') && !e.target.closest('#partSearchResults')) {
+        document.getElementById('partSearchResults').style.display = 'none';
+    }
+});
+
+// Close status dropdowns on outside click
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.status-dd')) {
+        document.querySelectorAll('.status-dd .dropdown-menu-custom.show').forEach(function(m) { m.classList.remove('show'); });
+    }
+});
+</script>
+<style>.dropdown-menu-custom.show{display:block !important;}.dropdown-menu-custom button:hover{background:var(--color-surface-raised);}.status-dd button:hover+.dropdown-menu-custom{display:block;}</style>

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Vehicle Fleet{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/vehicles.css') }}">
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <h1 style="margin:0;"><i class="bi bi-truck" style="color:var(--color-accent);"></i> Vehicle Fleet</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Manage vehicles, mileage, fuel, and daily routes</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        <a href="{{ url_for('vehicles.daily_route') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-map"></i> Daily Route</a>
+        {% if user.role in ('admin','owner','dispatcher') %}
+        <a href="{{ url_for('vehicles.vehicle_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> Add Vehicle</a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stats -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--color-accent);">{{ stats.total }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Vehicles</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--color-success);">{{ stats.available }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Available</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--color-info);">{{ stats.assigned }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Assigned</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:{% if stats.expiring_soon > 0 %}var(--color-warning){% else %}var(--color-text-muted){% endif %};">{{ stats.expiring_soon }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Expiring Soon</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<form method="get" class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto auto;gap:var(--space-2);align-items:end;">
+        <input type="text" name="search" value="{{ search }}" placeholder="Search name, plate, VIN..." class="form-control" style="font-size:var(--font-size-sm);">
+        <select name="status" class="form-select" style="font-size:var(--font-size-sm);">
+            <option value="">All Statuses</option>
+            <option value="available" {% if status_filter=='available' %}selected{% endif %}>Available</option>
+            <option value="assigned" {% if status_filter=='assigned' %}selected{% endif %}>Assigned</option>
+            <option value="in_maintenance" {% if status_filter=='in_maintenance' %}selected{% endif %}>Maintenance</option>
+        </select>
+        <select name="technician_id" class="form-select" style="font-size:var(--font-size-sm);">
+            <option value="">All Technicians</option>
+            {% for tech in technicians %}
+            <option value="{{ tech.id }}" {% if tech_filter == tech.id %}selected{% endif %}>{{ tech.full_name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Filter</button>
+        <a href="{{ url_for('vehicles.vehicle_dashboard') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+    </div>
+</form>
+
+<!-- Vehicle Grid -->
+{% if vehicles %}
+<div class="vehicle-grid">
+    {% for v in vehicles %}
+    {% set prof = v.vehicle_profile %}
+    <div class="vehicle-card">
+        <div class="vehicle-card-header">
+            <div style="display:flex;align-items:center;">
+                <span class="vehicle-status-dot {{ (v.status or 'available') }}"></span>
+                <strong style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ v.name }}">{{ v.name }}</strong>
+            </div>
+            <span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-surface-raised);color:var(--color-text-muted);">
+                {% if prof %}{{ prof.license_plate or '--' }}{% else %}--{% endif %}
+            </span>
+        </div>
+        <div class="vehicle-card-body">
+            {% if prof %}
+            <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-2);">
+                <div>
+                    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Assigned To</div>
+                    <div style="font-size:var(--font-size-sm);font-weight:600;">
+                        {% if prof.assigned_technician %}{{ prof.assigned_technician.full_name }}{% else %}<span style="color:var(--color-text-muted);">Unassigned</span>{% endif %}
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Odometer</div>
+                    <span class="stat-pill">{{ "{:,}".format(prof.current_odometer or 0) }} mi</span>
+                </div>
+            </div>
+            <div style="display:flex;gap:var(--space-1);margin-bottom:var(--space-2);flex-wrap:wrap;">
+                <span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:{% if prof.registration_status == 'expired' %}var(--color-danger){% elif prof.registration_status == 'expiring_soon' %}var(--color-warning){% else %}var(--color-success){% endif %};color:#fff;">
+                    Reg: {% if prof.registration_expiry %}{{ prof.registration_expiry.strftime('%m/%d/%y') }}{% else %}--{% endif %}
+                </span>
+                <span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:{% if prof.insurance_status == 'expired' %}var(--color-danger){% elif prof.insurance_status == 'expiring_soon' %}var(--color-warning){% else %}var(--color-success){% endif %};color:#fff;">
+                    Ins: {% if prof.insurance_expiry %}{{ prof.insurance_expiry.strftime('%m/%d/%y') }}{% else %}--{% endif %}
+                </span>
+            </div>
+            {% if prof.average_mpg %}<div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Avg MPG: <strong>{{ prof.average_mpg }}</strong></div>{% endif %}
+            {% else %}
+            <p style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin-bottom:var(--space-2);">No vehicle profile.</p>
+            {% endif %}
+            <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
+                <a href="{{ url_for('vehicles.vehicle_detail', vehicle_id=v.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-xs);flex:1;text-align:center;"><i class="bi bi-eye"></i> View</a>
+                {% if user.role in ('admin','owner','dispatcher') %}
+                <a href="{{ url_for('vehicles.vehicle_edit', vehicle_id=v.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-xs);"><i class="bi bi-pencil"></i></a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-truck" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4>No vehicles found</h4>
+    {% if user.role in ('admin','owner','dispatcher') %}
+    <a href="{{ url_for('vehicles.vehicle_new') }}" class="btn btn-accent" style="margin-top:var(--space-2);"><i class="bi bi-plus-lg"></i> Add First Vehicle</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/vehicles.js') }}"></script>
+{% endblock %}

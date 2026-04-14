@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('inventory.locations') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back to Locations</a></div>
+<h1 style="margin:0 0 var(--space-4);">{{ title }}</h1>
+
+<div style="max-width:550px;">
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">Location Name *</label>
+                <input type="text" name="name" class="form-control" required value="{{ location.name if location else '' }}" placeholder="e.g., Main Warehouse, Van 01 — John Smith">
+            </div>
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">Location Type *</label>
+                <select name="location_type" class="form-control" id="locationType" required onchange="handleTypeChange()">
+                    {% for val, label in location_types %}
+                    <option value="{{ val }}" {{ 'selected' if location and location.location_type == val }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">Address</label>
+                <input type="text" name="address" class="form-control" value="{{ location.address if location else '' }}" placeholder="Optional address">
+            </div>
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="2" placeholder="Optional notes about this location">{{ location.description if location else '' }}</textarea>
+            </div>
+            <div class="form-group" id="technicianField" style="margin-bottom:var(--space-3);{% if not location or location.location_type != 'truck' %}display:none;{% endif %}">
+                <label class="form-label">Assigned Technician</label>
+                <select name="technician_id" class="form-control">
+                    <option value="">— None —</option>
+                    {% for tech in technicians %}
+                    <option value="{{ tech.id }}" {{ 'selected' if location and location.technician_id == tech.id }}>{{ tech.full_name }}</option>
+                    {% endfor %}
+                </select>
+                <small style="color:var(--color-text-muted);">For vehicle locations, link to the assigned technician</small>
+            </div>
+            <div style="margin-bottom:var(--space-4);">
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                    <input type="checkbox" name="is_active" {{ 'checked' if not location or location.is_active }}>
+                    <input type="hidden" name="_active_submitted" value="1">
+                    <span style="font-weight:500;">Active</span>
+                </label>
+            </div>
+            <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+                <a href="{{ url_for('inventory.locations') }}" class="btn btn-ghost">Cancel</a>
+                <button type="submit" class="btn btn-accent">{{ 'Save Changes' if location else 'Create Location' }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+
+<script>
+function handleTypeChange() {
+    var locType = document.getElementById('locationType').value;
+    document.getElementById('technicianField').style.display = locType === 'truck' ? 'block' : 'none';
+}
+document.addEventListener('DOMContentLoaded', handleTypeChange);
+</script>
+{% endblock %}

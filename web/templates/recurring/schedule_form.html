@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% set is_edit = schedule is not none %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);font-size:var(--font-size-sm);">
+    <a href="{{ url_for('recurring.schedule_list') }}" style="color:var(--color-text-muted);text-decoration:none;">Recurring</a>
+    {% if is_edit %}<span style="color:var(--color-text-muted);margin:0 4px;">/</span><a href="{{ url_for('recurring.schedule_detail', schedule_id=schedule.id) }}" style="color:var(--color-text-muted);text-decoration:none;">{{ schedule.schedule_number }}</a>{% endif %}
+    <span style="color:var(--color-text-muted);margin:0 4px;">/</span><span>{{ 'Edit' if is_edit else 'New' }}</span>
+</div>
+<h1 style="margin:0 0 var(--space-4);">{{ title }}</h1>
+
+<form method="POST" id="scheduleForm">
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+
+    <!-- Left Column -->
+    <div>
+        <!-- Basic Info -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-info-circle" style="color:var(--color-accent);"></i> Basic Information</h3></div>
+            <div class="card-body">
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">Title *</label>
+                    <input type="text" name="title" class="form-control" required value="{{ schedule.title if is_edit else '' }}" placeholder="e.g., Annual Furnace Maintenance — Brewster Property">
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2" placeholder="Internal notes about this schedule">{{ schedule.description if is_edit else '' }}</textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Client *</label>
+                        <select name="client_id" class="form-control" required>
+                            <option value="">Select client...</option>
+                            {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if is_edit and schedule.client_id == c.id }}>{{ c.display_name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Division</label>
+                        <select name="division_id" class="form-control">
+                            <option value="">—</option>
+                            {% for d in all_divisions %}<option value="{{ d.id }}" {{ 'selected' if is_edit and schedule.division_id == d.id }}>{{ d.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Contract</label>
+                        <select name="contract_id" id="contractSelect" class="form-control">
+                            <option value="">—</option>
+                            {% for ct in contracts %}<option value="{{ ct.id }}" {{ 'selected' if is_edit and schedule.contract_id == ct.id }}>{{ ct.contract_number }} — {{ ct.title[:30] if ct.title else '' }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Contract Line Item</label>
+                        <select name="contract_line_item_id" id="lineItemSelect" class="form-control">
+                            <option value="">—</option>
+                            {% if is_edit and schedule.contract_line_item_id %}<option value="{{ schedule.contract_line_item_id }}" selected>Line Item #{{ schedule.contract_line_item_id }}</option>{% endif %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Job Template -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-briefcase" style="color:var(--color-warning);"></i> Job Template</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Job Type</label>
+                        <select name="job_type" class="form-control">
+                            {% for val, label in [('maintenance','Maintenance'),('inspection','Inspection'),('service_call','Service Call'),('installation','Installation'),('repair','Repair'),('emergency','Emergency')] %}
+                            <option value="{{ val }}" {{ 'selected' if is_edit and schedule.job_type == val }}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Trade</label>
+                        <select name="trade" class="form-control">
+                            <option value="">— Any —</option>
+                            {% for val, label in [('plumbing','Plumbing'),('hvac','HVAC'),('electrical','Electrical'),('general','General')] %}
+                            <option value="{{ val }}" {{ 'selected' if is_edit and schedule.trade == val }}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Priority</label>
+                        <select name="default_priority" class="form-control">
+                            {% for val in ['low','normal','high','urgent'] %}
+                            <option value="{{ val }}" {{ 'selected' if is_edit and schedule.default_priority == val }}>{{ val|title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Est. Duration (hours)</label>
+                        <input type="number" name="estimated_duration_hours" class="form-control" step="0.25" min="0" value="{{ schedule.estimated_duration_hours if is_edit else '' }}">
+                    </div>
+                    <div class="form-group"><label class="form-label">Est. Amount ($)</label>
+                        <input type="number" name="estimated_amount" class="form-control" step="0.01" min="0" value="{{ schedule.estimated_amount if is_edit else '' }}">
+                    </div>
+                    <div class="form-group"><label class="form-label">Default Technician</label>
+                        <select name="default_technician_id" class="form-control">
+                            <option value="">—</option>
+                            {% for t in technicians %}<option value="{{ t.id }}" {{ 'selected' if is_edit and schedule.default_technician_id == t.id }}>{{ t.full_name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">Default Job Description</label>
+                    <textarea name="default_description" class="form-control" rows="3" placeholder="Pre-filled description when job is created">{{ schedule.default_description if is_edit else '' }}</textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Checklist Template</label>
+                        <select name="checklist_template_id" class="form-control">
+                            <option value="">—</option>
+                            {% for ct in checklists %}<option value="{{ ct.id }}" {{ 'selected' if is_edit and schedule.checklist_template_id == ct.id }}>{{ ct.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Typical Parts Needed</label>
+                        <input type="text" name="requires_parts" class="form-control" value="{{ schedule.requires_parts if is_edit else '' }}" placeholder='e.g., ["Filter 16x20x1", "Belt A-42"]'>
+                        <small style="color:var(--color-text-muted);">JSON array or comma-separated text</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Configuration -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-calendar3" style="color:var(--color-info);"></i> Schedule Configuration</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Frequency *</label>
+                        <select name="frequency" id="freqSelect" class="form-control" required onchange="toggleCustom()">
+                            {% for val, label in frequencies %}<option value="{{ val }}" {{ 'selected' if is_edit and schedule.frequency == val }}>{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" id="customDaysField" style="{% if not is_edit or schedule.frequency != 'custom' %}display:none;{% endif %}"><label class="form-label">Custom Interval (days)</label>
+                        <input type="number" name="custom_interval_days" class="form-control" min="1" value="{{ schedule.custom_interval_days if is_edit else '' }}" placeholder="e.g., 45">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Preferred Day</label>
+                        <select name="preferred_day_of_week" class="form-control">
+                            <option value="">— Any —</option>
+                            {% for val, label in days_of_week %}<option value="{{ val }}" {{ 'selected' if is_edit and schedule.preferred_day_of_week == val }}>{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Preferred Time</label>
+                        <select name="preferred_time" class="form-control">
+                            <option value="">Any</option>
+                            {% for val, label in [('morning','Morning'),('afternoon','Afternoon'),('08:00','8:00 AM'),('09:00','9:00 AM'),('10:00','10:00 AM'),('13:00','1:00 PM'),('14:00','2:00 PM')] %}
+                            <option value="{{ val }}" {{ 'selected' if is_edit and schedule.preferred_time == val }}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Start Date *</label>
+                        <input type="date" name="start_date" class="form-control" required value="{{ schedule.start_date.isoformat() if is_edit else '' }}">
+                    </div>
+                    <div class="form-group"><label class="form-label">Next Due Date *</label>
+                        <input type="date" name="next_due_date" class="form-control" required value="{{ schedule.next_due_date.isoformat() if is_edit else '' }}">
+                    </div>
+                    <div class="form-group"><label class="form-label">End Date</label>
+                        <input type="date" name="end_date" class="form-control" value="{{ schedule.end_date.isoformat() if is_edit and schedule.end_date else '' }}">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">Advance Generation (days)</label>
+                    <input type="number" name="advance_generation_days" class="form-control" style="width:120px;" min="1" max="90" value="{{ schedule.advance_generation_days if is_edit else 14 }}">
+                    <small style="color:var(--color-text-muted);">Generate job X days before due date</small>
+                </div>
+
+                <!-- Seasonal Months -->
+                <div class="form-group">
+                    <label class="form-label">Seasonal Months</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);">
+                        {% set current_seasonal = schedule.seasonal_months_list if is_edit else [] %}
+                        {% for num, name in {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'}.items() %}
+                        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:var(--font-size-sm);padding:2px 8px;border:1px solid var(--color-border);border-radius:var(--radius-md);{% if num in current_seasonal %}background:rgba(13,148,136,0.1);border-color:var(--color-accent);{% endif %}">
+                            <input type="checkbox" name="seasonal_months" value="{{ num }}" {% if num in current_seasonal %}checked{% endif %} style="margin:0;">
+                            {{ name }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <small style="color:var(--color-text-muted);">Leave all unchecked for year-round. Check only applicable months for seasonal PM.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div>
+        <!-- Automation -->
+        <div class="card" style="margin-bottom:var(--space-4);position:sticky;top:80px;">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-gear" style="color:var(--color-accent);"></i> Automation</h3></div>
+            <div class="card-body">
+                <label style="display:flex;align-items:flex-start;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-3);">
+                    <input type="checkbox" name="auto_generate" {{ 'checked' if not is_edit or schedule.auto_generate }} style="margin-top:3px;">
+                    <div><span style="font-weight:500;">Auto-Generate Jobs</span><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">When off: alerts only, no job created automatically</div></div>
+                </label>
+                <label style="display:flex;align-items:flex-start;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-3);">
+                    <input type="checkbox" name="auto_assign" {{ 'checked' if not is_edit or schedule.auto_assign }} style="margin-top:3px;">
+                    <div><span style="font-weight:500;">Auto-Assign Technician</span><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Assign default tech to generated jobs</div></div>
+                </label>
+                <label style="display:flex;align-items:flex-start;gap:var(--space-2);cursor:pointer;">
+                    <input type="checkbox" name="auto_schedule" {{ 'checked' if is_edit and schedule.auto_schedule }} style="margin-top:3px;">
+                    <div><span style="font-weight:500;">Auto-Set Scheduled Date</span><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Set job's scheduled date to the due date</div></div>
+                </label>
+
+                <div style="margin-top:var(--space-3);padding:var(--space-2);background:rgba(59,130,246,0.06);border-radius:var(--radius-md);font-size:var(--font-size-xs);color:var(--color-info);">
+                    <i class="bi bi-info-circle" style="margin-right:4px;"></i>The engine runs daily via CLI cron and checks on dashboard load.
+                </div>
+            </div>
+
+            {% if is_edit %}
+            <div class="card-body" style="border-top:1px solid var(--color-border);padding-top:var(--space-2);">
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Created {{ schedule.created_at.strftime('%b %d, %Y') if schedule.created_at else '' }}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ schedule.total_jobs_generated }} jobs generated &middot; ${{ "{:,.0f}".format(schedule.total_value_generated or 0) }} total value</div>
+            </div>
+            {% endif %}
+
+            <div style="padding:var(--space-2) var(--space-3);border-top:1px solid var(--color-border);display:flex;gap:var(--space-2);">
+                <a href="{{ url_for('recurring.schedule_list') }}" class="btn btn-ghost" style="flex:1;text-align:center;">Cancel</a>
+                <button type="submit" class="btn btn-accent" style="flex:1;"><i class="bi bi-check-lg"></i> {{ 'Save Changes' if is_edit else 'Create Schedule' }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+</form>
+
+<script>
+function toggleCustom() {
+    document.getElementById('customDaysField').style.display =
+        document.getElementById('freqSelect').value === 'custom' ? 'block' : 'none';
+}
+
+// Load contract line items when contract selected
+document.getElementById('contractSelect').addEventListener('change', function() {
+    var contractId = this.value;
+    var liSelect = document.getElementById('lineItemSelect');
+    liSelect.innerHTML = '<option value="">Loading...</option>';
+    if (!contractId) { liSelect.innerHTML = '<option value="">—</option>'; return; }
+    fetch('/recurring/api/contract-line-items/' + contractId)
+        .then(function(r) { return r.json(); })
+        .then(function(items) {
+            liSelect.innerHTML = '<option value="">—</option>';
+            items.forEach(function(li) {
+                var opt = document.createElement('option');
+                opt.value = li.id;
+                opt.textContent = (li.description || li.service_type || 'Item #' + li.id) + ' (' + (li.frequency || 'no freq') + ')';
+                liSelect.appendChild(opt);
+            });
+        })
+        .catch(function() { liSelect.innerHTML = '<option value="">Error loading</option>'; });
+});
+</script>
+{% endblock %}

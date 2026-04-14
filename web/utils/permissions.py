@@ -129,3 +129,99 @@ def can_edit_change_order(user, co):
     if user.role in ('dispatcher', 'technician'):
         return co.created_by_id == user.id
     return False
+
+
+# ── Materials & Inventory Permissions ─────────────────────────────────────────
+
+MATERIALS_PERMISSIONS = {
+    'view_catalog': ['owner', 'admin', 'dispatcher', 'technician', 'viewer'],
+    'create_part': ['owner', 'admin'],
+    'edit_part': ['owner', 'admin'],
+    'delete_part': ['owner'],
+    'view_costs': ['owner', 'admin', 'dispatcher'],
+    'view_margins': ['owner', 'admin'],
+    'manage_locations': ['owner', 'admin'],
+    'view_inventory': ['owner', 'admin', 'dispatcher', 'technician'],
+    'adjust_stock': ['owner', 'admin'],
+    'receive_stock': ['owner', 'admin', 'dispatcher'],
+    'create_transfer': ['owner', 'admin', 'dispatcher'],
+    'approve_transfer': ['owner', 'admin', 'dispatcher'],
+    'complete_transfer': ['owner', 'admin', 'dispatcher'],
+    'log_material_own_job': ['owner', 'admin', 'dispatcher', 'technician'],
+    'log_material_any_job': ['owner', 'admin', 'dispatcher'],
+    'verify_material': ['owner', 'admin', 'dispatcher'],
+    'delete_material': ['owner', 'admin'],
+    'view_truck_own': ['owner', 'admin', 'dispatcher', 'technician'],
+    'view_truck_any': ['owner', 'admin', 'dispatcher'],
+    'request_restock': ['owner', 'admin', 'dispatcher', 'technician'],
+    'view_reports': ['owner', 'admin', 'dispatcher'],
+    'import_parts': ['owner', 'admin'],
+    'export_reports': ['owner', 'admin'],
+}
+
+
+def can_materials(user, permission):
+    """Check if user has a specific materials/inventory permission."""
+    role = getattr(user, 'role', 'viewer')
+    return role in MATERIALS_PERMISSIONS.get(permission, [])
+
+
+# ── Expense Permissions ───────────────────────────────────────────────────────
+
+EXPENSE_PERMISSIONS = {
+    'create': ['owner', 'admin', 'dispatcher', 'technician'],
+    'read': ['owner', 'admin', 'dispatcher', 'technician', 'viewer'],
+    'update': ['owner', 'admin', 'dispatcher'],
+    'update_own': ['technician'],
+    'delete': ['owner', 'admin'],
+    'delete_own': ['technician'],
+    'approve': ['owner', 'admin'],
+    'reimburse': ['owner', 'admin'],
+    'view_all': ['owner', 'admin', 'dispatcher'],
+    'view_profitability': ['owner', 'admin'],
+}
+
+
+def can_expense(user, action, expense=None):
+    """Check expense permission. For own-only actions, pass expense."""
+    role = getattr(user, 'role', 'viewer')
+    if role in EXPENSE_PERMISSIONS.get(action, []):
+        return True
+    own_action = action + '_own'
+    if role in EXPENSE_PERMISSIONS.get(own_action, []):
+        if expense and hasattr(user, 'id') and expense.created_by == user.id:
+            return True
+    return False
+
+
+# ── Notification Permissions ─────────────────────────────────────────────────
+
+NOTIFICATION_CATEGORY_ACCESS = {
+    'owner':      'all',
+    'admin':      'all',
+    'dispatcher': [
+        'job_update', 'schedule_change', 'request_new',
+        'approval_needed', 'system',
+    ],
+    'technician': [
+        'job_update', 'schedule_change', 'time_tracking', 'system',
+    ],
+    'viewer': ['system'],
+}
+
+
+def can_configure_category(user, category_value):
+    """Return True if user can modify notification preferences for this category."""
+    role = (getattr(user, 'role', 'viewer') or 'viewer').lower()
+    access = NOTIFICATION_CATEGORY_ACCESS.get(role, ['system'])
+    if access == 'all':
+        return True
+    return category_value in access
+
+
+def can_manage_client_templates(user):
+    return (getattr(user, 'role', 'viewer') or 'viewer').lower() in ('admin', 'owner')
+
+
+def can_view_notification_log(user):
+    return (getattr(user, 'role', 'viewer') or 'viewer').lower() in ('admin', 'owner')

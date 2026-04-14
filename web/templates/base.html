@@ -74,10 +74,7 @@
         {% block topbar_search %}{% endblock %}
 
         <!-- Notifications -->
-        <button class="topbar-icon-btn" aria-label="Notifications" title="Notifications">
-          <i class="bi bi-bell" aria-hidden="true"></i>
-          <span class="badge-dot" aria-hidden="true"></span>
-        </button>
+        {% include 'partials/_notification_bell.html' %}
 
         <!-- User Menu -->
         <div class="dropdown">
@@ -215,5 +212,18 @@
 </script>
 
 {% block scripts %}{% endblock %}
+
+{# Quick Communication Log — global modal + FAB #}
+{% include 'partials/_quick_log_modal.html' %}
+{% if user and user.is_authenticated %}
+<button id="commLogFAB" title="Log Communication (Ctrl+L)"
+    style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:var(--color-accent);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:1050;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
+    <i class="bi bi-chat-square-plus"></i>
+</button>
+{% endif %}
+<script src="{{ url_for('static', filename='js/quick_log.js') }}"></script>
+{% if user and user.is_authenticated %}
+<script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+{% endif %}
 </body>
 </html>

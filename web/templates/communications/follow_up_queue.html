@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Follow-up Queue{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Follow-up Queue</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ stats.total_pending }} pending follow-ups</p>
+    </div>
+    <a href="{{ url_for('communications.communication_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> All Communications</a>
+</div>
+
+<!-- Stats -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-danger);text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-danger);">{{ stats.overdue }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Overdue</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-warning);text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-warning);">{{ stats.due_today }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Due Today</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ stats.total_pending }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Pending</div>
+    </div>
+</div>
+
+{% macro render_followup_list(items, section_title, color) %}
+{% if items %}
+<div class="card" style="margin-bottom:var(--space-4);border-left:3px solid var(--color-{{ color }});">
+    <div class="card-header"><h3 class="card-title" style="color:var(--color-{{ color }});">{{ section_title }} ({{ items|length }})</h3></div>
+    <div class="card-body" style="padding:0;">
+        {% for l in items %}
+        <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;">
+            <div style="flex:1;">
+                <a href="{{ url_for('communications.communication_detail', log_id=l.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;">{{ l.subject }}</a>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">
+                    <i class="{{ l.type_icon }}"></i> {{ l.type_display }} — {{ l.client.display_name if l.client else '' }} — {{ l.follow_up_date.strftime('%b %d') if l.follow_up_date else 'No date' }}
+                </div>
+                {% if l.follow_up_notes %}<div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:2px;">{{ l.follow_up_notes[:80] }}</div>{% endif %}
+            </div>
+            <form method="POST" action="{{ url_for('communications.complete_follow_up', log_id=l.id) }}">
+                <input type="hidden" name="next" value="{{ url_for('communications.follow_up_queue') }}">
+                <button type="submit" class="btn btn-ghost" style="padding:4px 10px;font-size:var(--font-size-xs);color:var(--color-success);"><i class="bi bi-check-circle"></i> Complete</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{{ render_followup_list(overdue, 'Overdue', 'danger') }}
+{{ render_followup_list(due_today, 'Due Today', 'warning') }}
+{{ render_followup_list(upcoming, 'Upcoming', 'accent') }}
+
+{% if not overdue and not due_today and not upcoming %}
+<div style="text-align:center;padding:var(--space-6);color:var(--color-text-muted);">
+    <i class="bi bi-check-circle" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);color:var(--color-success);"></i>
+    <h4 style="color:var(--color-success);">All caught up!</h4>
+    <p>No pending follow-ups.</p>
+</div>
+{% endif %}
+{% endblock %}

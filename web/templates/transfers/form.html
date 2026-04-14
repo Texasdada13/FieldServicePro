@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}New Transfer{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('transfers.transfer_list') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back to Transfers</a></div>
+<h1 style="margin:0 0 var(--space-4);">New Stock Transfer</h1>
+
+<div style="max-width:800px;">
+<form method="POST" id="transferForm">
+    <!-- Locations -->
+    <div class="card" style="margin-bottom:var(--space-4);">
+        <div class="card-header"><h3 class="card-title"><i class="bi bi-arrow-left-right" style="color:var(--color-accent);"></i> Transfer Details</h3></div>
+        <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:var(--space-3);align-items:end;margin-bottom:var(--space-3);">
+                <div class="form-group">
+                    <label class="form-label">From Location *</label>
+                    <select name="from_location_id" id="fromLocation" class="form-control" required onchange="loadSourceStock()">
+                        <option value="">Select source...</option>
+                        {% for loc in locations %}
+                        <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type_display }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="padding-bottom:8px;"><i class="bi bi-arrow-right" style="font-size:1.2rem;color:var(--color-text-muted);"></i></div>
+                <div class="form-group">
+                    <label class="form-label">To Location *</label>
+                    <select name="to_location_id" id="toLocation" class="form-control" required>
+                        <option value="">Select destination...</option>
+                        {% for loc in locations %}
+                        <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type_display }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="Reason for transfer, special instructions..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items -->
+    <div class="card" style="margin-bottom:var(--space-4);">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 class="card-title"><i class="bi bi-box" style="color:var(--color-info);"></i> Items to Transfer</h3>
+            <button type="button" onclick="addItemRow()" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-plus-lg"></i> Add Item</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <table style="width:100%;border-collapse:collapse;" id="itemsTable">
+                <thead><tr style="border-bottom:2px solid var(--color-border);">
+                    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Part</th>
+                    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;width:100px;">Available</th>
+                    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;width:100px;">Quantity</th>
+                    <th style="width:40px;"></th>
+                </tr></thead>
+                <tbody id="itemsBody">
+                    <tr class="item-row" style="border-bottom:1px solid var(--color-border);">
+                        <td style="padding:var(--space-2) var(--space-3);">
+                            <select name="part_id[]" class="form-control part-select" onchange="updateAvailable(this)" required>
+                                <option value="">Select part...</option>
+                                {% for p in parts %}
+                                <option value="{{ p.id }}" data-stock="0">{{ p.part_number }} — {{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;" class="avail-cell"><span style="color:var(--color-text-muted);">—</span></td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;">
+                            <input type="number" name="quantity[]" class="form-control" style="text-align:center;width:80px;margin:0 auto;" min="1" value="1" required>
+                        </td>
+                        <td style="padding:var(--space-2);">
+                            <button type="button" onclick="removeItemRow(this)" class="btn btn-ghost" style="padding:2px 6px;font-size:var(--font-size-xs);color:var(--color-danger);"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <div id="noItemsMsg" style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);font-size:var(--font-size-sm);display:none;">
+                No items added. Click "Add Item" to start.
+            </div>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+        <a href="{{ url_for('transfers.transfer_list') }}" class="btn btn-ghost">Cancel</a>
+        <button type="submit" class="btn btn-accent"><i class="bi bi-arrow-left-right"></i> Create Transfer</button>
+    </div>
+</form>
+</div>
+
+<script>
+var sourceStockData = {};
+
+function loadSourceStock() {
+    var locId = document.getElementById('fromLocation').value;
+    if (!locId) return;
+    fetch('/inventory/transfers/api/location-stock/' + locId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            sourceStockData = {};
+            data.forEach(function(s) { sourceStockData[s.part_id] = s.available; });
+            // Update all available cells
+            document.querySelectorAll('.part-select').forEach(function(sel) { updateAvailable(sel); });
+        });
+}
+
+function updateAvailable(sel) {
+    var row = sel.closest('tr');
+    var cell = row.querySelector('.avail-cell');
+    var partId = sel.value;
+    if (partId && sourceStockData[partId] !== undefined) {
+        cell.innerHTML = '<span style="font-weight:600;">' + sourceStockData[partId] + '</span>';
+    } else {
+        cell.innerHTML = '<span style="color:var(--color-text-muted);">—</span>';
+    }
+}
+
+function addItemRow() {
+    var tbody = document.getElementById('itemsBody');
+    var row = tbody.querySelector('.item-row');
+    var clone = row.cloneNode(true);
+    clone.querySelector('.part-select').value = '';
+    clone.querySelector('input[type=number]').value = '1';
+    clone.querySelector('.avail-cell').innerHTML = '<span style="color:var(--color-text-muted);">—</span>';
+    tbody.appendChild(clone);
+    document.getElementById('noItemsMsg').style.display = 'none';
+}
+
+function removeItemRow(btn) {
+    var tbody = document.getElementById('itemsBody');
+    if (tbody.querySelectorAll('.item-row').length > 1) {
+        btn.closest('tr').remove();
+    }
+}
+</script>
+{% endblock %}

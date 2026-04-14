@@ -69,6 +69,14 @@ def new_change_order(job_id):
                     co.status = ChangeOrderStatus.submitted.value
 
                 db.commit()
+
+                if co.status in ('submitted', 'pending_approval'):
+                    try:
+                        from web.utils.notification_service import NotificationService
+                        NotificationService.notify('approval_needed_change_order', co, triggered_by=current_user)
+                    except Exception:
+                        pass
+
                 flash(f'Change Order {co.change_order_number} created.', 'success')
                 return redirect(url_for('change_orders.co_detail', job_id=job_id, co_id=co.id))
             except Exception as e:
@@ -191,6 +199,13 @@ def approve_change_order(job_id, co_id):
         apply_approved_change_order(db, co)
 
         db.commit()
+
+        try:
+            from web.utils.notification_service import NotificationService
+            NotificationService.notify('item_approved', co, triggered_by=current_user)
+        except Exception:
+            pass
+
         flash(f'Change Order {co.change_order_number} approved. Job total updated by ${co.cost_difference:+,.2f}.', 'success')
     except Exception as e:
         db.rollback()
@@ -216,6 +231,14 @@ def reject_change_order(job_id, co_id):
         co.status = ChangeOrderStatus.rejected.value
         co.rejection_reason = reason
         db.commit()
+
+        try:
+            from web.utils.notification_service import NotificationService
+            NotificationService.notify('item_rejected', co, triggered_by=current_user,
+                                       extra_context={'reason': reason})
+        except Exception:
+            pass
+
         flash(f'Change Order {co.change_order_number} rejected.', 'warning')
     except Exception as e:
         db.rollback()

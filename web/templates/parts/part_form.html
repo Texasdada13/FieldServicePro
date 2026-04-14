@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('parts.list_parts') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back to Parts</a></div>
+<h1 style="margin:0 0 var(--space-4);">{{ title }}</h1>
+
+<form method="POST" id="partForm">
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+
+    <!-- Left Column -->
+    <div>
+        <!-- Part Information -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-box-seam" style="color:var(--color-accent);"></i> Part Information</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Part Number</label>
+                        <input type="text" name="part_number" class="form-control" style="font-family:monospace;" value="{{ part.part_number if part else '' }}" placeholder="Auto-generated if blank" {{ 'readonly' if part }}>
+                        {% if not part %}<small style="color:var(--color-text-muted);">Leave blank to auto-generate</small>{% endif %}
+                    </div>
+                    <div class="form-group"><label class="form-label">Name *</label>
+                        <input type="text" name="name" class="form-control" required value="{{ part.name if part else '' }}" placeholder='e.g., 3/4" Copper 90&deg; Elbow'>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2" placeholder="Optional description">{{ part.description if part else '' }}</textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Trade *</label>
+                        <select name="trade" class="form-control" required id="tradeSelect">
+                            {% for val, label in trades %}
+                            <option value="{{ val }}" {{ 'selected' if part and part.trade == val }}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Category *</label>
+                        <select name="category" class="form-control" required>
+                            {% for val, label in categories %}
+                            <option value="{{ val }}" {{ 'selected' if part and part.category == val }}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Subcategory</label>
+                        <input type="text" name="subcategory" class="form-control" value="{{ part.subcategory if part else '' }}" placeholder="e.g., copper, PVC">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Unit of Measure *</label>
+                        <select name="unit_of_measure" class="form-control" required>
+                            {% for val, label in units %}
+                            <option value="{{ val }}" {{ 'selected' if part and part.unit_of_measure == val }}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Barcode</label>
+                        <input type="text" name="barcode" class="form-control" value="{{ part.barcode if part else '' }}" placeholder="Optional barcode">
+                    </div>
+                    <div class="form-group"><label class="form-label">Min Stock Level</label>
+                        <input type="number" name="minimum_stock_level" class="form-control" min="0" value="{{ part.minimum_stock_level if part else 0 }}">
+                        <small style="color:var(--color-text-muted);">Reorder point for alerts</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-currency-dollar" style="color:var(--color-success);"></i> Pricing</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Cost Price *</label>
+                        <div style="position:relative;"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);">$</span>
+                        <input type="number" name="cost_price" id="costPrice" class="form-control" style="padding-left:24px;" step="0.01" min="0" required value="{{ "{:.2f}".format(part.cost_price|float) if part else '0.00' }}" oninput="recalcSellPrice()">
+                        </div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Markup %</label>
+                        <div style="position:relative;">
+                        <input type="number" name="markup_percentage" id="markupPct" class="form-control" style="padding-right:28px;" step="0.1" min="0" value="{{ "{:.1f}".format(part.markup_percentage|float) if part else '0.0' }}" oninput="recalcSellPrice()">
+                        <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);">%</span>
+                        </div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Sell Price</label>
+                        <div style="position:relative;"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);">$</span>
+                        <input type="number" name="sell_price" id="sellPrice" class="form-control" style="padding-left:24px;" step="0.01" min="0" value="{{ "{:.2f}".format(part.sell_price|float) if part else '0.00' }}" oninput="recalcMarkup()">
+                        </div>
+                        <small style="color:var(--color-text-muted);">Auto-calculated from cost x markup</small>
+                    </div>
+                </div>
+                <!-- Margin Preview -->
+                <div style="background:var(--color-surface-raised);border-radius:var(--radius-md);padding:var(--space-3);display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center;">
+                    <div>
+                        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Cost</div>
+                        <div style="font-weight:700;" id="previewCost">$0.00</div>
+                    </div>
+                    <div>
+                        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Sell</div>
+                        <div style="font-weight:700;color:var(--color-accent);" id="previewSell">$0.00</div>
+                    </div>
+                    <div>
+                        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Margin</div>
+                        <div style="font-weight:700;color:var(--color-success);" id="previewMargin">$0.00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vendor & Manufacturer -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-building" style="color:var(--color-info);"></i> Vendor & Manufacturer</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Manufacturer</label>
+                        <input type="text" name="manufacturer" class="form-control" value="{{ part.manufacturer if part else '' }}" placeholder="e.g., Mueller Industries">
+                    </div>
+                    <div class="form-group"><label class="form-label">Manufacturer Part #</label>
+                        <input type="text" name="manufacturer_part_number" class="form-control" value="{{ part.manufacturer_part_number if part else '' }}" placeholder="OEM part number">
+                    </div>
+                </div>
+                <div class="form-group"><label class="form-label">Preferred Vendor</label>
+                    <input type="text" name="preferred_vendor_name" class="form-control" value="{{ part.preferred_vendor_name if part else '' }}" placeholder="e.g., Ferguson Enterprises">
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-body">
+                <div class="form-group"><label class="form-label">Internal Notes</label>
+                    <textarea name="notes" class="form-control" rows="3" placeholder="Storage instructions, compatibility notes, etc.">{{ part.notes if part else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div>
+        <!-- Status -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Status</h3></div>
+            <div class="card-body">
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                    <input type="checkbox" name="is_active" {{ 'checked' if not part or part.is_active }}>
+                    <input type="hidden" name="_active_submitted" value="1">
+                    <span style="font-weight:500;">Active</span>
+                </label>
+                <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin:var(--space-1) 0 0;">Inactive parts can't be added to jobs or transfers.</p>
+            </div>
+        </div>
+
+        {% if part %}
+        <!-- Quick Info -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Quick Info</h3></div>
+            <div class="card-body">
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Stock</span>
+                    <div style="font-weight:600;{% if part.is_low_stock %}color:var(--color-warning);{% endif %}">
+                        {{ part.total_stock }} {{ part.unit_display }}
+                        {% if part.is_low_stock %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 6px;border-radius:999px;background:rgba(245,158,11,0.1);color:var(--color-warning);margin-left:4px;">Low Stock</span>{% endif %}
+                    </div>
+                </div>
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Created</span>
+                    <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ part.created_at.strftime('%b %d, %Y') }}</div>
+                </div>
+                <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Last Updated</span>
+                    <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ part.updated_at.strftime('%b %d, %Y') }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions -->
+        <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+            <button type="submit" class="btn btn-accent" style="width:100%;"><i class="bi bi-check-lg"></i> {{ 'Save Changes' if part else 'Create Part' }}</button>
+            <a href="{{ url_for('parts.list_parts') }}" class="btn btn-ghost" style="width:100%;text-align:center;">Cancel</a>
+        </div>
+    </div>
+</div>
+</form>
+
+<script>
+function recalcSellPrice() {
+    const cost = parseFloat(document.getElementById('costPrice').value) || 0;
+    const markup = parseFloat(document.getElementById('markupPct').value) || 0;
+    const sell = cost * (1 + markup / 100);
+    document.getElementById('sellPrice').value = sell.toFixed(2);
+    updatePreview(cost, sell);
+}
+function recalcMarkup() {
+    const cost = parseFloat(document.getElementById('costPrice').value) || 0;
+    const sell = parseFloat(document.getElementById('sellPrice').value) || 0;
+    if (cost > 0) {
+        const markup = ((sell - cost) / cost) * 100;
+        document.getElementById('markupPct').value = markup.toFixed(1);
+    }
+    updatePreview(cost, sell);
+}
+function updatePreview(cost, sell) {
+    const margin = sell - cost;
+    document.getElementById('previewCost').textContent = '$' + cost.toFixed(2);
+    document.getElementById('previewSell').textContent = '$' + sell.toFixed(2);
+    document.getElementById('previewMargin').textContent = '$' + margin.toFixed(2);
+    document.getElementById('previewMargin').style.color = margin >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const cost = parseFloat(document.getElementById('costPrice').value) || 0;
+    const sell = parseFloat(document.getElementById('sellPrice').value) || 0;
+    updatePreview(cost, sell);
+});
+</script>
+{% endblock %}

@@ -218,6 +218,22 @@
         {% endif %}
       </div>
     </div>
+
+    <!-- Recurring PM Schedules -->
+    <div class="card" style="margin-top:var(--space-3);">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 class="card-title"><i class="bi bi-arrow-repeat" style="color:var(--color-accent);margin-right:var(--space-2);"></i>Recurring PM Schedules</h3>
+        <form method="POST" action="{{ url_for('recurring.sync_contract', contract_id=contract.id) }}" style="display:inline;">
+          <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="return confirm('Create recurring schedules for all line items with frequencies?')"><i class="bi bi-lightning"></i> Auto-Create PM Schedules</button>
+        </form>
+      </div>
+      <div class="card-body">
+        <p style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin:0;">
+          Click "Auto-Create PM Schedules" to generate recurring schedules for all line items that have a service frequency.
+          <a href="{{ url_for('recurring.schedule_list') }}" style="color:var(--color-accent);">View existing schedules &rarr;</a>
+        </p>
+      </div>
+    </div>
   </div>
 
   <!-- SLA Terms -->

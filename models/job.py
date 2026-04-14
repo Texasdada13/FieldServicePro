@@ -94,6 +94,19 @@ class Job(Base):
                           order_by="JobPhase.sort_order, JobPhase.phase_number", lazy='select')
     change_orders = relationship("ChangeOrder", back_populates="job", cascade="all, delete-orphan",
                                   order_by="ChangeOrder.created_at", lazy='select')
+    materials = relationship("JobMaterial", back_populates="job", cascade="all, delete-orphan", lazy='select')
+
+    # Warranty / Callback tracking
+    is_callback = Column(Boolean, default=False, nullable=False)
+    is_warranty_work = Column(Boolean, default=False, nullable=False)
+    original_job_id = Column(Integer, ForeignKey('jobs.id'), nullable=True)
+
+    warranties = relationship("Warranty", foreign_keys="Warranty.job_id", back_populates="job", lazy='select')
+    warranty_claims = relationship("WarrantyClaim", foreign_keys="WarrantyClaim.job_id", lazy='select')
+    originated_callbacks = relationship("Callback", foreign_keys="Callback.original_job_id", back_populates="original_job", lazy='select')
+    callback_record = relationship("Callback", foreign_keys="Callback.callback_job_id", back_populates="callback_job", uselist=False, lazy='select')
+    expenses = relationship("Expense", back_populates="job", foreign_keys="Expense.job_id", lazy='select')
+    original_job = relationship("Job", foreign_keys=[original_job_id], remote_side='Job.id', backref="callback_jobs", lazy='select')
 
     # -- Phase helper properties --
 

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Callbacks{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Callbacks</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Track return visits and quality issues</p>
+    </div>
+    {% if can_admin %}
+    <a href="{{ url_for('callback.callback_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Callback</a>
+    {% endif %}
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-warning);text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-warning);">{{ stats.open_callbacks }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Open Callbacks</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ stats.resolved_this_month }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Resolved This Month</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if stats.callback_rate > 5 %}var(--color-danger){% else %}var(--color-accent){% endif %};text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;{% if stats.callback_rate > 5 %}color:var(--color-danger);{% endif %}">{{ stats.callback_rate }}%</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Callback Rate (90d)</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <select name="status" class="form-control" style="width:auto;min-width:130px;" onchange="this.form.submit()">
+            <option value="">Open (excl. Closed)</option>
+            {% for val, label in statuses %}<option value="{{ val }}" {{ 'selected' if status_filter == val }}>{{ label }}</option>{% endfor %}
+        </select>
+        <select name="severity" class="form-control" style="width:auto;min-width:120px;" onchange="this.form.submit()">
+            <option value="">All Severities</option>
+            {% for val, label in severities %}<option value="{{ val }}" {{ 'selected' if severity_filter == val }}>{{ label }}</option>{% endfor %}
+        </select>
+        <input type="text" name="search" class="form-control" style="width:auto;min-width:180px;" placeholder="Search..." value="{{ search }}">
+        <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Search</button>
+        {% if status_filter or severity_filter or search %}
+        <a href="{{ url_for('callback.callback_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Table -->
+<div class="card"><div style="overflow-x:auto;">
+{% if callbacks %}
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Callback #</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Client</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Reason</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Severity</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Reported</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Warranty</th>
+    </tr></thead>
+    <tbody>
+    {% for cb in callbacks %}
+    <tr style="border-bottom:1px solid var(--color-border);{% if cb.severity in ('major','critical') %}background:rgba(239,68,68,0.04);{% endif %}" onclick="location.href='{{ url_for('callback.callback_detail', callback_id=cb.id) }}'" style="cursor:pointer;">
+        <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('callback.callback_detail', callback_id=cb.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:600;">{{ cb.callback_number }}</a></td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ cb.client.display_name if cb.client else '—' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ cb.reason_display }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ cb.severity_color }});">{{ cb.severity_display }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ cb.reported_date.strftime('%b %d, %Y') if cb.reported_date else '' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ cb.status_color }});">{{ cb.status_display }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);">{% if cb.is_warranty %}<i class="bi bi-shield-check" style="color:var(--color-success);"></i>{% else %}<span style="color:var(--color-text-muted);">—</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-arrow-return-left" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4 style="color:var(--color-text-muted);">No callbacks found</h4>
+</div>
+{% endif %}
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);cursor:pointer;}</style>
+{% endblock %}

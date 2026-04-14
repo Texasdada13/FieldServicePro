@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}{{ period.period_name }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/vehicles.css') }}">
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <a href="{{ url_for('payroll.payroll_dashboard') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Payroll</a>
+        <h1 style="margin:var(--space-1) 0 0;">{{ period.period_name }}</h1>
+        <div style="display:flex;gap:var(--space-2);align-items:center;margin-top:var(--space-1);">
+            <span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ period.status_color }});color:#fff;">{{ period.status|title }}</span>
+            <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ period.pay_frequency|title }}</span>
+            {% if period.finalized_at %}<span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Finalized {{ period.finalized_at.strftime('%b %d, %Y') }}</span>{% endif %}
+        </div>
+    </div>
+    <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
+        {% if period.is_editable %}
+        <form method="POST" action="{{ url_for('payroll.payroll_calculate', period_id=period.id) }}">
+            <button type="submit" class="btn btn-accent"><i class="bi bi-calculator"></i> {% if period.line_items %}Recalculate{% else %}Calculate{% endif %}</button>
+        </form>
+        {% endif %}
+        {% if period.line_items %}
+        <a href="{{ url_for('payroll.payroll_export', period_id=period.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-download"></i> Summary CSV</a>
+        <a href="{{ url_for('payroll.payroll_export', period_id=period.id, type='detailed') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-file-earmark-text"></i> Detailed CSV</a>
+        {% if period.is_editable %}
+        <form method="POST" action="{{ url_for('payroll.payroll_finalize', period_id=period.id) }}" onsubmit="return confirm('Finalize this period?');">
+            <button type="submit" class="btn btn-accent" style="background:var(--color-success);"><i class="bi bi-lock"></i> Finalize</button>
+        </form>
+        {% endif %}
+        {% if period.status in ('finalized','exported') and user.role == 'owner' %}
+        <form method="POST" action="{{ url_for('payroll.payroll_reopen', period_id=period.id) }}" onsubmit="return confirm('Re-open for editing?');">
+            <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);color:var(--color-warning);"><i class="bi bi-unlock"></i> Re-open</button>
+        </form>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Warnings -->
+{% if warnings %}
+<div class="card" style="margin-bottom:var(--space-3);border-left:4px solid var(--color-warning);padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);background:var(--color-warning);color:#000;font-weight:700;font-size:var(--font-size-sm);">
+        <i class="bi bi-exclamation-triangle"></i> {{ warnings|length }} Warning{{ 's' if warnings|length != 1 }}
+    </div>
+    {% for w in warnings %}
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-size:var(--font-size-sm);">
+        <span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:{% if w.type == 'warning' %}var(--color-warning){% else %}var(--color-info){% endif %};color:{% if w.type == 'warning' %}#000{% else %}#fff{% endif %};margin-right:var(--space-1);">{{ w.type|title }}</span>
+        {{ w.message }}
+        <a href="{{ url_for('payroll.tech_entries', period_id=period.id, tech_id=w.technician_id) }}" style="margin-left:var(--space-2);font-size:var(--font-size-xs);">View entries</a>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Payroll Table -->
+{% if period.line_items %}
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;font-weight:700;">
+        <span>Employee Payroll Summary</span>
+        <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ period.line_items|length }} employee(s)</span>
+    </div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="payroll-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);">
+            <th style="padding:var(--space-2) var(--space-3);">Employee</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;">Reg</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;">OT</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;">DT</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;">Total Hrs</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;">Reg Pay</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;">OT Pay</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;">Gross</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;">Reimb.</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;">Total</th>
+            <th style="padding:var(--space-2) var(--space-3);width:100px;">Status</th>
+            <th style="width:60px;"></th>
+        </tr></thead>
+        <tbody>
+        {% for li in period.line_items %}
+        {% set tech = li.technician %}
+        <tr style="border-bottom:1px solid var(--color-border);">
+            <td style="padding:var(--space-2) var(--space-3);">
+                <a href="{{ url_for('payroll.tech_entries', period_id=period.id, tech_id=li.technician_id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:600;">{{ tech.full_name if tech else 'Tech #' ~ li.technician_id }}</a>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ li.days_worked }}d &middot; {{ li.jobs_worked }} jobs &middot; ${{ "%.2f"|format(li.regular_rate|float) }}/hr</div>
+            </td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;">{{ "%.2f"|format(li.regular_hours|float) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;{% if li.overtime_hours|float > 0 %}color:var(--color-warning);font-weight:700;{% endif %}">{{ "%.2f"|format(li.overtime_hours|float) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;{% if li.double_time_hours|float > 0 %}color:var(--color-danger);font-weight:700;{% endif %}">{{ "%.2f"|format(li.double_time_hours|float) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">{{ "%.2f"|format(li.total_hours) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(li.regular_pay|float) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;{% if li.overtime_pay|float > 0 %}color:var(--color-warning);{% endif %}">${{ "{:,.2f}".format(li.overtime_pay|float) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">${{ "{:,.2f}".format(li.gross_pay) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;color:var(--color-info);">${{ "{:,.2f}".format(li.reimbursable_expenses|float) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;color:var(--color-success);">${{ "{:,.2f}".format(li.total_compensation) }}</td>
+            <td style="padding:var(--space-2) var(--space-3);">
+                {% if period.is_editable %}
+                <select class="form-select line-item-status-select" style="font-size:var(--font-size-xs);padding:2px 6px;" data-item-id="{{ li.id }}">
+                    <option value="draft" {% if li.status=='draft' %}selected{% endif %}>Draft</option>
+                    <option value="reviewed" {% if li.status=='reviewed' %}selected{% endif %}>Reviewed</option>
+                    <option value="approved" {% if li.status=='approved' %}selected{% endif %}>Approved</option>
+                </select>
+                {% else %}
+                <span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ li.status_color }});color:#fff;">{{ li.status|title }}</span>
+                {% endif %}
+            </td>
+            <td style="padding:var(--space-2);"><a href="{{ url_for('payroll.tech_entries', period_id=period.id, tech_id=li.technician_id) }}" class="btn btn-ghost" style="font-size:var(--font-size-xs);padding:2px 6px;"><i class="bi bi-eye"></i></a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr class="totals-row">
+            <td style="padding:var(--space-2) var(--space-3);font-weight:700;">TOTALS</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;">{{ "%.2f"|format(totals.regular_hours) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;color:var(--color-warning);">{{ "%.2f"|format(totals.overtime_hours) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;">{{ "%.2f"|format(totals.double_time_hours) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">{{ "%.2f"|format(totals.total_hours) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(totals.regular_pay) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(totals.overtime_pay) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">${{ "{:,.2f}".format(totals.gross_pay) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(totals.reimbursements) }}</td>
+            <td class="num" style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;color:var(--color-success);font-size:1.1rem;">${{ "{:,.2f}".format(totals.total_compensation) }}</td>
+            <td colspan="2"></td>
+        </tr></tfoot>
+    </table>
+    </div>
+</div>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-calculator" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4>No payroll data yet</h4>
+    <p style="font-size:var(--font-size-sm);">Click "Calculate" to compute hours and pay for all active employees.</p>
+    {% if period.is_editable %}
+    <form method="POST" action="{{ url_for('payroll.payroll_calculate', period_id=period.id) }}" style="display:inline;">
+        <button type="submit" class="btn btn-accent"><i class="bi bi-calculator"></i> Calculate Now</button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/payroll.js') }}"></script>
+{% endblock %}

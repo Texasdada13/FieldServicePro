@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Callback Quality Report{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div><h1 style="margin:0;">Callback Quality Report</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Track callback rates and quality metrics</p></div>
+    <a href="?export=csv" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-download"></i> Export CSV</a>
+</div>
+
+<!-- Tech Callback Rates -->
+<div class="card" style="margin-bottom:var(--space-4);">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-people" style="color:var(--color-accent);"></i> Callback Rate by Technician</h3></div>
+    <div class="card-body" style="padding:0;"><div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:2px solid var(--color-border);">
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Technician</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Jobs</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Callbacks</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Rate</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Quality</th>
+        </tr></thead>
+        <tbody>
+        {% for r in tech_stats %}
+        <tr style="border-bottom:1px solid var(--color-border);{% if r.above_threshold %}background:rgba(239,68,68,0.04);{% endif %}">
+            <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ r.tech.full_name }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ r.total_jobs }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ r.total_callbacks }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:700;color:{% if r.above_threshold %}var(--color-danger){% else %}var(--color-success){% endif %};">{{ r.callback_rate }}%</td>
+            <td style="padding:var(--space-2) var(--space-3);">
+                <div style="width:100px;height:6px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;">
+                    <div style="height:100%;width:{{ [r.callback_rate * 10, 100]|min }}%;background:{% if r.above_threshold %}var(--color-danger){% elif r.callback_rate > 2 %}var(--color-warning){% else %}var(--color-success){% endif %};border-radius:var(--radius-full);"></div>
+                </div>
+                {% if r.above_threshold %}<small style="color:var(--color-danger);">Above 5% threshold</small>{% endif %}
+            </td>
+        </tr>
+        {% else %}<tr><td colspan="5" style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No data</td></tr>{% endfor %}
+        </tbody>
+    </table>
+    </div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+    <!-- Reason Breakdown -->
+    <div class="card">
+        <div class="card-header"><h3 class="card-title">Callback Reasons</h3></div>
+        <div class="card-body">
+            {% for r in reason_stats %}{% if r.count > 0 %}
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2);">
+                <span style="font-size:var(--font-size-sm);">{{ r.reason }}</span>
+                <div style="display:flex;align-items:center;gap:var(--space-2);">
+                    <div style="width:80px;height:6px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;"><div style="height:100%;width:{{ r.pct }}%;background:var(--color-accent);border-radius:var(--radius-full);"></div></div>
+                    <span style="font-size:var(--font-size-xs);font-weight:600;min-width:50px;text-align:right;">{{ r.count }} ({{ r.pct }}%)</span>
+                </div>
+            </div>
+            {% endif %}{% endfor %}
+            {% if total_callbacks == 0 %}<p style="text-align:center;color:var(--color-text-muted);">No callbacks.</p>{% endif %}
+        </div>
+    </div>
+
+    <!-- Monthly Trend -->
+    <div class="card">
+        <div class="card-header"><h3 class="card-title">Monthly Trend (12 months)</h3></div>
+        <div class="card-body">
+            {% for m in monthly_trend %}
+            <div style="display:flex;align-items:center;margin-bottom:var(--space-1);">
+                <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);width:65px;">{{ m.month }}</span>
+                <div style="flex:1;height:6px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;margin:0 var(--space-2);">
+                    <div style="height:100%;width:{{ [m.rate * 10, 100]|min }}%;background:{% if m.rate > 5 %}var(--color-danger){% elif m.rate > 2 %}var(--color-warning){% else %}var(--color-success){% endif %};border-radius:var(--radius-full);"></div>
+                </div>
+                <span style="font-size:var(--font-size-xs);font-weight:600;width:40px;text-align:right;">{{ m.rate }}%</span>
+                <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);width:50px;text-align:right;">{{ m.callbacks }}/{{ m.jobs }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

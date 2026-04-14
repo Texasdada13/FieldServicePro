@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if mode=='edit' else 'Add' }} Vehicle{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">{{ 'Edit Vehicle' if mode=='edit' else 'Add New Vehicle' }}</h1>
+        {% if mode == 'edit' %}<p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ vehicle.name }}</p>{% endif %}
+    </div>
+    <a href="{{ url_for('vehicles.vehicle_dashboard') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<form method="POST" style="max-width:860px;">
+    <!-- Basic Info -->
+    <div class="card" style="margin-bottom:var(--space-4);padding:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3) 0;font-size:var(--font-size-sm);font-weight:700;">Basic Information</h3>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Vehicle Name / Unit # *</label>
+                <input type="text" name="name" class="form-control" required value="{{ vehicle.name if vehicle else '' }}" placeholder="e.g. Truck 1, Van #3">
+            </div>
+            <div class="form-group"><label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    {% set cs = vehicle.status if vehicle else 'available' %}
+                    <option value="available" {% if cs=='available' %}selected{% endif %}>Available</option>
+                    <option value="assigned" {% if cs=='assigned' %}selected{% endif %}>Assigned</option>
+                    <option value="in_maintenance" {% if cs=='in_maintenance' %}selected{% endif %}>Maintenance</option>
+                    <option value="out_of_service" {% if cs=='out_of_service' %}selected{% endif %}>Out of Service</option>
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label">Division</label>
+                <select name="division_id" class="form-select">
+                    <option value="">--</option>
+                    {% for d in all_divisions %}
+                    <option value="{{ d.id }}" {% if vehicle and vehicle.division_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Assigned Technician</label>
+                <select name="assigned_technician_id" class="form-select">
+                    <option value="">Unassigned</option>
+                    {% for tech in technicians %}
+                    <option value="{{ tech.id }}" {% if profile and profile.assigned_technician_id == tech.id %}selected{% endif %}>{{ tech.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label">Notes</label>
+                <input type="text" name="notes" class="form-control" value="{{ vehicle.notes if vehicle else '' }}">
+            </div>
+        </div>
+    </div>
+
+    <!-- Vehicle Details -->
+    <div class="card" style="margin-bottom:var(--space-4);padding:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3) 0;font-size:var(--font-size-sm);font-weight:700;">Vehicle Details</h3>
+        <div style="display:grid;grid-template-columns:1fr 2fr 2fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Year</label>
+                <input type="number" name="year" class="form-control" min="1980" max="2100" value="{{ profile.year if profile and profile.year else '' }}">
+            </div>
+            <div class="form-group"><label class="form-label">Make</label>
+                <input type="text" name="make" class="form-control" value="{{ profile.make if profile else '' }}" placeholder="Ford, RAM...">
+            </div>
+            <div class="form-group"><label class="form-label">Model</label>
+                <input type="text" name="model_name" class="form-control" value="{{ profile.model if profile else '' }}" placeholder="F-150, ProMaster...">
+            </div>
+            <div class="form-group"><label class="form-label">Color</label>
+                <input type="text" name="color" class="form-control" value="{{ profile.color if profile else '' }}">
+            </div>
+            <div class="form-group"><label class="form-label">Plate</label>
+                <input type="text" name="license_plate" class="form-control" value="{{ profile.license_plate if profile else '' }}" style="text-transform:uppercase;">
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">VIN</label>
+                <input type="text" name="vin" class="form-control" maxlength="17" value="{{ profile.vin if profile else '' }}">
+            </div>
+            <div class="form-group"><label class="form-label">Fuel Type</label>
+                <select name="fuel_type" class="form-select">
+                    {% set ft = profile.fuel_type if profile else 'gasoline' %}
+                    {% for val, label in fuel_types %}
+                    <option value="{{ val }}" {% if ft == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label">Tank (gal)</label>
+                <input type="number" name="fuel_tank_capacity" class="form-control" step="0.1" value="{{ profile.fuel_tank_capacity if profile and profile.fuel_tank_capacity else '' }}">
+            </div>
+            <div class="form-group"><label class="form-label">Odometer (mi)</label>
+                <input type="number" name="current_odometer" class="form-control" value="{{ profile.current_odometer if profile else 0 }}">
+            </div>
+        </div>
+    </div>
+
+    <!-- Registration & Insurance -->
+    <div class="card" style="margin-bottom:var(--space-4);padding:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3) 0;font-size:var(--font-size-sm);font-weight:700;">Registration & Insurance</h3>
+        <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Registration Expiry</label>
+                <input type="date" name="registration_expiry" class="form-control" value="{{ profile.registration_expiry.strftime('%Y-%m-%d') if profile and profile.registration_expiry else '' }}">
+            </div>
+            <div class="form-group"><label class="form-label">Insurance Policy #</label>
+                <input type="text" name="insurance_policy_number" class="form-control" value="{{ profile.insurance_policy_number if profile else '' }}">
+            </div>
+            <div class="form-group"><label class="form-label">Insurance Expiry</label>
+                <input type="date" name="insurance_expiry" class="form-control" value="{{ profile.insurance_expiry.strftime('%Y-%m-%d') if profile and profile.insurance_expiry else '' }}">
+            </div>
+        </div>
+    </div>
+
+    <!-- Logistics -->
+    <div class="card" style="margin-bottom:var(--space-4);padding:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3) 0;font-size:var(--font-size-sm);font-weight:700;">Logistics</h3>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Home Base Address</label>
+                <input type="text" name="home_base_address" class="form-control" value="{{ profile.home_base_address if profile else '' }}">
+            </div>
+            <div class="form-group"><label class="form-label">EZ Pass #</label>
+                <input type="text" name="ez_pass_number" class="form-control" value="{{ profile.ez_pass_number if profile else '' }}">
+            </div>
+            <div class="form-group"><label class="form-label">GPS Tracker ID</label>
+                <input type="text" name="gps_tracker_id" class="form-control" value="{{ profile.gps_tracker_id if profile else '' }}">
+            </div>
+        </div>
+        <div class="form-group"><label class="form-label">Vehicle Notes</label>
+            <textarea name="vehicle_notes" class="form-control" rows="3">{{ profile.notes if profile else '' }}</textarea>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:var(--space-2);">
+        <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg"></i> {{ 'Save Changes' if mode=='edit' else 'Create Vehicle' }}</button>
+        <a href="{{ url_for('vehicles.vehicle_dashboard') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+</form>
+{% endblock %}

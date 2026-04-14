@@ -36,6 +36,8 @@ class Equipment(Base):
     updated_at        = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     division = relationship('Division', backref='equipment')
+    vehicle_profile = relationship('VehicleProfile', back_populates='equipment',
+                                   uselist=False, cascade='all, delete-orphan')
 
     TYPE_CHOICES = [
         ('vehicle', 'Vehicle'), ('heavy_equipment', 'Heavy Equipment'),
@@ -71,6 +73,10 @@ class Equipment(Base):
     def make_model(self):
         parts = [self.make or '', self.model or '']
         return ' '.join(p for p in parts if p) or ''
+
+    @property
+    def is_vehicle(self):
+        return self.equipment_type == 'vehicle'
 
     @property
     def maintenance_overdue(self):

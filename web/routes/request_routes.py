@@ -149,6 +149,13 @@ def request_new():
 
             db.add(sr)
             db.commit()
+
+            try:
+                from web.utils.notification_service import NotificationService
+                NotificationService.notify('request_new', sr, triggered_by=current_user)
+            except Exception:
+                pass
+
             flash(f'Request {sr.request_number} created.', 'success')
             return redirect(url_for('requests.request_detail', request_id=sr.id))
 
@@ -313,6 +320,13 @@ def request_convert_to_job(request_id):
         sr.status = 'converted'
         sr.converted_job_id = job.id
         db.commit()
+
+        try:
+            from web.utils.notification_service import NotificationService
+            NotificationService.notify('job_created', job, triggered_by=current_user,
+                                       extra_context={'job_number': job.job_number})
+        except Exception:
+            pass
 
         flash(f'Request converted to Job {job.job_number}.', 'success')
         return redirect(url_for('job_detail', job_id=job.id))

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Warranties{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Warranties</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Track coverage on completed work</p>
+    </div>
+    {% if can_admin %}
+    <a href="{{ url_for('warranty.warranty_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Warranty</a>
+    {% endif %}
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-success);">{{ stats.total_active }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Active Warranties</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-warning);text-align:center;">
+        <a href="?expiring_soon=1" style="text-decoration:none;color:inherit;">
+            <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-warning);">{{ stats.expiring_soon }}</div>
+            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Expiring in 30 Days</div>
+        </a>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-danger);text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-danger);">{{ stats.expired_this_month }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Expired This Month</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-info);text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-info);">{{ stats.claims_this_month }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Claims This Month</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <select name="status" class="form-control" style="width:auto;min-width:130px;" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for val, label in warranty_statuses %}<option value="{{ val }}" {{ 'selected' if status_filter == val }}>{{ label }}</option>{% endfor %}
+        </select>
+        <select name="client_id" class="form-control" style="width:auto;min-width:150px;" onchange="this.form.submit()">
+            <option value="">All Clients</option>
+            {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if client_filter == c.id|string }}>{{ c.display_name }}</option>{% endfor %}
+        </select>
+        <select name="warranty_type" class="form-control" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+            <option value="">All Types</option>
+            {% for val, label in warranty_types %}<option value="{{ val }}" {{ 'selected' if type_filter == val }}>{{ label }}</option>{% endfor %}
+        </select>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:var(--font-size-sm);">
+            <input type="checkbox" name="expiring_soon" value="1" {{ 'checked' if expiring_filter == '1' }} onchange="this.form.submit()"> Expiring
+        </label>
+        {% if status_filter or client_filter or type_filter or expiring_filter %}
+        <a href="{{ url_for('warranty.warranty_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Table -->
+<div class="card"><div style="overflow-x:auto;">
+{% if warranties %}
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Warranty #</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Title</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Client</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Type</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">End Date</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Claims</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Coverage Left</th>
+    </tr></thead>
+    <tbody>
+    {% for w in warranties %}
+    <tr style="border-bottom:1px solid var(--color-border);{% if w.status == 'expiring_soon' %}background:rgba(245,158,11,0.04);{% elif w.status == 'expired' %}opacity:0.6;{% endif %}">
+        <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('warranty.warranty_detail', warranty_id=w.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:600;">{{ w.warranty_number }}</a></td>
+        <td style="padding:var(--space-2) var(--space-3);font-weight:500;">{{ w.title }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ w.client.display_name if w.client else '—' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ w.type_display }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);{% if w.days_remaining is not none and w.days_remaining <= 30 and w.days_remaining >= 0 %}font-weight:600;color:var(--color-warning);{% endif %}">{{ w.end_date.strftime('%b %d, %Y') if w.end_date else '—' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ w.status_color }});">{{ w.status_display }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ w.claims|length }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-sm);">{% if w.max_claim_value is none %}<span style="color:var(--color-text-muted);">Unlimited</span>{% else %}${{ "{:,.2f}".format(w.remaining_coverage) }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-shield-check" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4 style="color:var(--color-text-muted);">No warranties found</h4>
+    {% if can_admin %}<a href="{{ url_for('warranty.warranty_new') }}" style="color:var(--color-accent);">Create your first warranty</a>{% endif %}
+</div>
+{% endif %}
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

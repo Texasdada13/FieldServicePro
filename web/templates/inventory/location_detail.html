@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}{{ location.name }}{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div style="margin-bottom:var(--space-2);font-size:var(--font-size-sm);">
+    <a href="{{ url_for('inventory.locations') }}" style="color:var(--color-text-muted);text-decoration:none;">Locations</a>
+    <span style="color:var(--color-text-muted);margin:0 4px;">/</span>
+    <span>{{ location.name }}</span>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0 0 var(--space-1);">{{ location.name }}</h1>
+        <div style="display:flex;gap:var(--space-2);align-items:center;">
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ location.type_display }}</span>
+            {% if location.technician %}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.1);color:var(--color-info);">{{ location.technician.full_name }}</span>
+            {% endif %}
+            {% if not location.is_active %}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Inactive</span>
+            {% endif %}
+        </div>
+    </div>
+    {% if can_admin %}
+    <a href="{{ url_for('inventory.edit_location', loc_id=location.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-pencil"></i> Edit</a>
+    {% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+
+    <!-- Left: Stock Table -->
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <h3 class="card-title"><i class="bi bi-box" style="color:var(--color-accent);"></i> Stock at This Location</h3>
+                <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:rgba(13,148,136,0.1);color:var(--color-accent);">{{ stocks|length }} items</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                {% if stocks %}
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:2px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Part</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Trade</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">On Hand</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Reserved</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Available</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Last Received</th>
+                        {% if can_admin %}<th style="width:60px;"></th>{% endif %}
+                    </tr></thead>
+                    <tbody>
+                    {% for stock in stocks %}
+                    <tr style="border-bottom:1px solid var(--color-border);{% if stock.is_low_stock %}background:rgba(245,158,11,0.04);{% endif %}">
+                        <td style="padding:var(--space-2) var(--space-3);">
+                            <a href="{{ url_for('parts.part_detail', part_id=stock.part_id) }}" style="text-decoration:none;color:var(--color-accent);font-weight:500;font-size:var(--font-size-sm);">{{ stock.part.name }}</a>
+                            <div style="font-size:0.65rem;color:var(--color-text-muted);font-family:monospace;">{{ stock.part.part_number }}</div>
+                        </td>
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ stock.part.trade_display }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;{% if stock.is_low_stock %}font-weight:700;color:var(--color-warning);{% endif %}">{{ stock.quantity_on_hand }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;color:var(--color-text-muted);">{{ stock.quantity_reserved }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:600;">{{ stock.available_quantity }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ stock.last_received_at.strftime('%b %d, %Y') if stock.last_received_at else '—' }}</td>
+                        {% if can_admin %}
+                        <td style="padding:var(--space-2) var(--space-3);">
+                            <button onclick="showAdjustModal({{ stock.part_id }}, {{ location.id }}, {{ stock.quantity_on_hand }}, '{{ stock.part.name|replace("'", "\\'") }}')" class="btn btn-ghost" style="padding:2px 8px;font-size:var(--font-size-xs);">Adjust</button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+                    <i class="bi bi-inbox" style="font-size:1.5rem;opacity:0.3;display:block;margin-bottom:var(--space-1);"></i>
+                    <p style="margin:0;font-size:var(--font-size-sm);">No stock at this location.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Summary & Activity -->
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Summary</h3></div>
+            <div class="card-body">
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Parts</span><div style="font-weight:600;">{{ stocks|length }}</div></div>
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Units</span><div style="font-weight:600;">{{ location.total_items }}</div></div>
+                {% if can_admin %}
+                <div style="margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Inventory Value</span><div style="font-weight:600;color:var(--color-success);">${{ "{:,.2f}".format(location.total_value) }}</div></div>
+                {% endif %}
+                {% if location.address %}
+                <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Address</span><div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ location.address }}</div></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-clock-history" style="color:var(--color-accent);"></i> Recent Activity</h3></div>
+            <div class="card-body" style="padding:0;">
+                {% if transactions %}
+                {% for tx in transactions %}
+                <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <div style="font-weight:500;font-size:var(--font-size-sm);">{{ tx.part.name if tx.part else '—' }}</div>
+                        <div style="font-size:0.7rem;color:var(--color-text-muted);">{{ tx.type_display }}</div>
+                    </div>
+                    <span style="font-weight:700;color:{% if tx.quantity > 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">{{ '+' if tx.quantity > 0 else '' }}{{ tx.quantity }}</span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);font-size:var(--font-size-sm);">No activity</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Adjustment Modal -->
+<div id="adjustOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:400px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+        <h3 style="margin:0 0 var(--space-3);">Adjust Stock</h3>
+        <form method="POST" action="{{ url_for('inventory.adjust_stock') }}">
+            <input type="hidden" name="part_id" id="adjustPartId">
+            <input type="hidden" name="location_id" id="adjustLocationId">
+            <p style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);">Adjusting: <strong id="adjustPartName"></strong></p>
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">New Quantity on Hand</label>
+                <input type="number" name="new_quantity" id="adjustQty" class="form-control" min="0" required>
+            </div>
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">Reason / Notes</label>
+                <input type="text" name="notes" class="form-control" placeholder="e.g., Cycle count correction">
+            </div>
+            <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+                <button type="button" onclick="closeAdjustModal()" class="btn btn-ghost">Cancel</button>
+                <button type="submit" class="btn btn-accent">Save Adjustment</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showAdjustModal(partId, locationId, currentQty, partName) {
+    document.getElementById('adjustPartId').value = partId;
+    document.getElementById('adjustLocationId').value = locationId;
+    document.getElementById('adjustQty').value = currentQty;
+    document.getElementById('adjustPartName').textContent = partName;
+    document.getElementById('adjustOverlay').style.display = 'flex';
+}
+function closeAdjustModal() {
+    document.getElementById('adjustOverlay').style.display = 'none';
+}
+document.getElementById('adjustOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeAdjustModal();
+});
+</script>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

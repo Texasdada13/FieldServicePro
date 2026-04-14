@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Warranty Report{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-4);"><h1 style="margin:0;">Warranty Report</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Active warranties, claims, and expiration analysis</p></div>
+
+<!-- Expiring Warranties -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+    <div class="card" style="border-left:3px solid var(--color-warning);">
+        <div class="card-header" style="background:rgba(245,158,11,0.06);"><h3 class="card-title" style="color:var(--color-warning);">Expiring in 30 Days ({{ expiring_30|length }})</h3></div>
+        <div class="card-body" style="padding:0;">
+            {% if expiring_30 %}{% for w in expiring_30[:8] %}
+            <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;">
+                <div><a href="{{ url_for('warranty.warranty_detail', warranty_id=w.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;font-size:var(--font-size-sm);">{{ w.warranty_number }}</a><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ w.title[:40] }}</div></div>
+                <span style="font-size:var(--font-size-xs);color:var(--color-warning);font-weight:600;">{{ w.days_remaining }}d</span>
+            </div>
+            {% endfor %}{% else %}<div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);font-size:var(--font-size-sm);">None</div>{% endif %}
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header"><h3 class="card-title">Expiring in 31–90 Days ({{ (expiring_90|length) - (expiring_30|length) }})</h3></div>
+        <div class="card-body" style="padding:0;">
+            {% set shown = [] %}
+            {% for w in expiring_90 %}{% if w not in expiring_30 %}
+            <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;">
+                <div><a href="{{ url_for('warranty.warranty_detail', warranty_id=w.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;font-size:var(--font-size-sm);">{{ w.warranty_number }}</a><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ w.title[:40] }}</div></div>
+                <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ w.days_remaining }}d</span>
+            </div>
+            {% endif %}{% endfor %}
+            {% if expiring_90|length == expiring_30|length %}<div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);font-size:var(--font-size-sm);">None</div>{% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Claims by Month -->
+<div class="card">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-file-earmark-text" style="color:var(--color-info);"></i> Warranty Claims — Last 6 Months</h3></div>
+    <div class="card-body" style="padding:0;"><div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:2px solid var(--color-border);">
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Month</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Claims</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total Cost</th>
+        </tr></thead>
+        <tbody>
+        {% for m in claims_by_month %}
+        <tr style="border-bottom:1px solid var(--color-border);">
+            <td style="padding:var(--space-2) var(--space-3);">{{ m.month }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ m.count }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if m.cost > 0 %}font-weight:600;color:var(--color-danger);{% else %}color:var(--color-text-muted);{% endif %}">${{ "{:,.2f}".format(m.cost) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr style="border-top:2px solid var(--color-border);background:var(--color-surface-raised);">
+            <td style="padding:var(--space-2) var(--space-3);font-weight:700;">Total</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:600;">{{ claims_by_month|sum(attribute='count') }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">${{ "{:,.2f}".format(claims_by_month|sum(attribute='cost')) }}</td>
+        </tr></tfoot>
+    </table>
+    </div></div>
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

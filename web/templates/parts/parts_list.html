@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Parts Catalog{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Parts Catalog</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Manage your parts inventory and pricing</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        {% if can_admin %}
+        <a href="{{ url_for('parts.export_parts') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-download"></i> Export CSV</a>
+        <a href="{{ url_for('parts.import_parts') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-upload"></i> Import CSV</a>
+        <a href="{{ url_for('parts.new_part') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> Add Part</a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);">
+        <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(13,148,136,0.1);display:flex;align-items:center;justify-content:center;"><i class="bi bi-box-seam" style="font-size:1.2rem;color:var(--color-accent);"></i></div>
+            <div>
+                <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ stats.total_parts }}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Active Parts</div>
+            </div>
+        </div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if stats.low_stock_count > 0 %}var(--color-warning){% else %}var(--color-border){% endif %};">
+        <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(245,158,11,0.1);display:flex;align-items:center;justify-content:center;"><i class="bi bi-exclamation-triangle" style="font-size:1.2rem;color:var(--color-warning);"></i></div>
+            <div>
+                <div style="font-size:var(--font-size-2xl);font-weight:700;{% if stats.low_stock_count > 0 %}color:var(--color-warning);{% endif %}">{{ stats.low_stock_count }}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Low Stock Alerts</div>
+            </div>
+        </div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;"><i class="bi bi-currency-dollar" style="font-size:1.2rem;color:var(--color-success);"></i></div>
+            <div>
+                <div style="font-size:var(--font-size-2xl);font-weight:700;">${{ "{:,.2f}".format(stats.total_value) }}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Inventory Value</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;position:relative;">
+            <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);"></i>
+            <input type="text" name="search" class="form-control" style="padding-left:32px;" placeholder="Search part number, name, manufacturer..." value="{{ search }}">
+        </div>
+        <select name="category" class="form-control" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+            <option value="">All Categories</option>
+            {% for val, label in categories %}
+            <option value="{{ val }}" {{ 'selected' if selected_category == val }}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select name="trade" class="form-control" style="width:auto;min-width:120px;" onchange="this.form.submit()">
+            <option value="">All Trades</option>
+            {% for val, label in trades %}
+            <option value="{{ val }}" {{ 'selected' if selected_trade == val }}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:var(--font-size-sm);white-space:nowrap;">
+            <input type="checkbox" name="low_stock" value="1" {{ 'checked' if low_stock_only }} onchange="this.form.submit()"> Low Stock Only
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:var(--font-size-sm);white-space:nowrap;">
+            <input type="checkbox" name="inactive" value="1" {{ 'checked' if show_inactive }} onchange="this.form.submit()"> Show Inactive
+        </label>
+        <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Filter</button>
+        {% if search or selected_category or selected_trade or low_stock_only or show_inactive %}
+        <a href="{{ url_for('parts.list_parts') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Parts Table -->
+<div class="card"><div style="overflow-x:auto;">
+{% if parts %}
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Part Number</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Name</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Category</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Trade</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Unit</th>
+        {% if can_admin %}
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Cost</th>
+        {% endif %}
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Sell Price</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Total Stock</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Status</th>
+        {% if can_admin %}<th style="width:40px;"></th>{% endif %}
+    </tr></thead>
+    <tbody>
+    {% for p in parts %}
+    {% set trade_colors = {'plumbing': 'info', 'hvac': 'warning', 'electrical': 'danger', 'general': 'secondary', 'multi': 'accent'} %}
+    <tr style="border-bottom:1px solid var(--color-border);{% if p.is_low_stock %}background:rgba(245,158,11,0.04);{% endif %}">
+        <td style="padding:var(--space-2) var(--space-3);">
+            <code style="font-weight:600;">{{ p.part_number }}</code>
+            {% if p.is_low_stock %}
+            <i class="bi bi-exclamation-triangle-fill" style="color:var(--color-warning);margin-left:4px;" title="Low stock: {{ p.total_stock }} on hand, min {{ p.minimum_stock_level }}"></i>
+            {% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);">
+            <a href="{{ url_for('parts.part_detail', part_id=p.id) }}" style="text-decoration:none;color:var(--color-accent);font-weight:500;">{{ p.name }}</a>
+            {% if p.manufacturer %}<div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ p.manufacturer }}</div>{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ p.category_display }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ trade_colors.get(p.trade, 'secondary') }});">{{ p.trade_display }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ p.unit_display }}</td>
+        {% if can_admin %}
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-sm);">${{ "{:,.2f}".format(p.cost_price or 0) }}</td>
+        {% endif %}
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-sm);">${{ "{:,.2f}".format(p.sell_price or 0) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">
+            <span style="font-weight:600;{% if p.is_low_stock %}color:var(--color-warning);{% endif %}">{{ p.total_stock }}</span>
+            {% if p.minimum_stock_level > 0 %}
+            <div style="font-size:0.65rem;color:var(--color-text-muted);">min: {{ p.minimum_stock_level }}</div>
+            {% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">
+            {% if p.is_active %}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">Active</span>
+            {% else %}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Inactive</span>
+            {% endif %}
+        </td>
+        {% if can_admin %}
+        <td style="padding:var(--space-2);text-align:right;">
+            <div style="position:relative;display:inline-block;" class="part-actions">
+                <button onclick="this.nextElementSibling.classList.toggle('show')" class="btn btn-ghost" style="padding:2px 8px;font-size:var(--font-size-xs);">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <div class="dropdown-menu-custom" style="display:none;position:absolute;right:0;top:100%;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:0 4px 12px rgba(0,0,0,0.1);min-width:150px;z-index:50;">
+                    <a href="{{ url_for('parts.part_detail', part_id=p.id) }}" style="display:block;padding:6px 12px;text-decoration:none;color:var(--color-text);font-size:var(--font-size-sm);"><i class="bi bi-eye" style="margin-right:8px;"></i>View Detail</a>
+                    <a href="{{ url_for('parts.edit_part', part_id=p.id) }}" style="display:block;padding:6px 12px;text-decoration:none;color:var(--color-text);font-size:var(--font-size-sm);"><i class="bi bi-pencil" style="margin-right:8px;"></i>Edit</a>
+                    <div style="border-top:1px solid var(--color-border);margin:4px 0;"></div>
+                    <button onclick="togglePartActive({{ p.id }}, {{ 'true' if p.is_active else 'false' }})" style="display:block;width:100%;text-align:left;padding:6px 12px;border:none;background:none;cursor:pointer;font-size:var(--font-size-sm);color:{% if p.is_active %}var(--color-warning){% else %}var(--color-success){% endif %};">
+                        <i class="bi bi-{% if p.is_active %}pause-circle{% else %}play-circle{% endif %}" style="margin-right:8px;"></i>{{ 'Deactivate' if p.is_active else 'Activate' }}
+                    </button>
+                </div>
+            </div>
+        </td>
+        {% endif %}
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<div style="padding:var(--space-2) var(--space-3);color:var(--color-text-muted);font-size:var(--font-size-xs);border-top:1px solid var(--color-border);">Showing {{ parts|length }} parts</div>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-box-seam" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4 style="color:var(--color-text-muted);margin-bottom:var(--space-1);">No parts found</h4>
+    <p>Try adjusting your filters or
+        {% if can_admin %}<a href="{{ url_for('parts.new_part') }}" style="color:var(--color-accent);">add your first part</a>.{% else %}contact an administrator.{% endif %}
+    </p>
+</div>
+{% endif %}
+</div></div>
+
+<style>
+table tbody tr:hover{background:var(--color-surface-raised);}
+.dropdown-menu-custom.show{display:block !important;}
+.dropdown-menu-custom a:hover,.dropdown-menu-custom button:hover{background:var(--color-surface-raised);}
+</style>
+
+<script>
+function togglePartActive(partId, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    if (!confirm('Are you sure you want to ' + action + ' this part?')) return;
+    fetch('/parts/' + partId + '/toggle-active', {method: 'POST'})
+        .then(r => r.json())
+        .then(data => { if (data.success) location.reload(); else alert(data.error || 'Error updating part.'); });
+}
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.part-actions')) {
+        document.querySelectorAll('.dropdown-menu-custom.show').forEach(m => m.classList.remove('show'));
+    }
+});
+</script>
+{% endblock %}

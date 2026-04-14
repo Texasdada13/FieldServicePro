@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if template else 'New' }} Client Template{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">{{ 'Edit' if template else 'New' }} Client Notification Template</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">
+            {% if template %}Editing: {{ template.name }}{% else %}Create an automated client notification{% endif %}
+        </p>
+    </div>
+    <a href="{{ url_for('notifications.client_templates') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<form method="POST">
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);align-items:start;">
+
+    <!-- Main Form -->
+    <div class="card" style="padding:var(--space-4);">
+        <div style="margin-bottom:var(--space-3);">
+            <label style="font-size:var(--font-size-sm);font-weight:600;display:block;margin-bottom:var(--space-1);">Template Name *</label>
+            <input type="text" name="name" value="{{ template.name if template else '' }}" required class="form-control" placeholder="e.g., Job Scheduled Confirmation">
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div>
+                <label style="font-size:var(--font-size-sm);font-weight:600;display:block;margin-bottom:var(--space-1);">Trigger Event *</label>
+                <select name="trigger_event" required class="form-select">
+                    <option value="">Select trigger...</option>
+                    {% for val, label in trigger_events %}
+                    <option value="{{ val }}" {% if template and template.trigger_event == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label style="font-size:var(--font-size-sm);font-weight:600;display:block;margin-bottom:var(--space-1);">Channel *</label>
+                <select name="channel" class="form-select">
+                    <option value="email" {% if template and template.channel == 'email' %}selected{% endif %}>Email</option>
+                    <option value="sms" {% if template and template.channel == 'sms' %}selected{% endif %}>SMS</option>
+                    <option value="both" {% if template and template.channel == 'both' %}selected{% endif %}>Both</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div>
+                <label style="font-size:var(--font-size-sm);font-weight:600;display:block;margin-bottom:var(--space-1);">Send Delay (minutes)</label>
+                <input type="number" name="send_delay_minutes" value="{{ template.send_delay_minutes if template else 0 }}" min="0" class="form-control" placeholder="0 = immediate">
+            </div>
+            <div style="display:flex;align-items:flex-end;padding-bottom:var(--space-1);">
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                    <input type="checkbox" name="is_active" value="1" {% if not template or template.is_active %}checked{% endif %}
+                        style="width:18px;height:18px;accent-color:var(--color-accent);">
+                    <span style="font-size:var(--font-size-sm);font-weight:600;">Active</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="margin-bottom:var(--space-3);">
+            <label style="font-size:var(--font-size-sm);font-weight:600;display:block;margin-bottom:var(--space-1);">Email Subject</label>
+            <input type="text" name="subject_template" value="{{ template.subject_template if template else '' }}" class="form-control" placeholder="e.g., Your appointment is scheduled for {scheduled_date}">
+        </div>
+
+        <div style="margin-bottom:var(--space-3);">
+            <label style="font-size:var(--font-size-sm);font-weight:600;display:block;margin-bottom:var(--space-1);">Email Body *</label>
+            <textarea name="body_template" rows="8" required class="form-control" placeholder="Dear {client_name},&#10;&#10;Your service appointment has been scheduled...">{{ template.body_template if template else '' }}</textarea>
+        </div>
+
+        <div style="margin-bottom:var(--space-3);">
+            <label style="font-size:var(--font-size-sm);font-weight:600;display:block;margin-bottom:var(--space-1);">SMS Template <span style="color:var(--color-text-muted);font-weight:400;">(160 char max)</span></label>
+            <textarea name="sms_template" rows="2" maxlength="160" class="form-control" placeholder="Hi {client_first_name}, your appointment is confirmed for {scheduled_date} at {scheduled_time}.">{{ template.sms_template if template else '' }}</textarea>
+            <span id="smsCount" style="font-size:var(--font-size-xs);color:var(--color-text-muted);"></span>
+        </div>
+
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;padding-top:var(--space-2);border-top:1px solid var(--color-border);">
+            <a href="{{ url_for('notifications.client_templates') }}" class="btn btn-ghost">Cancel</a>
+            <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg"></i> {{ 'Update' if template else 'Create' }} Template</button>
+        </div>
+    </div>
+
+    <!-- Placeholders sidebar -->
+    <div class="card" style="padding:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-2) 0;font-size:var(--font-size-sm);font-weight:700;">Available Placeholders</h3>
+        <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-bottom:var(--space-3);">Click to copy. These will be replaced with actual values when sent.</p>
+        <div style="display:flex;flex-direction:column;gap:var(--space-1);">
+        {% for p in placeholders %}
+            <button type="button" onclick="navigator.clipboard.writeText('{{ p }}');this.textContent='Copied!';setTimeout(()=>this.textContent='{{ p }}',1000);"
+                style="text-align:left;background:var(--color-surface-raised);border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:4px 8px;font-size:var(--font-size-xs);font-family:monospace;cursor:pointer;color:var(--color-accent);">
+                {{ p }}
+            </button>
+        {% endfor %}
+        </div>
+    </div>
+
+</div>
+</form>
+
+<script>
+(function() {
+    var smsField = document.querySelector('[name="sms_template"]');
+    var counter = document.getElementById('smsCount');
+    if (smsField && counter) {
+        function update() { counter.textContent = smsField.value.length + '/160'; }
+        smsField.addEventListener('input', update);
+        update();
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Communication Activity Report{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div><h1 style="margin:0;">Communication Activity Report</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ total_comms }} communications in period</p></div>
+    <a href="?date_from={{ date_from }}&date_to={{ date_to }}&export=csv" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-download"></i> Export CSV</a>
+</div>
+
+<!-- Date Range -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;">
+        <label style="font-size:var(--font-size-sm);color:var(--color-text-muted);">From</label>
+        <input type="date" name="date_from" class="form-control" style="width:auto;" value="{{ date_from }}">
+        <label style="font-size:var(--font-size-sm);color:var(--color-text-muted);">To</label>
+        <input type="date" name="date_to" class="form-control" style="width:auto;" value="{{ date_to }}">
+        <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Apply</button>
+    </form>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);text-align:center;border-left:3px solid var(--color-accent);"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ total_comms }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;border-left:3px solid var(--color-info);"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ inbound_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Inbound</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;border-left:3px solid var(--color-success);"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ outbound_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Outbound</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;border-left:3px solid {% if compliance_pct >= 90 %}var(--color-success){% else %}var(--color-warning){% endif %};"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ compliance_pct }}%</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Follow-up Rate</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;border-left:3px solid {% if escalation_count > 0 %}var(--color-danger){% else %}var(--color-border){% endif %};"><div style="font-size:var(--font-size-2xl);font-weight:700;">{{ escalation_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Escalations</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+    <!-- By Type -->
+    <div class="card">
+        <div class="card-header"><h3 class="card-title">Volume by Type</h3></div>
+        <div class="card-body" style="padding:0;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead><tr style="border-bottom:2px solid var(--color-border);">
+                    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Type</th>
+                    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Count</th>
+                    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">%</th>
+                </tr></thead>
+                <tbody>
+                {% for type_key, count in type_data|dictsort(by='value', reverse=true) %}
+                <tr style="border-bottom:1px solid var(--color-border);">
+                    <td style="padding:var(--space-1) var(--space-3);font-size:var(--font-size-sm);">{{ dict(comm_types).get(type_key, type_key) }}</td>
+                    <td style="padding:var(--space-1) var(--space-3);text-align:right;font-weight:600;">{{ count }}</td>
+                    <td style="padding:var(--space-1) var(--space-3);">
+                        <div style="width:80px;height:6px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;">
+                            <div style="height:100%;width:{{ (count / total_comms * 100)|round if total_comms else 0 }}%;background:var(--color-accent);border-radius:var(--radius-full);"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Sentiment -->
+    <div class="card">
+        <div class="card-header"><h3 class="card-title">Client Sentiment</h3></div>
+        <div class="card-body" style="padding:0;">
+            {% set s_colors = {'positive':'success','neutral':'secondary','negative':'warning','escalation':'danger'} %}
+            <table style="width:100%;border-collapse:collapse;">
+                <thead><tr style="border-bottom:2px solid var(--color-border);">
+                    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Sentiment</th>
+                    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Count</th>
+                </tr></thead>
+                <tbody>
+                {% for sent, count in sentiment_data|dictsort(by='value', reverse=true) %}
+                <tr style="border-bottom:1px solid var(--color-border);">
+                    <td style="padding:var(--space-1) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ s_colors.get(sent, 'secondary') }});">{{ sent|title }}</span></td>
+                    <td style="padding:var(--space-1) var(--space-3);text-align:right;font-weight:600;">{{ count }}</td>
+                </tr>
+                {% else %}<tr><td colspan="2" style="padding:var(--space-3);text-align:center;color:var(--color-text-muted);">No sentiment data</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- By Client -->
+    <div class="card">
+        <div class="card-header"><h3 class="card-title">Top Clients</h3></div>
+        <div class="card-body" style="padding:0;">
+            <table style="width:100%;border-collapse:collapse;">
+                <tbody>
+                {% for name, count in client_counts %}
+                <tr style="border-bottom:1px solid var(--color-border);">
+                    <td style="padding:var(--space-1) var(--space-3);font-size:var(--font-size-sm);">{{ name }}</td>
+                    <td style="padding:var(--space-1) var(--space-3);text-align:right;font-weight:600;">{{ count }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- By Staff -->
+    <div class="card">
+        <div class="card-header"><h3 class="card-title">By Staff</h3></div>
+        <div class="card-body" style="padding:0;">
+            <table style="width:100%;border-collapse:collapse;">
+                <tbody>
+                {% for name, count in user_counts %}
+                <tr style="border-bottom:1px solid var(--color-border);">
+                    <td style="padding:var(--space-1) var(--space-3);font-size:var(--font-size-sm);">{{ name }}</td>
+                    <td style="padding:var(--space-1) var(--space-3);text-align:right;font-weight:600;">{{ count }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

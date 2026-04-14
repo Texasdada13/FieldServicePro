@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{{ callback.callback_number }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);font-size:var(--font-size-sm);">
+    <a href="{{ url_for('callback.callback_list') }}" style="color:var(--color-text-muted);text-decoration:none;">Callbacks</a>
+    <span style="color:var(--color-text-muted);margin:0 4px;">/</span>{{ callback.callback_number }}
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0 0 var(--space-1);">{{ callback.callback_number }}</h1>
+        <div style="display:flex;gap:var(--space-2);align-items:center;">
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ callback.status_color }});">{{ callback.status_display }}</span>
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ callback.severity_color }});">{{ callback.severity_display }}</span>
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ callback.reason_display }}</span>
+            {% if callback.is_warranty %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);"><i class="bi bi-shield-check"></i> Warranty</span>{% endif %}
+        </div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <!-- Left -->
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-arrow-return-left" style="color:var(--color-warning);"></i> Callback Details</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Original Job</span><div><a href="/jobs/{{ callback.original_job_id }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;">{{ callback.original_job.title if callback.original_job else '#' ~ callback.original_job_id }}</a></div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Callback Job</span><div><a href="/jobs/{{ callback.callback_job_id }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;">{{ callback.callback_job.title if callback.callback_job else '#' ~ callback.callback_job_id }}</a></div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Client</span><div>{{ callback.client.display_name if callback.client else '—' }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Reported Date</span><div>{{ callback.reported_date.strftime('%B %d, %Y') if callback.reported_date else '' }}</div></div>
+                    {% if callback.responsible_technician %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Responsible Tech</span><div>{{ callback.responsible_technician.full_name }}</div></div>{% endif %}
+                    {% if callback.resolved_date %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Resolved Date</span><div>{{ callback.resolved_date.strftime('%B %d, %Y') }}</div></div>{% endif %}
+                </div>
+                <div style="margin-bottom:var(--space-3);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Description</span><div style="font-size:var(--font-size-sm);">{{ callback.description }}</div></div>
+                {% if callback.customer_impact %}<div style="margin-bottom:var(--space-3);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Customer Impact</span><div style="font-size:var(--font-size-sm);">{{ callback.customer_impact }}</div></div>{% endif %}
+            </div>
+        </div>
+
+        <!-- Root Cause / Corrective Action -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-search" style="color:var(--color-info);"></i> Investigation</h3></div>
+            <div class="card-body">
+                {% if can_admin and callback.is_open %}
+                <form method="POST" action="{{ url_for('callback.callback_update', callback_id=callback.id) }}">
+                    <div class="form-group" style="margin-bottom:var(--space-3);">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-control" style="width:200px;">
+                            {% for val, label in statuses %}<option value="{{ val }}" {{ 'selected' if callback.status == val }}>{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:var(--space-3);">
+                        <label class="form-label">Root Cause</label>
+                        <textarea name="root_cause" class="form-control" rows="3">{{ callback.root_cause or '' }}</textarea>
+                    </div>
+                    <div class="form-group" style="margin-bottom:var(--space-3);">
+                        <label class="form-label">Corrective Action</label>
+                        <textarea name="corrective_action" class="form-control" rows="3">{{ callback.corrective_action or '' }}</textarea>
+                    </div>
+                    <div class="form-group" style="margin-bottom:var(--space-3);">
+                        <label class="form-label">Internal Notes</label>
+                        <textarea name="internal_notes" class="form-control" rows="2">{{ callback.internal_notes or '' }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Save Changes</button>
+                </form>
+                {% else %}
+                <div style="display:grid;grid-template-columns:1fr;gap:var(--space-3);">
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Root Cause</span><div style="font-size:var(--font-size-sm);white-space:pre-wrap;">{{ callback.root_cause or 'Not yet identified' }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Corrective Action</span><div style="font-size:var(--font-size-sm);white-space:pre-wrap;">{{ callback.corrective_action or 'None recorded' }}</div></div>
+                    {% if callback.internal_notes %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Internal Notes</span><div style="font-size:var(--font-size-sm);">{{ callback.internal_notes }}</div></div>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right -->
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Classification</h3></div>
+            <div class="card-body">
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Reason</span><span style="font-weight:500;">{{ callback.reason_display }}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Severity</span><span style="font-weight:500;color:var(--color-{{ callback.severity_color }});">{{ callback.severity_display }}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Billable</span><span>{{ 'Yes' if callback.is_billable else 'No' }}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Warranty</span><span>{% if callback.is_warranty and callback.warranty %}<a href="{{ url_for('warranty.warranty_detail', warranty_id=callback.warranty_id) }}" style="color:var(--color-accent);text-decoration:none;">{{ callback.warranty.warranty_number }}</a>{% elif callback.is_warranty %}Yes{% else %}No{% endif %}</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3 class="card-title">Record Info</h3></div>
+            <div class="card-body">
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Created {{ callback.created_at.strftime('%b %d, %Y') if callback.created_at else '' }}</div>
+                {% if callback.creator %}<div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">By {{ callback.creator.full_name }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

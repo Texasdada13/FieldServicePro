@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Communication Log{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Communication Log</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ total }} entries</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        <a href="{{ url_for('communications.follow_up_queue') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);{% if stats.follow_ups_overdue > 0 %}color:var(--color-danger);{% endif %}"><i class="bi bi-bell"></i> Follow-ups{% if stats.follow_ups_overdue > 0 %} ({{ stats.follow_ups_overdue }}){% endif %}</a>
+        <a href="{{ url_for('communications.communication_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> Log Communication</a>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ stats.total_today }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Today</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if stats.follow_ups_overdue > 0 %}var(--color-danger){% else %}var(--color-border){% endif %};text-align:center;">
+        <a href="?follow_up=overdue" style="text-decoration:none;color:inherit;">
+            <div style="font-size:var(--font-size-2xl);font-weight:700;{% if stats.follow_ups_overdue > 0 %}color:var(--color-danger);{% endif %}">{{ stats.follow_ups_overdue }}</div>
+            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Overdue Follow-ups</div>
+        </a>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-warning);text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ stats.follow_ups_due_today }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Due Today</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if stats.escalations_this_week > 0 %}var(--color-danger){% else %}var(--color-border){% endif %};text-align:center;">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ stats.escalations_this_week }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Escalations (Week)</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <select name="type" class="form-control" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+            <option value="">All Types</option>
+            {% for val, label in comm_types %}<option value="{{ val }}" {{ 'selected' if filters.type == val }}>{{ label }}</option>{% endfor %}
+        </select>
+        <select name="client_id" class="form-control" style="width:auto;min-width:150px;" onchange="this.form.submit()">
+            <option value="">All Clients</option>
+            {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if filters.client_id == c.id|string }}>{{ c.display_name }}</option>{% endfor %}
+        </select>
+        <select name="follow_up" class="form-control" style="width:auto;min-width:130px;" onchange="this.form.submit()">
+            <option value="">All</option>
+            <option value="pending" {{ 'selected' if filters.follow_up == 'pending' }}>Pending Follow-ups</option>
+            <option value="overdue" {{ 'selected' if filters.follow_up == 'overdue' }}>Overdue</option>
+        </select>
+        <select name="priority" class="form-control" style="width:auto;min-width:110px;" onchange="this.form.submit()">
+            <option value="">All Priorities</option>
+            {% for val, label in comm_priorities %}<option value="{{ val }}" {{ 'selected' if filters.priority == val }}>{{ label }}</option>{% endfor %}
+        </select>
+        <input type="date" name="date_from" class="form-control" style="width:auto;" value="{{ filters.date_from or '' }}">
+        <input type="date" name="date_to" class="form-control" style="width:auto;" value="{{ filters.date_to or '' }}">
+        <input type="text" name="q" class="form-control" style="width:auto;min-width:150px;" placeholder="Search..." value="{{ filters.q }}">
+        <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Filter</button>
+        {% if filters.type or filters.client_id or filters.follow_up or filters.priority or filters.q or filters.date_from %}
+        <a href="{{ url_for('communications.communication_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Table -->
+<div class="card"><div style="overflow-x:auto;">
+{% if logs %}
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Type</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Subject</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Client</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Related</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Priority</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Follow-up</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">By</th>
+    </tr></thead>
+    <tbody>
+    {% for l in logs %}
+    <tr style="border-bottom:1px solid var(--color-border);{% if l.is_follow_up_overdue %}background:rgba(239,68,68,0.04);{% elif l.is_escalation %}background:rgba(245,158,11,0.04);{% endif %}" onclick="location.href='{{ url_for('communications.communication_detail', log_id=l.id) }}'" style="cursor:pointer;">
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);white-space:nowrap;">{{ l.communication_date.strftime('%b %d, %H:%M') if l.communication_date else '' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><i class="{{ l.type_icon }}" style="margin-right:4px;color:var(--color-text-muted);"></i><span style="font-size:var(--font-size-xs);">{{ l.type_display }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);">
+            <a href="{{ url_for('communications.communication_detail', log_id=l.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;">{{ l.subject[:50] }}{% if l.subject|length > 50 %}...{% endif %}</a>
+            {% if l.is_escalation %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:1px 6px;border-radius:999px;background:rgba(239,68,68,0.1);color:var(--color-danger);margin-left:4px;">Escalation</span>{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ l.client.display_name if l.client else '—' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ l.related_entity_label or '—' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ l.priority_color }});">{{ l.priority|title }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);">
+            {% if l.follow_up_required %}
+                {% if l.follow_up_completed %}<span style="color:var(--color-success);font-size:var(--font-size-xs);"><i class="bi bi-check-circle-fill"></i></span>
+                {% elif l.is_follow_up_overdue %}<span style="font-size:var(--font-size-xs);font-weight:600;color:var(--color-danger);"><i class="bi bi-exclamation-circle-fill"></i> {{ l.follow_up_date.strftime('%b %d') }}</span>
+                {% else %}<span style="font-size:var(--font-size-xs);color:var(--color-warning);">{{ l.follow_up_date.strftime('%b %d') if l.follow_up_date else 'TBD' }}</span>{% endif %}
+            {% else %}—{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ l.logged_by.full_name if l.logged_by else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% if total_pages > 1 %}
+<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-3);border-top:1px solid var(--color-border);">
+    <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ (page-1)*per_page + 1 }}–{{ [page*per_page, total]|min }} of {{ total }}</span>
+    <div style="display:flex;gap:var(--space-1);">
+        {% if page > 1 %}<a href="?page={{ page-1 }}&type={{ filters.type }}&client_id={{ filters.client_id }}&follow_up={{ filters.follow_up }}&priority={{ filters.priority }}&q={{ filters.q }}" class="btn btn-ghost" style="padding:2px 8px;font-size:var(--font-size-xs);">&laquo;</a>{% endif %}
+        {% if page < total_pages %}<a href="?page={{ page+1 }}&type={{ filters.type }}&client_id={{ filters.client_id }}&follow_up={{ filters.follow_up }}&priority={{ filters.priority }}&q={{ filters.q }}" class="btn btn-ghost" style="padding:2px 8px;font-size:var(--font-size-xs);">&raquo;</a>{% endif %}
+    </div>
+</div>
+{% endif %}
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-chat-dots" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4 style="color:var(--color-text-muted);">No communications found</h4>
+    <a href="{{ url_for('communications.communication_new') }}" style="color:var(--color-accent);">Log your first communication</a>
+</div>
+{% endif %}
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);cursor:pointer;}</style>
+{% endblock %}

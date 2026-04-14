@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% set is_edit = template is not none %}
+{% block title %}{{ 'Edit' if is_edit else 'New' }} Template{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('comm_templates.template_list') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a></div>
+<h1 style="margin:0 0 var(--space-4);">{{ 'Edit' if is_edit else 'New' }} Communication Template</h1>
+
+<div style="max-width:600px;">
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Template Name *</label>
+                <input type="text" name="name" class="form-control" required value="{{ template.name if is_edit else '' }}" placeholder="e.g., Quote Follow-up Call">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                <div class="form-group"><label class="form-label">Communication Type *</label>
+                    <select name="communication_type" class="form-control" required>
+                        {% for val, label in comm_types %}<option value="{{ val }}" {{ 'selected' if is_edit and template.communication_type == val }}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-group"><label class="form-label">Default Priority</label>
+                    <select name="default_priority" class="form-control">
+                        {% for val, label in comm_priorities %}<option value="{{ val }}" {{ 'selected' if is_edit and template.default_priority == val }}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Subject Template *</label>
+                <input type="text" name="subject_template" class="form-control" required value="{{ template.subject_template if is_edit else '' }}" placeholder="e.g., Follow-up on Quote {quote_number}">
+                <small style="color:var(--color-text-muted);">Use {client_name}, {job_number}, {quote_number}, {invoice_number} as placeholders</small>
+            </div>
+            <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Description Template</label>
+                <textarea name="description_template" class="form-control" rows="3" placeholder="Pre-filled description text...">{{ template.description_template if is_edit else '' }}</textarea>
+            </div>
+            <div style="display:flex;gap:var(--space-4);margin-bottom:var(--space-3);">
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                    <input type="checkbox" name="follow_up_required" {{ 'checked' if is_edit and template.follow_up_required }} onchange="document.getElementById('fuDays').style.display=this.checked?'block':'none'">
+                    <span style="font-weight:500;">Follow-up required</span>
+                </label>
+                <div id="fuDays" style="{% if not is_edit or not template.follow_up_required %}display:none;{% endif %}">
+                    <label class="form-label">Follow-up in (days)</label>
+                    <input type="number" name="follow_up_days" class="form-control" style="width:80px;" min="1" value="{{ template.follow_up_days if is_edit else '' }}">
+                </div>
+            </div>
+            <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-3);">
+                <input type="checkbox" name="is_active" {{ 'checked' if not is_edit or template.is_active }}>
+                <input type="hidden" name="_active_submitted" value="1">
+                <span style="font-weight:500;">Active</span>
+            </label>
+            <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+                <a href="{{ url_for('comm_templates.template_list') }}" class="btn btn-ghost">Cancel</a>
+                <button type="submit" class="btn btn-accent">{{ 'Save Changes' if is_edit else 'Create Template' }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}

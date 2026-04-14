@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}{{ part.name }}{% endblock %}
+
+{% block content %}
+{% set trade_colors = {'plumbing': 'info', 'hvac': 'warning', 'electrical': 'danger', 'general': 'secondary', 'multi': 'accent'} %}
+
+<!-- Breadcrumb -->
+<div style="margin-bottom:var(--space-2);font-size:var(--font-size-sm);">
+    <a href="{{ url_for('parts.list_parts') }}" style="color:var(--color-text-muted);text-decoration:none;">Parts Catalog</a>
+    <span style="color:var(--color-text-muted);margin:0 4px;">/</span>
+    <code>{{ part.part_number }}</code>
+</div>
+
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0 0 var(--space-1);">{{ part.name }}</h1>
+        <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;">
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ trade_colors.get(part.trade, 'secondary') }});">{{ part.trade_display }}</span>
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ part.category_display }}</span>
+            {% if part.is_active %}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">Active</span>
+            {% else %}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Inactive</span>
+            {% endif %}
+            {% if part.is_low_stock %}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(245,158,11,0.15);color:var(--color-warning);"><i class="bi bi-exclamation-triangle" style="margin-right:2px;"></i>Low Stock</span>
+            {% endif %}
+        </div>
+    </div>
+    {% if can_admin %}
+    <a href="{{ url_for('parts.edit_part', part_id=part.id) }}" class="btn btn-accent"><i class="bi bi-pencil"></i> Edit Part</a>
+    {% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-4);">
+
+    <!-- Left Column: Part Info -->
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-info-circle" style="color:var(--color-accent);"></i> Part Details</h3></div>
+            <div class="card-body" style="padding:0;">
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:0;">
+                    {% macro detail_row(label, value) %}
+                    <div style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);border-bottom:1px solid var(--color-border);">{{ label }}</div>
+                    <div style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);border-bottom:1px solid var(--color-border);">{{ value }}</div>
+                    {% endmacro %}
+                    {{ detail_row('Part Number', '<code>' ~ part.part_number ~ '</code>') }}
+                    {{ detail_row('Unit', part.unit_display) }}
+                    {{ detail_row('Subcategory', part.subcategory or '—') }}
+                    {% if can_admin %}
+                    {{ detail_row('Cost Price', '$' ~ "{:,.2f}".format(part.cost_price|float)) }}
+                    {{ detail_row('Markup', "{:.1f}".format(part.markup_percentage|float) ~ '%') }}
+                    {% endif %}
+                    {{ detail_row('Sell Price', '$' ~ "{:,.2f}".format(part.sell_price|float)) }}
+                    {{ detail_row('Min Stock', part.minimum_stock_level) }}
+                    {{ detail_row('Manufacturer', part.manufacturer or '—') }}
+                    {{ detail_row('Mfr Part #', part.manufacturer_part_number or '—') }}
+                    {{ detail_row('Vendor', part.preferred_vendor_name or '—') }}
+                    {{ detail_row('Barcode', part.barcode or '—') }}
+                </div>
+            </div>
+        </div>
+
+        {% if part.description %}
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-body">
+                <h4 style="font-size:var(--font-size-sm);font-weight:600;margin:0 0 var(--space-1);">Description</h4>
+                <p style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin:0;">{{ part.description }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if part.notes %}
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-body">
+                <h4 style="font-size:var(--font-size-sm);font-weight:600;margin:0 0 var(--space-1);">Notes</h4>
+                <p style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin:0;">{{ part.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Stock, Usage, Transactions -->
+    <div>
+        <!-- Stock by Location -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <h3 class="card-title"><i class="bi bi-geo-alt" style="color:var(--color-info);"></i> Stock by Location</h3>
+                <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:rgba(13,148,136,0.1);color:var(--color-accent);">Total: {{ part.total_stock }} {{ part.unit_display }}</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                {% if stocks %}
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:2px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Location</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Type</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">On Hand</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Reserved</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Available</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Last Counted</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for s in stocks %}
+                    <tr style="border-bottom:1px solid var(--color-border);">
+                        <td style="padding:var(--space-2) var(--space-3);font-weight:500;">{{ s.location.name }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">
+                            {% set loc_icons = {'warehouse':'building','truck':'truck','job_site':'geo-alt','office':'building','other':'box'} %}
+                            <i class="bi bi-{{ loc_icons.get(s.location.location_type, 'box') }}" style="margin-right:4px;"></i>{{ s.location.type_display }}
+                        </td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:600;">{{ s.quantity_on_hand }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;color:var(--color-text-muted);">{{ s.quantity_reserved }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:700;color:{% if s.available_quantity <= 0 %}var(--color-danger){% else %}var(--color-text){% endif %};">{{ s.available_quantity }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ s.last_counted_at.strftime('%b %d, %Y') if s.last_counted_at else 'Never' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">
+                    <i class="bi bi-inbox" style="font-size:1.5rem;opacity:0.3;display:block;margin-bottom:var(--space-1);"></i>
+                    <p style="margin:0;font-size:var(--font-size-sm);">No stock records. Add inventory via the Inventory module.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Job Usage -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-briefcase" style="color:var(--color-warning);"></i> Recent Job Usage</h3></div>
+            <div class="card-body" style="padding:0;">
+                {% if job_materials %}
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:2px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Job</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Qty</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for jm in job_materials %}
+                    <tr style="border-bottom:1px solid var(--color-border);">
+                        <td style="padding:var(--space-2) var(--space-3);"><a href="/jobs/{{ jm.job_id }}" style="text-decoration:none;color:var(--color-accent);font-weight:500;font-size:var(--font-size-sm);">{{ jm.job.job_number if jm.job else '#' ~ jm.job_id }}</a></td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:600;">{{ jm.quantity_used }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ jm.created_at.strftime('%b %d, %Y') if jm.created_at else '' }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ jm.status_color }});">{{ jm.status_display }}</span></td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">
+                    <i class="bi bi-tools" style="font-size:1.5rem;opacity:0.3;display:block;margin-bottom:var(--space-1);"></i>
+                    <p style="margin:0;font-size:var(--font-size-sm);">No job usage recorded yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Transaction History -->
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-clock-history" style="color:var(--color-accent);"></i> Transaction History</h3></div>
+            <div class="card-body" style="padding:0;">
+                {% if transactions %}
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:2px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Type</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Location</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Qty</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Reference</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for t in transactions %}
+                    {% set tx_colors = {'received':'success','issued':'danger','returned':'info','adjusted':'secondary','transferred_in':'accent','transferred_out':'warning','scrapped':'danger','cycle_count':'secondary'} %}
+                    <tr style="border-bottom:1px solid var(--color-border);">
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);white-space:nowrap;">{{ t.created_at.strftime('%b %d, %H:%M') if t.created_at else '' }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ tx_colors.get(t.transaction_type, 'secondary') }});">{{ t.type_display }}</span></td>
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ t.location.name if t.location else '—' }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:600;color:{% if t.quantity > 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">{{ '+' if t.quantity > 0 else '' }}{{ t.quantity }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ t.reference_number or t.notes or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">
+                    <i class="bi bi-clock-history" style="font-size:1.5rem;opacity:0.3;display:block;margin-bottom:var(--space-1);"></i>
+                    <p style="margin:0;font-size:var(--font-size-sm);">No transactions recorded.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

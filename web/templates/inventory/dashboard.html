@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block title %}Inventory Dashboard{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Inventory</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Stock levels, alerts, and recent activity</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        <a href="{{ url_for('inventory.locations') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-building"></i> Locations</a>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;"><i class="bi bi-currency-dollar" style="font-size:1.2rem;color:var(--color-success);"></i></div>
+            <div>
+                <div style="font-size:var(--font-size-2xl);font-weight:700;">${{ "{:,.0f}".format(total_value) }}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Inventory Value</div>
+            </div>
+        </div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if low_stock_parts %}var(--color-warning){% else %}var(--color-border){% endif %};">
+        <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(245,158,11,0.1);display:flex;align-items:center;justify-content:center;"><i class="bi bi-exclamation-triangle" style="font-size:1.2rem;color:var(--color-warning);"></i></div>
+            <div>
+                <div style="font-size:var(--font-size-2xl);font-weight:700;{% if low_stock_parts %}color:var(--color-warning);{% endif %}">{{ low_stock_parts|length }}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Low Stock Alerts</div>
+            </div>
+        </div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if pending_transfers > 0 %}var(--color-info){% else %}var(--color-border){% endif %};">
+        <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(59,130,246,0.1);display:flex;align-items:center;justify-content:center;"><i class="bi bi-arrow-left-right" style="font-size:1.2rem;color:var(--color-info);"></i></div>
+            <div>
+                <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ pending_transfers }}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Pending Transfers</div>
+            </div>
+        </div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-accent);">
+        <div style="display:flex;align-items:center;gap:var(--space-3);">
+            <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(13,148,136,0.1);display:flex;align-items:center;justify-content:center;"><i class="bi bi-building" style="font-size:1.2rem;color:var(--color-accent);"></i></div>
+            <div>
+                <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ locations|length }}</div>
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Active Locations</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:5fr 7fr;gap:var(--space-4);">
+
+    <!-- Left Column -->
+    <div>
+        <!-- Low Stock Alerts -->
+        {% if low_stock_parts %}
+        <div class="card" style="margin-bottom:var(--space-4);border-left:3px solid var(--color-warning);">
+            <div class="card-header" style="background:rgba(245,158,11,0.06);">
+                <h3 class="card-title" style="color:var(--color-warning);"><i class="bi bi-exclamation-triangle" style="margin-right:var(--space-2);"></i>Low Stock Alerts ({{ low_stock_parts|length }})</h3>
+            </div>
+            <div class="card-body" style="padding:0;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:2px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Part</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">On Hand</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Minimum</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for part in low_stock_parts[:10] %}
+                    <tr style="border-bottom:1px solid var(--color-border);">
+                        <td style="padding:var(--space-2) var(--space-3);">
+                            <a href="{{ url_for('parts.part_detail', part_id=part.id) }}" style="text-decoration:none;color:var(--color-accent);font-weight:500;font-size:var(--font-size-sm);">{{ part.name }}</a>
+                            <div style="font-size:0.65rem;color:var(--color-text-muted);font-family:monospace;">{{ part.part_number }}</div>
+                        </td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:700;color:var(--color-danger);">{{ part.total_stock }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:center;color:var(--color-text-muted);">{{ part.minimum_stock_level }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% if low_stock_parts|length > 10 %}
+                <div style="padding:var(--space-2) var(--space-3);text-align:center;border-top:1px solid var(--color-border);">
+                    <a href="{{ url_for('parts.list_parts') }}?low_stock=1" style="font-size:var(--font-size-sm);color:var(--color-accent);">View all {{ low_stock_parts|length }} low stock items &rarr;</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recent Transactions -->
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-clock-history" style="color:var(--color-accent);margin-right:var(--space-2);"></i>Recent Transactions</h3></div>
+            <div class="card-body" style="padding:0;">
+                {% if recent_transactions %}
+                {% for tx in recent_transactions %}
+                <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <div style="font-weight:500;font-size:var(--font-size-sm);">{{ tx.part.name if tx.part else 'Unknown' }}</div>
+                        <div style="font-size:0.7rem;color:var(--color-text-muted);">
+                            {{ tx.type_display }} @ {{ tx.location.name if tx.location else '—' }}
+                            {% if tx.job_id %} &middot; Job #{{ tx.job_id }}{% endif %}
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span style="font-weight:700;color:{% if tx.quantity > 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">{{ '+' if tx.quantity > 0 else '' }}{{ tx.quantity }}</span>
+                        <div style="font-size:0.65rem;color:var(--color-text-muted);">{{ tx.created_at.strftime('%b %d') if tx.created_at else '' }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);font-size:var(--font-size-sm);">
+                    <i class="bi bi-clock-history" style="font-size:1.2rem;opacity:0.3;"></i>
+                    <p style="margin:var(--space-1) 0 0;">No recent activity</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Stock by Location -->
+    <div>
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-boxes" style="color:var(--color-info);margin-right:var(--space-2);"></i>Stock by Location</h3></div>
+            <div class="card-body" style="padding:0;">
+                {% for loc in locations %}
+                <div style="border-bottom:1px solid var(--color-border);">
+                    <!-- Location header (collapsible) -->
+                    <div onclick="toggleLoc({{ loc.id }})" style="padding:var(--space-2) var(--space-3);cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--color-surface-raised);">
+                        <div style="display:flex;align-items:center;gap:var(--space-2);">
+                            {% set loc_icons = {'warehouse':'building','truck':'truck','job_site':'geo-alt','office':'building','other':'box'} %}
+                            <i class="bi bi-{{ loc_icons.get(loc.location_type, 'box') }}" style="color:var(--color-text-muted);"></i>
+                            <span style="font-weight:600;font-size:var(--font-size-sm);">{{ loc.name }}</span>
+                            {% if loc.technician %}<span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">({{ loc.technician.full_name }})</span>{% endif %}
+                        </div>
+                        <div style="display:flex;gap:var(--space-2);align-items:center;">
+                            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface);color:var(--color-text-muted);">{{ loc.stocks|length }} parts</span>
+                            {% if can_admin %}
+                            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">${{ "{:,.0f}".format(loc.total_value) }}</span>
+                            {% endif %}
+                            <i class="bi bi-chevron-down" id="chevron-{{ loc.id }}" style="transition:transform 0.2s;font-size:var(--font-size-xs);color:var(--color-text-muted);"></i>
+                        </div>
+                    </div>
+                    <!-- Location stock (toggle) -->
+                    <div id="loc-{{ loc.id }}" style="display:{% if loop.first %}block{% else %}none{% endif %};">
+                        {% if loc.stocks %}
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead><tr style="border-bottom:1px solid var(--color-border);">
+                                <th style="padding:var(--space-1) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Part</th>
+                                <th style="padding:var(--space-1) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:center;">On Hand</th>
+                                <th style="padding:var(--space-1) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:center;">Available</th>
+                                {% if can_admin %}<th style="padding:var(--space-1) var(--space-3);width:60px;"></th>{% endif %}
+                            </tr></thead>
+                            <tbody>
+                            {% for stock in loc.stocks %}
+                            <tr style="border-bottom:1px solid var(--color-border);{% if stock.is_low_stock %}background:rgba(245,158,11,0.04);{% endif %}">
+                                <td style="padding:var(--space-1) var(--space-3);font-size:var(--font-size-sm);">
+                                    {{ stock.part.name }}
+                                    {% if stock.is_low_stock %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--color-warning);margin-left:4px;font-size:var(--font-size-xs);"></i>{% endif %}
+                                </td>
+                                <td style="padding:var(--space-1) var(--space-3);text-align:center;font-size:var(--font-size-sm);">{{ stock.quantity_on_hand }}</td>
+                                <td style="padding:var(--space-1) var(--space-3);text-align:center;font-weight:600;font-size:var(--font-size-sm);">{{ stock.available_quantity }}</td>
+                                {% if can_admin %}
+                                <td style="padding:var(--space-1) var(--space-3);">
+                                    <button onclick="showAdjustModal({{ stock.part_id }}, {{ loc.id }}, {{ stock.quantity_on_hand }}, '{{ stock.part.name|replace("'", "\\'") }}')" class="btn btn-ghost" style="padding:1px 6px;font-size:var(--font-size-xs);">Adjust</button>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div style="padding:var(--space-3);text-align:center;font-size:var(--font-size-sm);color:var(--color-text-muted);">No stock at this location</div>
+                        {% endif %}
+                        <div style="padding:var(--space-1) var(--space-3);border-top:1px solid var(--color-border);">
+                            <a href="{{ url_for('inventory.location_detail', loc_id=loc.id) }}" style="font-size:var(--font-size-xs);color:var(--color-accent);text-decoration:none;">View Detail &rarr;</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not locations %}
+                <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);font-size:var(--font-size-sm);">No locations. <a href="{{ url_for('inventory.new_location') }}" style="color:var(--color-accent);">Add one</a></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Adjustment Modal -->
+<div id="adjustOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:400px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+        <h3 style="margin:0 0 var(--space-3);">Adjust Stock</h3>
+        <form method="POST" action="{{ url_for('inventory.adjust_stock') }}">
+            <input type="hidden" name="part_id" id="adjustPartId">
+            <input type="hidden" name="location_id" id="adjustLocationId">
+            <p style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);">Adjusting: <strong id="adjustPartName"></strong></p>
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">New Quantity on Hand</label>
+                <input type="number" name="new_quantity" id="adjustQty" class="form-control" min="0" required>
+            </div>
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">Reason / Notes</label>
+                <input type="text" name="notes" class="form-control" placeholder="e.g., Cycle count correction">
+            </div>
+            <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+                <button type="button" onclick="closeAdjustModal()" class="btn btn-ghost">Cancel</button>
+                <button type="submit" class="btn btn-accent">Save Adjustment</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleLoc(id) {
+    var el = document.getElementById('loc-' + id);
+    var chev = document.getElementById('chevron-' + id);
+    if (el.style.display === 'none') {
+        el.style.display = 'block';
+        if (chev) chev.style.transform = 'rotate(180deg)';
+    } else {
+        el.style.display = 'none';
+        if (chev) chev.style.transform = '';
+    }
+}
+function showAdjustModal(partId, locationId, currentQty, partName) {
+    document.getElementById('adjustPartId').value = partId;
+    document.getElementById('adjustLocationId').value = locationId;
+    document.getElementById('adjustQty').value = currentQty;
+    document.getElementById('adjustPartName').textContent = partName;
+    document.getElementById('adjustOverlay').style.display = 'flex';
+}
+function closeAdjustModal() {
+    document.getElementById('adjustOverlay').style.display = 'none';
+}
+document.getElementById('adjustOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeAdjustModal();
+});
+</script>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Client Notification Templates{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <h1 style="margin:0;">Client Notification Templates</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Automated messages sent to clients based on trigger events</p>
+    </div>
+    <a href="{{ url_for('notifications.client_template_new') }}" class="btn btn-accent">
+        <i class="bi bi-plus-lg"></i> New Template
+    </a>
+</div>
+
+<div class="card" style="padding:0;">
+{% if templates %}
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead>
+        <tr style="border-bottom:2px solid var(--color-border);">
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Name</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Trigger</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Channel</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Delay</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Status</th>
+            <th style="width:120px;"></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for t in templates %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);">
+            <a href="{{ url_for('notifications.client_template_edit', tmpl_id=t.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:600;">{{ t.name }}</a>
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">
+            {% for val, label in trigger_events %}{% if val == t.trigger_event %}{{ label }}{% endif %}{% endfor %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);">
+            <span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:{% if t.channel == 'email' %}var(--color-info){% elif t.channel == 'sms' %}var(--color-success){% else %}var(--color-accent){% endif %};color:#fff;">
+                {{ t.channel|upper }}
+            </span>
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">
+            {% if t.send_delay_minutes > 0 %}{{ t.send_delay_minutes }} min{% else %}Immediate{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">
+            <button onclick="toggleTemplate({{ t.id }}, this)" class="btn btn-ghost" style="font-size:var(--font-size-xs);padding:2px 8px;color:{% if t.is_active %}var(--color-success){% else %}var(--color-text-muted){% endif %};">
+                <i class="bi {% if t.is_active %}bi-toggle-on{% else %}bi-toggle-off{% endif %}" style="font-size:1.2rem;"></i>
+            </button>
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">
+            <a href="{{ url_for('notifications.client_template_edit', tmpl_id=t.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-xs);padding:2px 8px;"><i class="bi bi-pencil"></i></a>
+            <form method="POST" action="{{ url_for('notifications.client_template_delete', tmpl_id=t.id) }}" style="display:inline;" onsubmit="return confirm('Delete this template?');">
+                <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-xs);padding:2px 8px;color:var(--color-danger);"><i class="bi bi-trash"></i></button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-envelope-paper" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4>No templates yet</h4>
+    <p style="font-size:var(--font-size-sm);">Create your first client notification template to automate communications.</p>
+    <a href="{{ url_for('notifications.client_template_new') }}" class="btn btn-accent" style="margin-top:var(--space-2);"><i class="bi bi-plus-lg"></i> Create Template</a>
+</div>
+{% endif %}
+</div>
+
+<script>
+function toggleTemplate(id, btn) {
+    fetch('/settings/client-notifications/' + id + '/toggle', {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            var icon = btn.querySelector('i');
+            if (d.is_active) {
+                icon.className = 'bi bi-toggle-on'; icon.style.fontSize = '1.2rem';
+                btn.style.color = 'var(--color-success)';
+            } else {
+                icon.className = 'bi bi-toggle-off'; icon.style.fontSize = '1.2rem';
+                btn.style.color = 'var(--color-text-muted)';
+            }
+        }
+    });
+}
+</script>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

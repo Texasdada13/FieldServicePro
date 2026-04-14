@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Daily Route{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/vehicles.css') }}">
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <h1 style="margin:0;"><i class="bi bi-map" style="color:var(--color-accent);"></i> Daily Route</h1>
+    <a href="{{ url_for('vehicles.vehicle_dashboard') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Vehicles</a>
+</div>
+
+<!-- Selector -->
+<div class="card" style="padding:var(--space-3);margin-bottom:var(--space-4);">
+    <form method="get" style="display:grid;grid-template-columns:2fr 1fr auto;gap:var(--space-3);align-items:end;">
+        <div class="form-group">
+            <label class="form-label" style="font-weight:600;">Technician</label>
+            <select name="technician_id" class="form-select">
+                <option value="">Select technician...</option>
+                {% for tech in technicians %}
+                <option value="{{ tech.id }}" {% if selected_tech and selected_tech.id == tech.id %}selected{% endif %}>{{ tech.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label" style="font-weight:600;">Date</label>
+            <input type="date" name="date" class="form-control" value="{{ route_date.strftime('%Y-%m-%d') }}">
+        </div>
+        <button type="submit" class="btn btn-accent"><i class="bi bi-search"></i> Load Route</button>
+    </form>
+</div>
+
+{% if route_data %}
+{% set stops = route_data.stops %}
+
+<!-- Summary -->
+<div style="background:var(--color-surface-raised);padding:var(--space-2) var(--space-3);border-radius:var(--radius-sm);margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;font-size:var(--font-size-sm);">
+    <strong>{{ selected_tech.full_name }}</strong>
+    <span>&middot;</span>
+    <span>{{ route_date.strftime('%A, %B %d, %Y') }}</span>
+    <span>&middot;</span>
+    <span>{{ route_data.total_stops }} stop{{ 's' if route_data.total_stops != 1 }}</span>
+    {% if stops|length > 1 %}
+    <a href="{{ route_data.multi_stop_url }}" target="_blank" class="btn btn-accent" style="font-size:var(--font-size-xs);margin-left:auto;"><i class="bi bi-map-fill"></i> Open Full Route in Maps</a>
+    {% endif %}
+</div>
+
+<!-- Stops -->
+{% for stop in stops %}
+{% set job = stop.job %}
+<div class="route-stop-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-2);flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-1);">
+                <span style="width:24px;height:24px;border-radius:50%;background:var(--color-accent);color:#fff;font-size:var(--font-size-xs);display:flex;align-items:center;justify-content:center;font-weight:700;">{{ loop.index }}</span>
+                <a href="{{ url_for('job_detail', job_id=job.id) }}" style="font-weight:700;color:var(--color-accent);text-decoration:none;">{{ job.job_number }}</a>
+                <span style="color:var(--color-text-muted);">-</span>
+                <span>{{ job.client.display_name if job.client else 'Unknown' }}</span>
+                <span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-surface-raised);">{{ job.status }}</span>
+            </div>
+            {% if stop.address %}
+            <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);"><i class="bi bi-geo-alt" style="color:var(--color-danger);"></i> {{ stop.address }}</div>
+            {% else %}
+            <span style="font-size:var(--font-size-sm);color:var(--color-text-muted);">No address on file</span>
+            {% endif %}
+            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:var(--space-1);">{{ job.title[:80] }}</div>
+        </div>
+        {% if stop.address %}
+        <div style="display:flex;flex-direction:column;gap:var(--space-1);">
+            <a href="{{ stop.navigate_url }}" target="_blank" class="btn btn-accent" style="font-size:var(--font-size-xs);white-space:nowrap;"><i class="bi bi-geo-alt-fill"></i> Navigate</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% if not loop.last %}
+<div class="route-connector"><i class="bi bi-arrow-down"></i></div>
+{% endif %}
+{% endfor %}
+
+{% elif selected_tech %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-calendar-x" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4>No jobs scheduled</h4>
+    <p>{{ selected_tech.full_name }} has no jobs on {{ route_date.strftime('%B %d, %Y') }}.</p>
+</div>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-map" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <p>Select a technician and date to view their route.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/vehicles.js') }}"></script>
+{% endblock %}

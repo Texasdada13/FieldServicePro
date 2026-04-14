@@ -43,7 +43,16 @@
             {% elif job.status == 'in_progress' %}
             <button class="btn btn-primary" style="background: var(--success);" onclick="changeStatus({{ job.id }}, 'completed')">Complete Job</button>
             {% elif job.status == 'completed' %}
+            {% if job_obj.is_warranty_work or job_obj.is_callback %}
+            <span style="font-size:var(--font-size-xs);color:var(--color-warning);margin-right:4px;" title="This job is {% if job_obj.is_warranty_work %}warranty work{% endif %}{% if job_obj.is_callback %} callback{% endif %} — typically non-billable"><i class="bi bi-exclamation-triangle"></i></span>
+            {% endif %}
             <button class="btn btn-primary" onclick="window.location.href='/invoices'">Create Invoice</button>
+            {% if not job_warranty and user.role in ('owner','admin','dispatcher') %}
+            <a href="{{ url_for('warranty.warranty_new', job_id=job_obj.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);color:var(--color-success);"><i class="bi bi-shield-plus"></i></a>
+            {% endif %}
+            {% if not job_obj.callback_record and user.role in ('owner','admin','dispatcher') %}
+            <a href="{{ url_for('callback.callback_new', original_job_id=job_obj.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);color:var(--color-warning);" title="Log Callback"><i class="bi bi-arrow-return-left"></i></a>
+            {% endif %}
             {% elif job.status == 'draft' %}
             <button class="btn btn-primary" onclick="changeStatus({{ job.id }}, 'scheduled')">Schedule</button>
             {% endif %}
@@ -132,6 +141,49 @@
     </div>
     {% endif %}
   </div>
+</div>
+{% endif %}
+
+<!-- Warranty / Callback Banners -->
+{% set job_warranty = job_obj.warranties[0] if job_obj.warranties else none %}
+{% if job_warranty and job_warranty.status in ('active', 'expiring_soon') %}
+<div style="display:flex;align-items:center;gap:var(--space-2);background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <i class="bi bi-shield-check" style="color:var(--color-success);font-size:1.1rem;"></i>
+    <span style="font-size:var(--font-size-sm);"><strong>Warranty Active:</strong> <a href="{{ url_for('warranty.warranty_detail', warranty_id=job_warranty.id) }}" style="color:var(--color-accent);">{{ job_warranty.warranty_number }}</a> — expires {{ job_warranty.end_date.strftime('%b %d, %Y') }}{% if job_warranty.days_remaining is not none and job_warranty.days_remaining <= 30 %} <span style="font-size:var(--font-size-xs);font-weight:600;padding:1px 6px;border-radius:999px;background:rgba(245,158,11,0.15);color:var(--color-warning);">Expiring Soon</span>{% endif %}</span>
+</div>
+{% elif not job_warranty and job.status == 'completed' and user.role in ('owner','admin','dispatcher') %}
+<div style="display:flex;align-items:center;justify-content:space-between;background:var(--color-surface-raised);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <span style="font-size:var(--font-size-sm);color:var(--color-text-muted);"><i class="bi bi-shield" style="margin-right:4px;"></i>No warranty created for this job.</span>
+    <a href="{{ url_for('warranty.warranty_new', job_id=job_obj.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-xs);color:var(--color-success);border-color:var(--color-success);"><i class="bi bi-plus"></i> Create Warranty</a>
+</div>
+{% endif %}
+
+{% if job_obj.is_warranty_work %}
+<div style="display:flex;align-items:center;gap:var(--space-2);background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <i class="bi bi-shield-fill-check" style="color:var(--color-info);font-size:1.1rem;"></i>
+    <span style="font-size:var(--font-size-sm);"><strong>Warranty Work</strong> — This job is covered under a warranty. Time entries and materials default to non-billable.</span>
+</div>
+{% endif %}
+
+{% if job_obj.is_callback and job_obj.callback_record %}
+<div style="display:flex;align-items:center;gap:var(--space-2);background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <i class="bi bi-arrow-return-left" style="color:var(--color-warning);font-size:1.1rem;"></i>
+    <span style="font-size:var(--font-size-sm);"><strong>Callback Job</strong> <span style="font-size:var(--font-size-xs);font-weight:600;padding:1px 6px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ job_obj.callback_record.severity_color }});">{{ job_obj.callback_record.severity_display }}</span> — Return visit for <a href="/jobs/{{ job_obj.callback_record.original_job_id }}" style="color:var(--color-accent);">original job</a></span>
+</div>
+{% endif %}
+
+<!-- Warranty Prompt Modal (on completion) -->
+{% if not job_warranty and job.status == 'completed' and request.args.get('prompt_warranty') %}
+<div id="warrantyPromptOverlay" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+<div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:420px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 var(--space-3);color:var(--color-success);"><i class="bi bi-shield-check" style="margin-right:var(--space-2);"></i>Create Warranty?</h3>
+    <p style="font-size:var(--font-size-sm);margin:0 0 var(--space-2);">Job <strong>{{ job_obj.title }}</strong> has been completed.</p>
+    <p style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin:0 0 var(--space-3);">Would you like to create a warranty for this work?</p>
+    <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+        <button onclick="document.getElementById('warrantyPromptOverlay').style.display='none'" class="btn btn-ghost">Skip</button>
+        <a href="{{ url_for('warranty.warranty_new', job_id=job_obj.id) }}" class="btn btn-accent" style="background:var(--color-success);border-color:var(--color-success);"><i class="bi bi-shield-plus"></i> Create Warranty</a>
+    </div>
+</div>
 </div>
 {% endif %}
 
@@ -503,6 +555,16 @@
             </div>
         </div>
 
+        <!-- Cost Breakdown -->
+        {% if cost_breakdown is defined and cost_breakdown %}
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header"><i class="bi bi-calculator" style="color:var(--color-accent);"></i> Cost Breakdown</div>
+            <div class="card-body">
+                {% include 'partials/_cost_breakdown.html' %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Timeline -->
         <div class="card">
             <div class="card-header"><i class="bi bi-clock-history"></i> Timeline</div>
@@ -554,6 +616,52 @@
 </div>
 {% endif %}
 
+<!-- Materials Section -->
+<div class="card" style="margin-top:var(--space-4);">
+  <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <h3 class="card-title"><i class="bi bi-tools" style="color:var(--color-warning);"></i> Materials</h3>
+  </div>
+  <div class="card-body">
+    {% include 'partials/_materials_tab.html' %}
+  </div>
+</div>
+
+<!-- Communications Section -->
+{% if job_communications is defined %}
+<div class="card" style="margin-top:var(--space-4);">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 class="card-title"><i class="bi bi-chat-dots" style="color:var(--color-info);"></i> Communications{% if job_comm_count %} <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);margin-left:var(--space-1);">{{ job_comm_count }}</span>{% endif %}</h3>
+        <a href="{{ url_for('communications.communication_new', client_id=job_obj.client_id, job_id=job_obj.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-plus-lg"></i> Log Communication</a>
+    </div>
+    <div class="card-body" style="padding:0;">
+        {% if job_communications %}
+        {% for log in job_communications %}
+        <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;align-items:center;gap:var(--space-3);{% if log.is_escalation %}background:rgba(239,68,68,0.04);{% endif %}">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--color-surface-raised);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="{{ log.type_icon }}" style="color:var(--color-accent);font-size:0.9rem;"></i>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <a href="{{ url_for('communications.communication_detail', log_id=log.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;font-size:var(--font-size-sm);">{{ log.subject }}</a>
+                {% if log.is_escalation %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:1px 6px;border-radius:999px;background:rgba(239,68,68,0.1);color:var(--color-danger);margin-left:4px;">Escalation</span>{% endif %}
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">
+                    {{ log.type_display }} &middot; {{ log.communication_date.strftime('%b %d, %H:%M') if log.communication_date else '' }} &middot; {{ log.logged_by.full_name if log.logged_by else '' }}
+                    {% if log.follow_up_required and not log.follow_up_completed %}
+                        &middot; <span style="color:{% if log.is_follow_up_overdue %}var(--color-danger){% else %}var(--color-warning){% endif %};">Follow-up {% if log.is_follow_up_overdue %}overdue{% else %}{{ log.follow_up_date.strftime('%b %d') if log.follow_up_date else 'pending' }}{% endif %}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);font-size:var(--font-size-sm);">No communications yet. <a href="{{ url_for('communications.communication_new', client_id=job_obj.client_id, job_id=job_obj.id) }}" style="color:var(--color-accent);">Log one</a></div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Set context for Quick Log FAB -->
+<script>document.body.dataset.clientId = '{{ job_obj.client_id }}'; document.body.dataset.jobId = '{{ job_obj.id }}';</script>
+
 <!-- Activity Log -->
 {% if activity_log is defined and activity_log %}
 <div class="card" style="margin-top: var(--space-4);">
@@ -594,7 +702,11 @@ function changeStatus(jobId, newStatus, complianceOverride) {
     .then(r => r.json().then(data => ({status: r.status, data})))
     .then(({status, data}) => {
         if (data.success) {
-            window.location.reload();
+            if (data.prompt_warranty) {
+                window.location.href = window.location.pathname + '?prompt_warranty=1';
+            } else {
+                window.location.reload();
+            }
         } else if (data.compliance_warnings) {
             showComplianceWarnings(jobId, newStatus, data.compliance_warnings, data.can_override);
         } else {

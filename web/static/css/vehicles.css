@@ -1,0 +1,93 @@
+/* Vehicle & Payroll module styles */
+
+.vehicle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-3);
+}
+
+.vehicle-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.2s;
+    background: var(--color-surface);
+}
+.vehicle-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+.vehicle-card-header {
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface-raised);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.vehicle-card-body { padding: var(--space-2) var(--space-3); }
+
+.vehicle-status-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    display: inline-block; margin-right: var(--space-1);
+}
+.vehicle-status-dot.available { background: var(--color-success); }
+.vehicle-status-dot.assigned  { background: var(--color-accent); }
+.vehicle-status-dot.in_maintenance, .vehicle-status-dot.maintenance { background: var(--color-warning); }
+.vehicle-status-dot.inactive, .vehicle-status-dot.out_of_service { background: var(--color-text-muted); }
+
+.stat-pill {
+    background: var(--color-surface-raised);
+    border-radius: var(--radius-sm);
+    padding: 2px 8px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text);
+    display: inline-block;
+}
+
+/* Expiry badges */
+.expiry-expired      { color: var(--color-danger); font-weight: 600; }
+.expiry-expiring_soon { color: var(--color-warning); font-weight: 600; }
+.expiry-valid        { color: var(--color-success); }
+.expiry-unknown      { color: var(--color-text-muted); }
+
+/* Route stops */
+.route-stop-card {
+    border-left: 4px solid var(--color-accent);
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    margin-bottom: var(--space-1);
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-accent);
+}
+.route-connector {
+    display: flex; align-items: center; gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    color: var(--color-text-muted); font-size: var(--font-size-xs);
+}
+
+/* Log tables */
+.log-table th {
+    font-size: var(--font-size-xs); text-transform: uppercase;
+    letter-spacing: 0.03em; color: var(--color-text-muted);
+    font-weight: 600; border-bottom: 2px solid var(--color-border);
+}
+.log-table td { font-size: var(--font-size-sm); vertical-align: middle; }
+
+/* Chart container */
+.chart-container { position: relative; height: 220px; }
+
+/* Payroll table */
+.payroll-table th {
+    font-size: var(--font-size-xs); text-transform: uppercase;
+    letter-spacing: 0.03em; color: var(--color-text-muted); white-space: nowrap;
+}
+.payroll-table .totals-row {
+    background: var(--color-surface-raised); font-weight: 700;
+    border-top: 2px solid var(--color-border);
+}
+.payroll-table td.num {
+    text-align: right; font-variant-numeric: tabular-nums;
+}

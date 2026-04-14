@@ -272,6 +272,26 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- Callback Detection -->
+                <div id="callbackSection" style="display:none;margin-top:var(--space-3);">
+                    <div style="display:flex;align-items:flex-start;gap:var(--space-2);background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);">
+                        <i class="bi bi-arrow-return-left" style="color:var(--color-info);flex-shrink:0;margin-top:2px;"></i>
+                        <div style="flex:1;">
+                            <strong style="font-size:var(--font-size-sm);">Callback Detected</strong>
+                            <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin:2px 0 var(--space-2);" id="callbackHint">Client has recent completed jobs.</p>
+                            <label style="display:flex;align-items:center;gap:var(--space-1);cursor:pointer;font-size:var(--font-size-sm);font-weight:600;">
+                                <input type="checkbox" name="is_callback" value="1" id="isCallbackBox" onchange="document.getElementById('origJobWrapper').style.display=this.checked?'block':'none'"> This is a callback
+                            </label>
+                            <div id="origJobWrapper" style="display:none;margin-top:var(--space-2);">
+                                <select name="original_job_id" id="originalJobId" class="form-control" style="font-size:var(--font-size-sm);" onchange="checkJobWarranty(this.value)">
+                                    <option value="">Select original job...</option>
+                                </select>
+                                <div id="warrantyDetected" style="display:none;margin-top:var(--space-1);font-size:var(--font-size-xs);color:var(--color-success);"><i class="bi bi-shield-check"></i> <span id="warrantyInfo"></span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </form>
         </div>
         <div class="modal-footer">
@@ -316,6 +336,44 @@ function loadProperties(clientId, selectId) {
             sel.appendChild(opt);
         });
     });
+    // Check for recent completed jobs (callback detection)
+    fetch('/callbacks/api/client/' + clientId + '/recent-jobs')
+        .then(function(r) { return r.json(); })
+        .then(function(jobs) {
+            var section = document.getElementById('callbackSection');
+            var sel = document.getElementById('originalJobId');
+            if (jobs.length > 0) {
+                section.style.display = 'block';
+                document.getElementById('callbackHint').textContent =
+                    'Client has ' + jobs.length + ' completed job(s) in the last 90 days.';
+                sel.innerHTML = '<option value="">Select original job...</option>';
+                jobs.forEach(function(j) {
+                    var opt = document.createElement('option');
+                    opt.value = j.id;
+                    opt.textContent = (j.job_number || '#' + j.id) + ' — ' + j.title +
+                        (j.has_warranty ? ' (Has Warranty)' : '');
+                    sel.appendChild(opt);
+                });
+            } else {
+                section.style.display = 'none';
+            }
+        })
+        .catch(function() { document.getElementById('callbackSection').style.display = 'none'; });
+}
+
+function checkJobWarranty(jobId) {
+    if (!jobId) { document.getElementById('warrantyDetected').style.display = 'none'; return; }
+    fetch('/warranties/api/job/' + jobId + '/warranty-status')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.has_warranty) {
+                document.getElementById('warrantyDetected').style.display = 'block';
+                document.getElementById('warrantyInfo').textContent =
+                    'Warranty: ' + data.warranty_number + ' — expires ' + data.end_date;
+            } else {
+                document.getElementById('warrantyDetected').style.display = 'none';
+            }
+        });
 }
 
 function createJob(e) {
@@ -333,6 +391,8 @@ function createJob(e) {
         priority: form.priority.value,
         technician_id: form.technician_id.value || null,
         status: form.scheduled_date.value ? 'scheduled' : 'draft',
+        is_callback: form.is_callback && form.is_callback.checked ? true : false,
+        original_job_id: form.original_job_id ? (form.original_job_id.value || null) : null,
     };
     fetch('/api/jobs', {
         method: 'POST',

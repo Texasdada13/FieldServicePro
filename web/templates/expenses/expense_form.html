@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% set is_edit = expense is not none %}
+{% block title %}{{ 'Edit' if is_edit else 'New' }} Expense{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('expenses.expense_list') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a></div>
+<h1 style="margin:0 0 var(--space-4);">{{ 'Edit' if is_edit else 'New' }} Expense</h1>
+
+<form method="POST">
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-receipt" style="color:var(--color-accent);"></i> Expense Details</h3></div>
+            <div class="card-body">
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Title *</label>
+                    <input type="text" name="title" class="form-control" required value="{{ expense.title if is_edit else '' }}" placeholder="e.g., Excavator rental — 3 days">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Category *</label>
+                        <select name="expense_category" class="form-control" required>
+                            {% for val, label in categories %}<option value="{{ val }}" {{ 'selected' if is_edit and expense.expense_category == val }}>{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Date *</label>
+                        <input type="date" name="expense_date" class="form-control" required value="{{ expense.expense_date.isoformat() if is_edit else '' }}">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Amount ($) *</label>
+                        <input type="number" name="amount" class="form-control" step="0.01" min="0" required value="{{ expense.amount if is_edit else '' }}">
+                    </div>
+                    <div class="form-group"><label class="form-label">Tax ($)</label>
+                        <input type="number" name="tax_amount" class="form-control" step="0.01" min="0" value="{{ expense.tax_amount if is_edit else '0' }}">
+                    </div>
+                    <div class="form-group"><label class="form-label">Markup %</label>
+                        <input type="number" name="markup_percentage" class="form-control" step="0.1" min="0" value="{{ expense.markup_percentage if is_edit else '0' }}">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2">{{ expense.description if is_edit else '' }}</textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Vendor</label><input type="text" name="vendor_name" class="form-control" value="{{ expense.vendor_name if is_edit else '' }}"></div>
+                    <div class="form-group"><label class="form-label">Receipt #</label><input type="text" name="receipt_number" class="form-control" value="{{ expense.receipt_number if is_edit else '' }}"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-link-45deg" style="color:var(--color-info);"></i> Link To</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Job</label>
+                        <select name="job_id" class="form-control"><option value="">—</option>
+                        {% for j in jobs %}<option value="{{ j.id }}" {{ 'selected' if (is_edit and expense.job_id == j.id) or (not is_edit and prefill.job_id == j.id|string) }}>{{ j.job_number }} — {{ j.title[:30] }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Project</label>
+                        <select name="project_id" class="form-control"><option value="">—</option>
+                        {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if (is_edit and expense.project_id == p.id) or (not is_edit and prefill.project_id == p.id|string) }}>{{ p.project_number }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Client</label>
+                        <select name="client_id" class="form-control"><option value="">—</option>
+                        {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if (is_edit and expense.client_id == c.id) or (not is_edit and prefill.client_id == c.id|string) }}>{{ c.display_name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Division</label>
+                        <select name="division_id" class="form-control"><option value="">—</option>
+                        {% for d in all_divisions %}<option value="{{ d.id }}" {{ 'selected' if is_edit and expense.division_id == d.id }}>{{ d.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Payment & Billing</h3></div>
+            <div class="card-body">
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Payment Method</label>
+                    <select name="payment_method" class="form-control">
+                        {% for val, label in payment_methods %}<option value="{{ val }}" {{ 'selected' if is_edit and expense.payment_method == val }}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-2);">
+                    <input type="checkbox" name="is_billable" {{ 'checked' if is_edit and expense.is_billable }}> <span style="font-weight:500;">Billable to Client</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                    <input type="checkbox" name="is_reimbursable" {{ 'checked' if is_edit and expense.is_reimbursable }}> <span style="font-weight:500;">Reimbursable</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+            <button type="submit" class="btn btn-accent" style="width:100%;"><i class="bi bi-check-lg"></i> {{ 'Save Changes' if is_edit else 'Create Expense' }}</button>
+            <a href="{{ url_for('expenses.expense_list') }}" class="btn btn-ghost" style="width:100%;text-align:center;">Cancel</a>
+        </div>
+    </div>
+</div>
+</form>
+{% endblock %}

@@ -81,6 +81,7 @@ class Project(Base):
     site_supervisor  = relationship('Technician', foreign_keys=[site_supervisor_id])
     contract         = relationship('Contract', backref='projects', foreign_keys=[contract_id])
     creator          = relationship('User', foreign_keys=[created_by])
+    expenses         = relationship('Expense', back_populates='project', foreign_keys='Expense.project_id', lazy='select')
 
     STATUS_LABELS = {
         'planning': 'Planning', 'approved': 'Approved', 'active': 'Active',

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% set is_edit = warranty is not none %}
+{% block title %}{{ 'Edit' if is_edit else 'New' }} Warranty{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('warranty.warranty_list') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a></div>
+<h1 style="margin:0 0 var(--space-4);">{{ 'Edit' if is_edit else 'New' }} Warranty</h1>
+
+<form method="POST">
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <div>
+        <!-- Basic Info -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-shield-check" style="color:var(--color-accent);"></i> Warranty Info</h3></div>
+            <div class="card-body">
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Title *</label>
+                    <input type="text" name="title" class="form-control" required value="{{ warranty.title if is_edit else '' }}" placeholder="e.g., Water Heater Installation Warranty">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Client *</label>
+                        <select name="client_id" id="clientSelect" class="form-control" required onchange="loadClientData(this.value)">
+                            <option value="">Select client...</option>
+                            {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if (is_edit and warranty.client_id == c.id) or (prefill_job and prefill_job.client_id == c.id) }}>{{ c.display_name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Job *</label>
+                        <select name="job_id" id="jobSelect" class="form-control" required>
+                            <option value="">Select job...</option>
+                            {% for j in jobs %}<option value="{{ j.id }}" {{ 'selected' if (is_edit and warranty.job_id == j.id) or (prefill_job and prefill_job.id == j.id) }}>{{ j.job_number }} — {{ j.title[:40] }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Property</label>
+                        <select name="property_id" id="propertySelect" class="form-control">
+                            <option value="">—</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Warranty Type *</label>
+                        <select name="warranty_type" class="form-control" required>
+                            {% for val, label in warranty_types %}<option value="{{ val }}" {{ 'selected' if is_edit and warranty.warranty_type == val }}>{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2">{{ warranty.description if is_edit else '' }}</textarea>
+                </div>
+                <div class="form-group"><label class="form-label">Coverage Scope</label>
+                    <textarea name="coverage_scope" class="form-control" rows="2" placeholder="What specifically is covered...">{{ warranty.coverage_scope if is_edit else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coverage Period -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-calendar3" style="color:var(--color-warning);"></i> Coverage Period</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Start Date *</label>
+                        <input type="date" name="start_date" class="form-control" required value="{{ warranty.start_date.isoformat() if is_edit else '' }}">
+                    </div>
+                    <div class="form-group"><label class="form-label">Duration (months)</label>
+                        <input type="number" name="duration_months" class="form-control" min="1" value="{{ warranty.duration_months if is_edit else 12 }}">
+                    </div>
+                    <div class="form-group"><label class="form-label">End Date</label>
+                        <input type="date" name="end_date" class="form-control" value="{{ warranty.end_date.isoformat() if is_edit and warranty.end_date else '' }}">
+                        <small style="color:var(--color-text-muted);">Auto-calculated if blank</small>
+                    </div>
+                </div>
+                <div class="form-group"><label class="form-label">Max Claim Value ($)</label>
+                    <input type="number" name="max_claim_value" class="form-control" style="width:200px;" step="0.01" min="0" value="{{ warranty.max_claim_value if is_edit and warranty.max_claim_value else '' }}" placeholder="Leave blank for unlimited">
+                </div>
+            </div>
+        </div>
+
+        <!-- Equipment -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-tools" style="color:var(--color-info);"></i> Equipment</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Serial Number</label><input type="text" name="equipment_serial_number" class="form-control" value="{{ warranty.equipment_serial_number if is_edit else '' }}"></div>
+                    <div class="form-group"><label class="form-label">Model Number</label><input type="text" name="model_number" class="form-control" value="{{ warranty.model_number if is_edit else '' }}"></div>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Manufacturer Warranty Info</label><textarea name="manufacturer_warranty_info" class="form-control" rows="2">{{ warranty.manufacturer_warranty_info if is_edit else '' }}</textarea></div>
+                <div class="form-group"><label class="form-label">Manufacturer Warranty End Date</label><input type="date" name="manufacturer_warranty_end_date" class="form-control" style="width:200px;" value="{{ warranty.manufacturer_warranty_end_date.isoformat() if is_edit and warranty.manufacturer_warranty_end_date else '' }}"></div>
+            </div>
+        </div>
+
+        <!-- Parts & Terms -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-body">
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-3);">
+                    <input type="checkbox" name="covers_parts" {{ 'checked' if not is_edit or warranty.covers_parts }}> <span style="font-weight:500;">Covers Parts</span>
+                </label>
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Covered Parts (specific)</label><textarea name="covered_parts" class="form-control" rows="2" placeholder="List specific parts covered, or leave blank for all">{{ warranty.covered_parts if is_edit else '' }}</textarea></div>
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2">{{ warranty.notes if is_edit else '' }}</textarea></div>
+                <div class="form-group"><label class="form-label">Terms & Conditions</label><textarea name="terms_and_conditions" class="form-control" rows="3">{{ warranty.terms_and_conditions if is_edit else '' }}</textarea></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right -->
+    <div>
+        <div class="card" style="position:sticky;top:80px;">
+            <div class="card-body" style="padding:var(--space-3);">
+                <button type="submit" class="btn btn-accent" style="width:100%;margin-bottom:var(--space-2);"><i class="bi bi-check-lg"></i> {{ 'Save Changes' if is_edit else 'Create Warranty' }}</button>
+                <a href="{{ url_for('warranty.warranty_list') }}" class="btn btn-ghost" style="width:100%;text-align:center;">Cancel</a>
+            </div>
+        </div>
+    </div>
+</div>
+</form>
+
+<script>
+function loadClientData(clientId) {
+    if (!clientId) return;
+    fetch('/warranties/api/client/' + clientId + '/properties')
+        .then(function(r) { return r.json(); })
+        .then(function(props) {
+            var sel = document.getElementById('propertySelect');
+            sel.innerHTML = '<option value="">—</option>';
+            props.forEach(function(p) {
+                sel.innerHTML += '<option value="' + p.id + '">' + p.address + '</option>';
+            });
+        });
+    fetch('/warranties/api/client/' + clientId + '/jobs')
+        .then(function(r) { return r.json(); })
+        .then(function(jobs) {
+            var sel = document.getElementById('jobSelect');
+            sel.innerHTML = '<option value="">Select job...</option>';
+            jobs.forEach(function(j) {
+                sel.innerHTML += '<option value="' + j.id + '">' + (j.job_number || '#' + j.id) + ' — ' + j.title + '</option>';
+            });
+        });
+}
+{% if is_edit and warranty.client_id %}
+document.addEventListener('DOMContentLoaded', function() { loadClientData({{ warranty.client_id }}); });
+{% elif prefill_job and prefill_job.client_id %}
+document.addEventListener('DOMContentLoaded', function() { loadClientData({{ prefill_job.client_id }}); });
+{% endif %}
+</script>
+{% endblock %}

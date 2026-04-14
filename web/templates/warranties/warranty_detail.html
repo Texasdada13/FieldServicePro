@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}{{ warranty.warranty_number }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);font-size:var(--font-size-sm);">
+    <a href="{{ url_for('warranty.warranty_list') }}" style="color:var(--color-text-muted);text-decoration:none;">Warranties</a>
+    <span style="color:var(--color-text-muted);margin:0 4px;">/</span>{{ warranty.warranty_number }}
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0 0 var(--space-1);">{{ warranty.title }}</h1>
+        <div style="display:flex;gap:var(--space-2);align-items:center;">
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 10px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ warranty.status_color }});">{{ warranty.status_display }}</span>
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ warranty.type_display }}</span>
+            {% if warranty.days_remaining is not none %}
+                {% if warranty.days_remaining > 0 %}
+                <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);"><i class="bi bi-clock"></i> {{ warranty.days_remaining }}d remaining</span>
+                {% else %}
+                <span style="font-size:var(--font-size-xs);color:var(--color-danger);"><i class="bi bi-clock"></i> Expired {{ warranty.days_remaining|abs }}d ago</span>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        {% if can_admin and warranty.status != 'voided' %}
+        <a href="{{ url_for('warranty.warranty_edit', warranty_id=warranty.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-pencil"></i> Edit</a>
+        <button onclick="document.getElementById('voidOverlay').style.display='flex'" class="btn btn-ghost" style="font-size:var(--font-size-sm);color:var(--color-danger);"><i class="bi bi-x-circle"></i> Void</button>
+        {% endif %}
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <!-- Left -->
+    <div>
+        <!-- Coverage -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-shield-check" style="color:var(--color-accent);"></i> Coverage</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Start Date</span><div>{{ warranty.start_date.strftime('%B %d, %Y') }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">End Date</span><div style="{% if warranty.days_remaining is not none and warranty.days_remaining <= 30 and warranty.days_remaining >= 0 %}font-weight:600;color:var(--color-warning);{% endif %}">{{ warranty.end_date.strftime('%B %d, %Y') }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Duration</span><div>{{ warranty.duration_months }} months</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Original Job</span><div>{% if warranty.job %}<a href="/jobs/{{ warranty.job_id }}" style="color:var(--color-accent);text-decoration:none;">{{ warranty.job.title }}</a>{% else %}—{% endif %}</div></div>
+                </div>
+                {% if warranty.coverage_scope %}<div style="margin-top:var(--space-3);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Coverage Scope</span><div style="font-size:var(--font-size-sm);">{{ warranty.coverage_scope }}</div></div>{% endif %}
+            </div>
+        </div>
+
+        {% if warranty.equipment_serial_number or warranty.model_number %}
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-tools" style="color:var(--color-info);"></i> Equipment</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                    {% if warranty.equipment_serial_number %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Serial Number</span><div style="font-family:monospace;">{{ warranty.equipment_serial_number }}</div></div>{% endif %}
+                    {% if warranty.model_number %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Model</span><div>{{ warranty.model_number }}</div></div>{% endif %}
+                    {% if warranty.manufacturer_warranty_info %}<div style="grid-column:span 2;"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Manufacturer Info</span><div style="font-size:var(--font-size-sm);">{{ warranty.manufacturer_warranty_info }}</div></div>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Claims -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <h3 class="card-title"><i class="bi bi-file-earmark-text" style="color:var(--color-warning);"></i> Claims</h3>
+                {% if can_admin and warranty.is_active_warranty %}
+                <button onclick="document.getElementById('claimOverlay').style.display='flex'" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-plus-lg"></i> New Claim</button>
+                {% endif %}
+            </div>
+            <div class="card-body" style="padding:0;">
+                {% if warranty.claims %}
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:2px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Claim #</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Description</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Cost</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+                        {% if can_admin %}<th style="width:50px;"></th>{% endif %}
+                    </tr></thead>
+                    <tbody>
+                    {% for c in warranty.claims %}
+                    <tr style="border-bottom:1px solid var(--color-border);">
+                        <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ c.claim_number }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ c.claimed_date.strftime('%b %d, %Y') if c.claimed_date else '' }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ c.description[:60] }}{% if c.description|length > 60 %}...{% endif %}</td>
+                        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;">${{ "{:,.2f}".format(c.total_cost) }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ c.status_color }});">{{ c.status_display }}</span></td>
+                        {% if can_admin %}<td style="padding:var(--space-2);"><button onclick="showClaimEdit({{ c.id }}, '{{ c.status }}', '{{ c.resolution|default('')|e }}', '{{ c.denied_reason|default('')|e }}', {{ c.labor_cost|default(0) }}, {{ c.parts_cost|default(0) }})" class="btn btn-ghost" style="padding:2px 6px;font-size:var(--font-size-xs);">Edit</button></td>{% endif %}
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);font-size:var(--font-size-sm);">No claims filed.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if warranty.status == 'voided' and warranty.voided_reason %}
+        <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-md);padding:var(--space-3);">
+            <strong style="color:var(--color-danger);"><i class="bi bi-x-circle"></i> Warranty Voided</strong>{% if warranty.voided_date %} on {{ warranty.voided_date.strftime('%B %d, %Y') }}{% endif %}
+            <div style="color:var(--color-text-muted);margin-top:var(--space-1);">{{ warranty.voided_reason }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right -->
+    <div>
+        <!-- Financial -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Coverage</h3></div>
+            <div class="card-body">
+                {% if warranty.max_claim_value is not none %}
+                <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-1);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Max Coverage</span><strong>${{ "{:,.2f}".format(warranty.max_claim_value) }}</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Claimed</span><span style="color:var(--color-danger);">${{ "{:,.2f}".format(warranty.total_claimed or 0) }}</span></div>
+                {% set pct = ((warranty.total_claimed or 0) / warranty.max_claim_value * 100)|round(1) if warranty.max_claim_value else 0 %}
+                <div style="height:6px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;margin-bottom:var(--space-2);">
+                    <div style="height:100%;width:{{ pct }}%;background:{% if pct > 80 %}var(--color-danger){% elif pct > 50 %}var(--color-warning){% else %}var(--color-success){% endif %};border-radius:var(--radius-full);"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Remaining</span><strong style="color:var(--color-success);">${{ "{:,.2f}".format(warranty.remaining_coverage) }}</strong></div>
+                {% else %}
+                <div style="text-align:center;color:var(--color-text-muted);padding:var(--space-2);">
+                    <div style="font-size:1.5rem;opacity:0.3;">&#8734;</div>
+                    <small>Unlimited coverage</small>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Claimed</span><span>${{ "{:,.2f}".format(warranty.total_claimed or 0) }}</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Client -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Client</h3></div>
+            <div class="card-body">
+                {% if warranty.client %}<a href="/clients/{{ warranty.client_id }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;">{{ warranty.client.display_name }}</a>{% endif %}
+                {% if warranty.property_rel %}<div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:var(--space-1);"><i class="bi bi-geo-alt"></i> {{ warranty.property_rel.display_address }}</div>{% endif %}
+            </div>
+        </div>
+
+        <!-- Parts -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Parts Coverage</h3></div>
+            <div class="card-body">
+                {% if warranty.covers_parts %}
+                <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">Parts Covered</span>
+                {% else %}
+                <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Parts NOT Covered</span>
+                {% endif %}
+                {% if warranty.covered_parts %}<div style="font-size:var(--font-size-sm);margin-top:var(--space-2);">{{ warranty.covered_parts }}</div>{% endif %}
+            </div>
+        </div>
+
+        {% if warranty.notes %}
+        <div class="card"><div class="card-header"><h3 class="card-title">Notes</h3></div><div class="card-body" style="font-size:var(--font-size-sm);">{{ warranty.notes }}</div></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Void Modal -->
+{% if can_admin %}
+<div id="voidOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+<div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:400px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 var(--space-3);color:var(--color-danger);">Void Warranty</h3>
+    <form method="POST" action="{{ url_for('warranty.warranty_void', warranty_id=warranty.id) }}">
+        <p style="font-size:var(--font-size-sm);color:var(--color-text-muted);">This will permanently void {{ warranty.warranty_number }}.</p>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Reason *</label>
+            <textarea name="voided_reason" class="form-control" rows="3" required placeholder="e.g., Customer modified installation..."></textarea>
+        </div>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+            <button type="button" onclick="document.getElementById('voidOverlay').style.display='none'" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-accent" style="background:var(--color-danger);border-color:var(--color-danger);">Void Warranty</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endif %}
+
+<!-- New Claim Modal -->
+{% if can_admin and warranty.is_active_warranty %}
+<div id="claimOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+<div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:500px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 var(--space-3);">New Warranty Claim</h3>
+    <form method="POST" action="{{ url_for('warranty.claim_new', warranty_id=warranty.id) }}">
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Job *</label>
+            <select name="job_id" id="claimJobSelect" class="form-control" required>
+                <option value="">Select job...</option>
+                {% if warranty.client %}{% for j in warranty.client.jobs %}<option value="{{ j.id }}">{{ j.job_number }} — {{ j.title[:40] }}</option>{% endfor %}{% endif %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Description *</label>
+            <textarea name="description" class="form-control" rows="3" required placeholder="Describe the issue..."></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Claim Type</label>
+            <select name="claim_type" class="form-control">
+                {% for val, label in claim_types %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Labor Cost ($)</label><input type="number" name="labor_cost" class="form-control" step="0.01" min="0" value="0"></div>
+            <div class="form-group"><label class="form-label">Parts Cost ($)</label><input type="number" name="parts_cost" class="form-control" step="0.01" min="0" value="0"></div>
+        </div>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+            <button type="button" onclick="document.getElementById('claimOverlay').style.display='none'" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-accent">Submit Claim</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endif %}
+
+<!-- Claim Edit Modal -->
+{% if can_admin %}
+<div id="claimEditOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+<div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:500px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 var(--space-3);">Update Claim</h3>
+    <form method="POST" id="claimEditForm">
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Status</label>
+            <select name="status" id="ceStatus" class="form-control">
+                {% for val, label in claim_statuses %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Resolution Notes</label>
+            <textarea name="resolution" id="ceResolution" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Denied Reason <small style="color:var(--color-text-muted);">(if denying)</small></label>
+            <textarea name="denied_reason" id="ceDenied" class="form-control" rows="2"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Labor ($)</label><input type="number" name="labor_cost" id="ceLabor" class="form-control" step="0.01" min="0"></div>
+            <div class="form-group"><label class="form-label">Parts ($)</label><input type="number" name="parts_cost" id="ceParts" class="form-control" step="0.01" min="0"></div>
+        </div>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+            <button type="button" onclick="document.getElementById('claimEditOverlay').style.display='none'" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-accent">Save Changes</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endif %}
+
+<script>
+// Close overlays on backdrop click
+['voidOverlay','claimOverlay','claimEditOverlay'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
+});
+
+// Auto-populate costs when job selected in new claim modal
+var claimJobSel = document.getElementById('claimJobSelect');
+if (claimJobSel) {
+    claimJobSel.addEventListener('change', function() {
+        var jobId = this.value;
+        if (!jobId) return;
+        fetch('/warranties/api/job/' + jobId + '/costs')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var form = document.getElementById('claimJobSelect').closest('form');
+                form.querySelector('[name=labor_cost]').value = data.labor_cost.toFixed(2);
+                form.querySelector('[name=parts_cost]').value = data.parts_cost.toFixed(2);
+            });
+    });
+}
+
+// Show claim edit overlay with pre-filled values
+function showClaimEdit(claimId, status, resolution, denied, labor, parts) {
+    document.getElementById('claimEditForm').action = '/warranties/claims/' + claimId + '/update';
+    document.getElementById('ceStatus').value = status;
+    document.getElementById('ceResolution').value = resolution;
+    document.getElementById('ceDenied').value = denied;
+    document.getElementById('ceLabor').value = labor.toFixed(2);
+    document.getElementById('ceParts').value = parts.toFixed(2);
+    document.getElementById('claimEditOverlay').style.display = 'flex';
+}
+</script>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

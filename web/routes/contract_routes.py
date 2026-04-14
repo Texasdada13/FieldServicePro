@@ -408,6 +408,14 @@ def contract_status_change(contract_id):
                                f'Status changed: {old_status.value} -> {new_status.value}',
                                request.form.get('reason', ''))
         db.commit()
+
+        if new_status.value == 'expired':
+            try:
+                from web.utils.notification_service import NotificationService
+                NotificationService.notify('contract_expired', contract, triggered_by=current_user)
+            except Exception:
+                pass
+
         flash(f'Contract status updated to {new_status.value}.', 'success')
     except Exception as e:
         db.rollback()

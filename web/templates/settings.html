@@ -173,6 +173,193 @@
   </div>
 </div>
 
+<!-- Warranty & Callback Settings -->
+{% if org_settings is defined %}
+<div class="card" style="margin-top:var(--space-4);">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-shield-check" style="color:var(--color-success);"></i> Warranty Settings</h3></div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('save_warranty_settings') }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                <div class="form-group"><label class="form-label">Default Labor Warranty (months)</label>
+                    <input type="number" name="default_labor_warranty_months" class="form-control" min="0" value="{{ org_settings.default_labor_warranty_months if org_settings.default_labor_warranty_months else 12 }}">
+                </div>
+                <div class="form-group"><label class="form-label">Default Parts Warranty (months)</label>
+                    <input type="number" name="default_parts_warranty_months" class="form-control" min="0" value="{{ org_settings.default_parts_warranty_months if org_settings.default_parts_warranty_months else 12 }}">
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                <div class="form-group"><label class="form-label">Default Max Claim Value ($) <small style="color:var(--color-text-muted);">blank = unlimited</small></label>
+                    <input type="number" name="default_max_claim_value" class="form-control" step="0.01" min="0" value="{{ org_settings.default_max_claim_value if org_settings.default_max_claim_value else '' }}">
+                </div>
+                <div class="form-group"><label class="form-label">Callback Lookback (days)</label>
+                    <input type="number" name="callback_lookback_days" class="form-control" min="7" max="365" value="{{ org_settings.callback_lookback_days if org_settings.callback_lookback_days else 90 }}">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">Callback Rate Alert Threshold (%)</label>
+                <input type="number" name="callback_rate_threshold" class="form-control" style="width:120px;" step="0.1" min="0" max="100" value="{{ org_settings.callback_rate_threshold if org_settings.callback_rate_threshold else 5.0 }}">
+            </div>
+            <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-3);">
+                <input type="checkbox" name="auto_create_warranty_on_completion" {{ 'checked' if org_settings.auto_create_warranty_on_completion }}>
+                <div><span style="font-weight:500;">Auto-create warranty on job completion</span><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">If off, a prompt appears instead</div></div>
+            </label>
+            <div class="form-group" style="margin-bottom:var(--space-3);">
+                <label class="form-label">Default Warranty Terms</label>
+                <textarea name="default_warranty_terms" class="form-control" rows="3">{{ org_settings.default_warranty_terms or '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Save Warranty Settings</button>
+        </form>
+    </div>
+</div>
+
+<!-- Communication Log Settings -->
+<div class="card" style="margin-top:var(--space-4);">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-chat-dots" style="color:var(--color-info);"></i> Communication Log</h3></div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('save_comm_settings') }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                <div class="form-group"><label class="form-label">Inactive Client Alert (days)</label>
+                    <input type="number" name="inactive_client_alert_days" class="form-control" min="1" max="365" value="{{ org_settings.inactive_client_alert_days if org_settings.inactive_client_alert_days else 7 }}">
+                    <small style="color:var(--color-text-muted);">Alert when active clients haven't been contacted</small>
+                </div>
+                <div class="form-group"><label class="form-label">Default Follow-up Days</label>
+                    <input type="number" name="default_follow_up_days" class="form-control" min="1" max="90" value="{{ org_settings.default_follow_up_days if org_settings.default_follow_up_days else 3 }}">
+                    <small style="color:var(--color-text-muted);">Auto-set follow-up date when toggled on</small>
+                </div>
+            </div>
+            <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-3);">
+                <input type="checkbox" name="require_comm_log_on_status_change" {{ 'checked' if org_settings.require_comm_log_on_status_change }}>
+                <div><span style="font-weight:500;">Require communication note on job status change</span></div>
+            </label>
+            <div style="display:flex;gap:var(--space-2);align-items:center;">
+                <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Save Communication Settings</button>
+                <a href="{{ url_for('comm_templates.template_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Manage Templates &rarr;</a>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Expense Settings -->
+<div class="card" style="margin-top:var(--space-4);">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-receipt" style="color:var(--color-accent);"></i> Expense Settings</h3></div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('save_expense_settings') }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                <div class="form-group"><label class="form-label">Approval Threshold ($)</label>
+                    <input type="number" name="expense_approval_threshold" class="form-control" step="0.01" min="0" value="{{ org_settings.expense_approval_threshold if org_settings.expense_approval_threshold else '100.00' }}">
+                    <small style="color:var(--color-text-muted);">Expenses above this need approval. 0 = all require approval.</small>
+                </div>
+                <div class="form-group"><label class="form-label">Receipt Required ($)</label>
+                    <input type="number" name="expense_receipt_required_threshold" class="form-control" step="0.01" min="0" value="{{ org_settings.expense_receipt_required_threshold if org_settings.expense_receipt_required_threshold else '25.00' }}">
+                </div>
+                <div class="form-group"><label class="form-label">Mileage Rate ($/mile)</label>
+                    <input type="number" name="mileage_rate" class="form-control" step="0.0001" min="0" value="{{ org_settings.mileage_rate if org_settings.mileage_rate else '0.6700' }}">
+                    <small style="color:var(--color-text-muted);">IRS 2024: $0.67/mile</small>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                <div class="form-group"><label class="form-label">Default Expense Markup %</label>
+                    <input type="number" name="default_expense_markup" class="form-control" step="0.5" min="0" max="200" value="{{ org_settings.default_expense_markup if org_settings.default_expense_markup else '15.00' }}">
+                </div>
+                <div class="form-group"><label class="form-label">Approval Roles</label>
+                    <input type="text" name="expense_approval_roles" class="form-control" value="{{ org_settings.expense_approval_roles if org_settings.expense_approval_roles else 'owner,admin' }}">
+                    <small style="color:var(--color-text-muted);">Comma-separated roles that can approve</small>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Save Expense Settings</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Notification Settings -->
+{% if user.role in ('admin', 'owner') %}
+<div class="card" style="margin-top:var(--space-4);">
+    <div class="card-header"><h3 class="card-title"><i class="bi bi-bell" style="color:var(--color-accent);"></i> Notification Settings</h3></div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('save_notification_settings') }}" autocomplete="off">
+            <!-- Global Controls -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4);">
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                    <input type="hidden" name="notifications_enabled" value="0">
+                    <input type="checkbox" name="notifications_enabled" value="1"
+                        {% if org_settings.notifications_enabled %}checked{% endif %}
+                        style="width:18px;height:18px;accent-color:var(--color-accent);">
+                    <span>
+                        <strong>Enable All Notifications</strong>
+                        <small style="display:block;color:var(--color-text-muted);">Master switch for the entire notification system</small>
+                    </span>
+                </label>
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                    <input type="hidden" name="client_notifications_enabled" value="0">
+                    <input type="checkbox" name="client_notifications_enabled" value="1"
+                        {% if org_settings.client_notifications_enabled %}checked{% endif %}
+                        style="width:18px;height:18px;accent-color:var(--color-accent);">
+                    <span>
+                        <strong>Client-Facing Notifications</strong>
+                        <small style="display:block;color:var(--color-text-muted);">Automated emails/SMS to clients</small>
+                    </span>
+                </label>
+            </div>
+            <!-- Email Settings -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                <div class="form-group"><label class="form-label">From Name</label>
+                    <input type="text" name="email_from_name" class="form-control" value="{{ org_settings.email_from_name or '' }}" placeholder="FieldServicePro">
+                </div>
+                <div class="form-group"><label class="form-label">From Email</label>
+                    <input type="email" name="email_from_address" class="form-control" value="{{ org_settings.email_from_address or '' }}" placeholder="notifications@yourcompany.com">
+                </div>
+                <div class="form-group"><label class="form-label">Reply-To</label>
+                    <input type="email" name="email_reply_to" class="form-control" value="{{ org_settings.email_reply_to or '' }}" placeholder="support@yourcompany.com">
+                </div>
+            </div>
+            <!-- Timing -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                <div class="form-group"><label class="form-label">Bell Poll Interval (sec)</label>
+                    <input type="number" name="notification_polling_interval" class="form-control" min="10" max="300" value="{{ org_settings.notification_polling_interval or 30 }}">
+                </div>
+                <div class="form-group"><label class="form-label">Appointment Reminder (hours before)</label>
+                    <input type="number" name="appointment_reminder_hours" class="form-control" min="1" max="72" value="{{ org_settings.appointment_reminder_hours or 24 }}">
+                </div>
+                <div class="form-group"><label class="form-label">Invoice Reminder Days</label>
+                    <input type="text" name="invoice_reminder_days" class="form-control" value="{{ org_settings.invoice_reminder_days or '[7, 14, 30]' }}" placeholder="[7, 14, 30]">
+                    <small style="color:var(--color-text-muted);">JSON array of days after due date</small>
+                </div>
+            </div>
+            <!-- SMS Settings -->
+            <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);align-items:end;">
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;padding-bottom:var(--space-1);">
+                    <input type="hidden" name="sms_enabled" value="0">
+                    <input type="checkbox" name="sms_enabled" value="1"
+                        {% if org_settings.sms_enabled %}checked{% endif %}
+                        style="width:18px;height:18px;accent-color:var(--color-accent);">
+                    <strong style="font-size:var(--font-size-sm);">Enable SMS</strong>
+                </label>
+                <div class="form-group"><label class="form-label">SMS Provider</label>
+                    <select name="sms_provider" class="form-select">
+                        <option value="">Not configured</option>
+                        <option value="twilio" {% if org_settings.sms_provider == 'twilio' %}selected{% endif %}>Twilio</option>
+                        <option value="vonage" {% if org_settings.sms_provider == 'vonage' %}selected{% endif %}>Vonage</option>
+                    </select>
+                </div>
+                <div class="form-group"><label class="form-label">API Key / SID</label>
+                    <input type="password" name="sms_api_key" class="form-control" value="{{ org_settings.sms_api_key or '' }}" placeholder="Provider API key">
+                </div>
+                <div class="form-group"><label class="form-label">From Number</label>
+                    <input type="text" name="sms_from_number" class="form-control" value="{{ org_settings.sms_from_number or '' }}" placeholder="+15551234567">
+                </div>
+            </div>
+            <!-- Quick Links -->
+            <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);padding:var(--space-2) 0;border-top:1px solid var(--color-border);border-bottom:1px solid var(--color-border);">
+                <a href="{{ url_for('notifications.preferences') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-sliders"></i> My Preferences</a>
+                <a href="{{ url_for('notifications.client_templates') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-envelope-check"></i> Client Templates</a>
+                <a href="{{ url_for('notifications.notification_log') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-journal-text"></i> Notification Log</a>
+            </div>
+            <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Save Notification Settings</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <script>
 document.getElementById('invoice_approval_enabled').addEventListener('change', function () {
   document.getElementById('approval-options').style.display = this.checked ? '' : 'none';

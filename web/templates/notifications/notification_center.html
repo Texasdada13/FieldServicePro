@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <h1 style="margin:0;">Notification Center</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">
+            {{ unread_count }} unread &middot; {{ total }} total
+        </p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);align-items:center;">
+        {% if unread_count > 0 %}
+        <form method="POST" action="{{ url_for('notifications.mark_all_read') }}" id="markAllForm">
+            <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">
+                <i class="bi bi-check-all"></i> Mark All Read
+            </button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('notifications.preferences') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">
+            <i class="bi bi-gear"></i> Preferences
+        </a>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:var(--space-1);margin-bottom:var(--space-3);border-bottom:2px solid var(--color-border);padding-bottom:0;">
+    {% set tabs = [('all','All'),('unread','Unread'),('actionable','Action Required')] %}
+    {% for val, label in tabs %}
+    <a href="{{ url_for('notifications.notification_center', tab=val, category=current_category) }}"
+       style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);font-weight:600;text-decoration:none;border-bottom:2px solid {% if current_tab == val %}var(--color-accent){% else %}transparent{% endif %};margin-bottom:-2px;color:{% if current_tab == val %}var(--color-accent){% else %}var(--color-text-muted){% endif %};">
+        {{ label }}
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Category Filter -->
+<div style="display:flex;gap:var(--space-1);margin-bottom:var(--space-3);flex-wrap:wrap;">
+    <a href="{{ url_for('notifications.notification_center', tab=current_tab) }}"
+       class="btn {% if not current_category %}btn-accent{% else %}btn-ghost{% endif %}"
+       style="font-size:var(--font-size-xs);padding:4px 10px;">All</a>
+    {% for val, label in categories %}
+    <a href="{{ url_for('notifications.notification_center', tab=current_tab, category=val) }}"
+       class="btn {% if current_category == val %}btn-accent{% else %}btn-ghost{% endif %}"
+       style="font-size:var(--font-size-xs);padding:4px 10px;">{{ label }}</a>
+    {% endfor %}
+</div>
+
+<!-- Notification List -->
+<div class="card" style="padding:0;">
+{% if notifications %}
+    {% for n in notifications %}
+    <div id="notif-{{ n.id }}" style="display:flex;align-items:flex-start;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-border);{% if not n.is_read %}background:var(--color-surface-raised);{% endif %}transition:background 0.2s;">
+        <!-- Icon -->
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--color-{{ n.type_color }});display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0.9;">
+            <i class="bi {{ n.category_icon }}" style="color:#fff;font-size:0.9rem;"></i>
+        </div>
+        <!-- Content -->
+        <div style="flex:1;min-width:0;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-2);">
+                <div>
+                    <span style="font-weight:{% if not n.is_read %}700{% else %}500{% endif %};font-size:var(--font-size-sm);">
+                        {% if n.action_url %}<a href="{{ n.action_url }}" style="color:inherit;text-decoration:none;">{{ n.title }}</a>{% else %}{{ n.title }}{% endif %}
+                    </span>
+                    {% if n.priority == 'high' or n.priority == 'urgent' %}
+                    <span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-danger);color:#fff;margin-left:var(--space-1);">{{ n.priority|title }}</span>
+                    {% endif %}
+                </div>
+                <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);white-space:nowrap;">{{ n.time_ago }}</span>
+            </div>
+            <p style="margin:var(--space-1) 0 0;font-size:var(--font-size-sm);color:var(--color-text-muted);line-height:1.4;">{{ n.message[:200] }}</p>
+            <!-- Actions -->
+            <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
+                {% if not n.is_read %}
+                <button onclick="notifAction({{ n.id }},'read')" class="btn btn-ghost" style="font-size:var(--font-size-xs);padding:2px 8px;">
+                    <i class="bi bi-check"></i> Mark Read
+                </button>
+                {% endif %}
+                {% if n.is_actionable and not n.action_completed %}
+                <button onclick="notifAction({{ n.id }},'complete')" class="btn btn-ghost" style="font-size:var(--font-size-xs);padding:2px 8px;color:var(--color-success);">
+                    <i class="bi bi-check-circle"></i> Complete
+                </button>
+                {% endif %}
+                <button onclick="notifAction({{ n.id }},'dismiss')" class="btn btn-ghost" style="font-size:var(--font-size-xs);padding:2px 8px;color:var(--color-text-muted);">
+                    <i class="bi bi-x"></i> Dismiss
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div style="display:flex;justify-content:center;gap:var(--space-2);padding:var(--space-3);">
+        {% if page > 1 %}
+        <a href="{{ url_for('notifications.notification_center', page=page-1, tab=current_tab, category=current_category) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">&laquo; Prev</a>
+        {% endif %}
+        <span style="padding:var(--space-2);font-size:var(--font-size-sm);color:var(--color-text-muted);">Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="{{ url_for('notifications.notification_center', page=page+1, tab=current_tab, category=current_category) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Next &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+{% else %}
+    <div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+        <i class="bi bi-bell-slash" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+        <h4>No notifications</h4>
+        <p style="font-size:var(--font-size-sm);">
+            {% if current_tab == 'unread' %}All caught up! No unread notifications.
+            {% elif current_tab == 'actionable' %}No pending actions.
+            {% else %}Nothing here yet.{% endif %}
+        </p>
+    </div>
+{% endif %}
+</div>
+
+<script>
+function notifAction(id, action) {
+    fetch('/notifications/' + id + '/' + action, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            var el = document.getElementById('notif-' + id);
+            if (action === 'dismiss') {
+                el.style.opacity = '0'; el.style.maxHeight = '0';
+                el.style.transition = 'opacity 0.3s, max-height 0.3s';
+                setTimeout(() => el.remove(), 300);
+            } else {
+                el.style.background = '';
+                var readBtn = el.querySelector('[onclick*="read"]');
+                if (readBtn) readBtn.remove();
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

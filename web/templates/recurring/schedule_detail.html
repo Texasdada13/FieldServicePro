@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}{{ schedule.schedule_number }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);font-size:var(--font-size-sm);">
+    <a href="{{ url_for('recurring.schedule_list') }}" style="color:var(--color-text-muted);text-decoration:none;">Recurring Schedules</a>
+    <span style="color:var(--color-text-muted);margin:0 4px;">/</span>
+    <span>{{ schedule.schedule_number }}</span>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0 0 var(--space-1);">{{ schedule.title }}</h1>
+        <div style="display:flex;gap:var(--space-2);align-items:center;">
+            <code>{{ schedule.schedule_number }}</code>
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ schedule.status_color }});">{{ schedule.status_display }}</span>
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ schedule.frequency_display }}</span>
+            {% if not schedule.auto_generate %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);" title="Alert only — no auto-generation"><i class="bi bi-bell"></i> Alert Only</span>{% endif %}
+            {% if schedule.is_overdue %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.1);color:var(--color-danger);">Overdue</span>{% endif %}
+        </div>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        {% if can_admin %}
+            {% if schedule.status == 'active' %}
+            <form method="POST" action="{{ url_for('recurring.generate_now', schedule_id=schedule.id) }}" style="display:inline;">
+                <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);" {% if not schedule.auto_generate %}onclick="return confirm('auto_generate is off. Generate manually anyway?')"{% endif %}><i class="bi bi-lightning-fill"></i> Generate Job Now</button>
+            </form>
+            <button onclick="document.getElementById('pauseOverlay').style.display='flex'" class="btn btn-ghost" style="font-size:var(--font-size-sm);color:var(--color-warning);"><i class="bi bi-pause-fill"></i> Pause</button>
+            {% elif schedule.status == 'paused' %}
+            <form method="POST" action="{{ url_for('recurring.resume_schedule', schedule_id=schedule.id) }}" style="display:inline;">
+                <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);"><i class="bi bi-play-fill"></i> Resume</button>
+            </form>
+            {% endif %}
+            {% if schedule.status not in ('completed', 'cancelled') %}
+            <a href="{{ url_for('recurring.edit_schedule', schedule_id=schedule.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-pencil"></i> Edit</a>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Alert Banners -->
+{% if schedule.status == 'paused' %}
+<div style="display:flex;align-items:center;gap:var(--space-2);background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <i class="bi bi-pause-circle" style="color:var(--color-warning);font-size:1.1rem;"></i>
+    <div style="font-size:var(--font-size-sm);"><strong>Schedule Paused</strong>{% if schedule.pause_reason %} — {{ schedule.pause_reason }}{% endif %}{% if schedule.pause_until %}<br><small style="color:var(--color-text-muted);">Resumes on {{ schedule.pause_until.strftime('%b %d, %Y') }}</small>{% endif %}</div>
+</div>
+{% elif schedule.is_overdue %}
+<div style="display:flex;align-items:center;gap:var(--space-2);background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <i class="bi bi-exclamation-triangle" style="color:var(--color-danger);font-size:1.1rem;"></i>
+    <div style="font-size:var(--font-size-sm);"><strong>Overdue by {{ schedule.days_until_due|abs }} day(s)</strong> — Next due was {{ schedule.next_due_date.strftime('%b %d, %Y') }}.{% if schedule.auto_generate %} A job should have been generated automatically.{% else %} This schedule is alert-only — generate manually.{% endif %}</div>
+</div>
+{% elif schedule.days_until_due <= schedule.advance_generation_days and schedule.status == 'active' %}
+<div style="display:flex;align-items:center;gap:var(--space-2);background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <i class="bi bi-clock" style="color:var(--color-warning);font-size:1.1rem;"></i>
+    <span style="font-size:var(--font-size-sm);"><strong>Due in {{ schedule.days_until_due }} day(s)</strong> ({{ schedule.next_due_date.strftime('%b %d, %Y') }})</span>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <!-- Left -->
+    <div>
+        <!-- Schedule Configuration -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-calendar3" style="color:var(--color-accent);"></i> Schedule Configuration</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Frequency</span><div style="font-weight:600;">{{ schedule.frequency_display }}{% if schedule.frequency == 'custom' and schedule.custom_interval_days %}<span style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-left:4px;">({{ schedule.custom_interval_days }}d)</span>{% endif %}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Next Due Date</span><div style="font-weight:600;color:{% if schedule.is_overdue %}var(--color-danger){% elif schedule.days_until_due <= 7 %}var(--color-warning){% else %}var(--color-text){% endif %};">{{ schedule.next_due_date.strftime('%B %d, %Y') }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Start Date</span><div>{{ schedule.start_date.strftime('%B %d, %Y') }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">End Date</span><div>{{ schedule.end_date.strftime('%B %d, %Y') if schedule.end_date else 'Indefinite' }}</div></div>
+                    {% if schedule.preferred_day_of_week %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Preferred Day</span><div>{{ schedule.preferred_day_of_week|title }}</div></div>{% endif %}
+                    {% if schedule.preferred_time %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Preferred Time</span><div>{{ schedule.preferred_time }}</div></div>{% endif %}
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Advance Generation</span><div>{{ schedule.advance_generation_days }} days before due</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Automation Settings -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-gear" style="color:var(--color-info);"></i> Automation</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Auto-Generate</span><div>{% if schedule.auto_generate %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">On</span>{% else %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Alert Only</span>{% endif %}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Auto-Assign Tech</span><div>{% if schedule.auto_assign %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">On</span>{% else %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Off</span>{% endif %}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Auto-Schedule Date</span><div>{% if schedule.auto_schedule %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">On</span>{% else %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Off</span>{% endif %}</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Job Template -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-briefcase" style="color:var(--color-warning);"></i> Job Template</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Client</span><div style="font-weight:500;">{{ schedule.client.display_name if schedule.client else '—' }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Job Type</span><div>{{ schedule.job_type|replace('_',' ')|title }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Trade</span><div>{{ schedule.trade|title if schedule.trade else '—' }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Priority</span><div>{{ schedule.default_priority|title }}</div></div>
+                    {% if schedule.estimated_duration_hours %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Est. Duration</span><div>{{ schedule.estimated_duration_hours }}h</div></div>{% endif %}
+                    {% if schedule.estimated_amount %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Est. Amount</span><div>${{ "{:,.2f}".format(schedule.estimated_amount) }}</div></div>{% endif %}
+                    {% if schedule.default_technician %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Default Technician</span><div>{{ schedule.default_technician.full_name }}</div></div>{% endif %}
+                    {% if schedule.division %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Division</span><div>{{ schedule.division.name }}</div></div>{% endif %}
+                    {% if schedule.contract %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Contract</span><div><a href="{{ url_for('contracts.contract_detail', contract_id=schedule.contract_id) }}" style="color:var(--color-accent);text-decoration:none;">{{ schedule.contract.contract_number }}</a></div></div>{% endif %}
+                </div>
+                {% if schedule.default_description %}
+                <div style="margin-top:var(--space-3);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Default Job Description</span>
+                    <div style="background:var(--color-surface-raised);border-radius:var(--radius-md);padding:var(--space-2);margin-top:var(--space-1);font-size:var(--font-size-sm);white-space:pre-wrap;">{{ schedule.default_description }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Upcoming Dates Preview -->
+        {% if upcoming_dates %}
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-calendar-range" style="color:var(--color-accent);"></i> Upcoming Due Dates</h3></div>
+            <div class="card-body">
+                <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);">
+                    {% for dt in upcoming_dates %}
+                    <span style="font-size:var(--font-size-sm);font-weight:500;padding:var(--space-1) var(--space-3);border-radius:999px;background:var(--color-surface-raised);border:1px solid var(--color-border);">{{ dt.strftime('%b %d, %Y') }}</span>
+                    {% endfor %}
+                </div>
+                <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin:var(--space-2) 0 0;">Preview of next {{ upcoming_dates|length }} occurrences</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Generation History -->
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-clock-history" style="color:var(--color-info);"></i> Generation History</h3></div>
+            <div class="card-body" style="padding:0;">
+                {% if logs %}
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:2px solid var(--color-border);">
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Job</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Method</th>
+                        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Result</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for log in logs %}
+                    <tr style="border-bottom:1px solid var(--color-border);">
+                        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ log.generated_at.strftime('%b %d, %Y %H:%M') if log.generated_at else '' }}</td>
+                        <td style="padding:var(--space-2) var(--space-3);">{% if log.job %}<a href="/jobs/{{ log.job_id }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;">{{ log.job.job_number }}</a>{% else %}—{% endif %}</td>
+                        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ log.generation_method }}</span></td>
+                        <td style="padding:var(--space-2) var(--space-3);">{% if log.success %}<span style="color:var(--color-success);"><i class="bi bi-check-circle-fill"></i></span>{% else %}<span style="color:var(--color-danger);" title="{{ log.error_message or '' }}"><i class="bi bi-x-circle-fill"></i></span>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);font-size:var(--font-size-sm);">No jobs generated yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right -->
+    <div>
+        <!-- Stats -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);text-align:center;margin-bottom:var(--space-2);">
+                    <div><div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-accent);">{{ schedule.total_jobs_generated }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Jobs Generated</div></div>
+                    <div><div style="font-size:var(--font-size-2xl);font-weight:700;color:var(--color-success);">${{ "{:,.0f}".format(schedule.total_value_generated or 0) }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Value Generated</div></div>
+                </div>
+                {% if schedule.last_generated_date %}
+                <div style="border-top:1px solid var(--color-border);padding-top:var(--space-2);text-align:center;font-size:var(--font-size-xs);color:var(--color-text-muted);">
+                    Last: {{ schedule.last_generated_date.strftime('%b %d, %Y') }}
+                    {% if schedule.last_generated_job %}<br><a href="/jobs/{{ schedule.last_generated_job_id }}" style="color:var(--color-accent);text-decoration:none;">{{ schedule.last_generated_job.job_number }}</a>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Timing -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-calendar3" style="color:var(--color-warning);"></i> Timing</h3></div>
+            <div class="card-body">
+                <div style="text-align:center;margin-bottom:var(--space-3);">
+                    <div style="font-size:var(--font-size-3xl);font-weight:700;color:{% if schedule.is_overdue %}var(--color-danger){% elif schedule.days_until_due <= 7 %}var(--color-warning){% else %}var(--color-text){% endif %};">
+                        {% if schedule.is_overdue %}{{ schedule.days_until_due|abs }}d overdue{% else %}{{ schedule.days_until_due }}d{% endif %}
+                    </div>
+                    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">until next due</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Related -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Related</h3></div>
+            <div class="card-body" style="padding:0;">
+                <div style="display:flex;justify-content:space-between;padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-size:var(--font-size-sm);"><span style="color:var(--color-text-muted);">Client</span><span>{{ schedule.client.display_name if schedule.client else '—' }}</span></div>
+                {% if schedule.contract %}<div style="display:flex;justify-content:space-between;padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-size:var(--font-size-sm);"><span style="color:var(--color-text-muted);">Contract</span><a href="{{ url_for('contracts.contract_detail', contract_id=schedule.contract_id) }}" style="color:var(--color-accent);text-decoration:none;">{{ schedule.contract.contract_number }}</a></div>{% endif %}
+                {% if schedule.property_rel %}<div style="display:flex;justify-content:space-between;padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-size:var(--font-size-sm);"><span style="color:var(--color-text-muted);">Property</span><span>{{ schedule.property_rel.display_address }}</span></div>{% endif %}
+                {% if schedule.division %}<div style="display:flex;justify-content:space-between;padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-size:var(--font-size-sm);"><span style="color:var(--color-text-muted);">Division</span><span>{{ schedule.division.name }}</span></div>{% endif %}
+                <div style="display:flex;justify-content:space-between;padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);"><span style="color:var(--color-text-muted);">Created</span><span>{{ schedule.created_at.strftime('%b %d, %Y') if schedule.created_at else '' }}</span></div>
+            </div>
+        </div>
+
+        {% if can_admin and schedule.status not in ('completed', 'cancelled') %}
+        <form method="POST" action="{{ url_for('recurring.cancel_schedule', schedule_id=schedule.id) }}">
+            <button type="submit" class="btn btn-ghost" style="width:100%;color:var(--color-danger);font-size:var(--font-size-sm);" onclick="return confirm('Cancel this schedule? This cannot be undone.')"><i class="bi bi-x-circle"></i> Cancel Schedule</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pause Modal -->
+<div id="pauseOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+<div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:400px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 var(--space-3);">Pause Schedule</h3>
+    <form method="POST" action="{{ url_for('recurring.pause_schedule', schedule_id=schedule.id) }}">
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Reason (optional)</label>
+            <input type="text" name="pause_reason" class="form-control" placeholder="e.g., Client requested hold">
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Pause Until (optional)</label>
+            <input type="date" name="pause_until" class="form-control">
+            <small style="color:var(--color-text-muted);">Schedule auto-resumes on this date.</small>
+        </div>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+            <button type="button" onclick="document.getElementById('pauseOverlay').style.display='none'" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-accent" style="background:var(--color-warning);border-color:var(--color-warning);color:#000;">Pause Schedule</button>
+        </div>
+    </form>
+</div>
+</div>
+<script>
+document.getElementById('pauseOverlay').addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
+</script>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

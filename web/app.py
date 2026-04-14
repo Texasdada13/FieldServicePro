@@ -41,7 +41,7 @@ from web.utils.sla_engine import (
     detect_contract_for_job, detect_sla_for_job,
     apply_sla_to_job, handle_job_status_change,
 )
-from web.cli_commands import automation_cli
+from web.cli_commands import automation_cli, recurring_cli, warranty_cli, notif_cli
 from web.routes.po_routes import po_bp
 from web.routes.phase_routes import phases_bp
 from web.routes.change_order_routes import change_orders_bp
@@ -60,6 +60,23 @@ from web.routes.schedule_routes import schedule_api_bp
 from web.routes.equipment_routes import equipment_bp
 from web.routes.project_routes import projects_bp
 from web.routes.time_tracking_routes import time_tracking_bp
+from web.routes.parts_routes import parts_bp
+from web.routes.inventory_routes import inventory_bp
+from web.routes.transfer_routes import transfers_bp
+from web.routes.materials_routes import materials_bp
+from web.routes.truck_stock_routes import truck_bp
+from web.routes.parts_report_routes import parts_reports_bp
+from web.routes.recurring_routes import recurring_bp
+from web.routes.warranty_routes import warranty_bp
+from web.routes.callback_routes import callback_bp
+from web.routes.warranty_report_routes import warranty_reports_bp
+from web.routes.communication_routes import communications_bp
+from web.routes.comm_template_routes import comm_templates_bp
+from web.routes.comm_report_routes import comm_reports_bp
+from web.routes.expense_routes import expense_bp
+from web.routes.notification_routes import notifications_bp
+from web.routes.vehicle_routes import vehicle_bp
+from web.routes.payroll_routes import payroll_bp
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -90,6 +107,15 @@ app.config.setdefault('MAIL_USE_TLS', os.environ.get('MAIL_USE_TLS', 'true').low
 app.config.setdefault('MAIL_USERNAME', os.environ.get('MAIL_USERNAME'))
 app.config.setdefault('MAIL_PASSWORD', os.environ.get('MAIL_PASSWORD'))
 app.config.setdefault('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@fieldservicepro.com'))
+app.config.setdefault('MAIL_USE_SSL', os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true')
+
+# Initialize Flask-Mail (optional — degrades gracefully)
+try:
+    from flask_mail import Mail
+    mail = Mail(app)
+except ImportError:
+    mail = None
+    logger.info("flask-mail not installed — email features will use console fallback")
 
 # Security headers via Talisman (HTTPS redirect, CSP, HSTS)
 csp = {
@@ -113,6 +139,9 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(sla_bp)
 app.register_blueprint(contract_bp)
 app.register_blueprint(automation_cli)
+app.register_blueprint(recurring_cli)
+app.register_blueprint(notif_cli)
+app.register_blueprint(warranty_cli)
 app.register_blueprint(po_bp)
 app.register_blueprint(phases_bp)
 app.register_blueprint(change_orders_bp)
@@ -131,6 +160,23 @@ app.register_blueprint(schedule_api_bp)
 app.register_blueprint(equipment_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(time_tracking_bp)
+app.register_blueprint(parts_bp)
+app.register_blueprint(inventory_bp)
+app.register_blueprint(transfers_bp)
+app.register_blueprint(materials_bp)
+app.register_blueprint(truck_bp)
+app.register_blueprint(parts_reports_bp)
+app.register_blueprint(recurring_bp)
+app.register_blueprint(warranty_bp)
+app.register_blueprint(callback_bp)
+app.register_blueprint(warranty_reports_bp)
+app.register_blueprint(communications_bp)
+app.register_blueprint(comm_templates_bp)
+app.register_blueprint(comm_reports_bp)
+app.register_blueprint(expense_bp)
+app.register_blueprint(notifications_bp)
+app.register_blueprint(vehicle_bp)
+app.register_blueprint(payroll_bp)
 
 
 @app.before_request
@@ -148,6 +194,16 @@ def block_portal_from_internal():
 # Make datetime.now available in templates
 app.jinja_env.globals['now'] = datetime.now
 app.jinja_env.globals['now_utc'] = datetime.utcnow
+
+
+@app.template_filter('format_number')
+def format_number_filter(value):
+    """Format integers with comma separators: 42500 -> 42,500"""
+    try:
+        return f'{int(value):,}'
+    except (TypeError, ValueError):
+        return str(value) if value is not None else '0'
+
 
 # Initialize database
 with app.app_context():
@@ -260,6 +316,15 @@ def inject_approval_count():
         'new_request_count': new_request_count,
         'active_project_count': active_project_count,
         'pending_time_approvals': _get_pending_time_approvals(),
+        'low_stock_count': _get_low_stock_count(),
+        'recurring_alert_count': _get_recurring_alert_count(),
+        'warranty_expiring_count': _get_warranty_expiring_count(),
+        'open_callbacks_count': _get_open_callbacks_count(),
+        'overdue_followups_count': _get_overdue_followups_count(),
+        'pending_expenses_count': _get_pending_expenses_count(),
+        'g_unread_notif_count': _get_unread_notif_count(),
+        'all_clients': _get_all_clients_for_quicklog(),
+        'comm_templates': _get_comm_templates_for_quicklog(),
         'can_manage_phase': can_manage_phase,
         'can_approve_change_order': can_approve_change_order,
         'can_edit_change_order': can_edit_change_order,
@@ -276,6 +341,184 @@ def _get_pending_time_approvals():
             count = db5.query(TimeEntry).filter_by(status='submitted').count()
             db5.close()
             return count
+    except Exception:
+        pass
+    return 0
+
+
+def _get_low_stock_count():
+    """Get count of low-stock parts for sidebar badge."""
+    try:
+        if current_user.is_authenticated:
+            from web.utils.parts_utils import get_low_stock_count
+            db6 = get_session()
+            count = get_low_stock_count(db6, current_user.organization_id)
+            db6.close()
+            return count
+    except Exception:
+        pass
+    return 0
+
+
+def _get_warranty_expiring_count():
+    try:
+        if current_user.is_authenticated:
+            from sqlalchemy import func as _func
+            from models.warranty import Warranty
+            db8 = get_session()
+            count = db8.query(_func.count(Warranty.id)).filter(Warranty.status == 'expiring_soon').scalar() or 0
+            db8.close()
+            return count
+    except Exception:
+        pass
+    return 0
+
+
+def _get_open_callbacks_count():
+    try:
+        if current_user.is_authenticated:
+            from sqlalchemy import func as _func
+            from models.callback import Callback
+            db9 = get_session()
+            count = db9.query(_func.count(Callback.id)).filter(
+                Callback.status.notin_(['resolved', 'closed'])
+            ).scalar() or 0
+            db9.close()
+            return count
+    except Exception:
+        pass
+    return 0
+
+
+def _get_pending_expenses_count():
+    try:
+        if current_user.is_authenticated and current_user.role in ('owner', 'admin'):
+            from models.expense import Expense
+            from sqlalchemy import func as _f
+            db_pe = get_session()
+            count = db_pe.query(_f.count(Expense.id)).filter(Expense.status == 'submitted').scalar() or 0
+            db_pe.close()
+            return count
+    except Exception:
+        pass
+    return 0
+
+
+def _get_unread_notif_count():
+    try:
+        if current_user.is_authenticated:
+            from web.utils.notification_service import NotificationService
+            return NotificationService.get_unread_count(current_user.id)
+    except Exception:
+        pass
+    return 0
+
+
+def _get_client_communications(db, client_id):
+    try:
+        from models.communication import CommunicationLog
+        return db.query(CommunicationLog).filter_by(client_id=client_id).order_by(CommunicationLog.communication_date.desc()).limit(20).all()
+    except Exception:
+        return []
+
+
+def _count_client_communications(db, client_id):
+    try:
+        from models.communication import CommunicationLog
+        from sqlalchemy import func as _f
+        return db.query(_f.count(CommunicationLog.id)).filter_by(client_id=client_id).scalar() or 0
+    except Exception:
+        return 0
+
+
+def _get_all_clients_for_quicklog():
+    try:
+        if current_user.is_authenticated:
+            from models.client import Client as _Client
+            db_ql = get_session()
+            clients = db_ql.query(_Client).filter_by(organization_id=current_user.organization_id).order_by(_Client.company_name).all()
+            db_ql.close()
+            return clients
+    except Exception:
+        pass
+    return []
+
+
+def _get_comm_templates_for_quicklog():
+    try:
+        if current_user.is_authenticated:
+            from models.communication import CommunicationTemplate as _CT
+            db_ct = get_session()
+            templates = db_ct.query(_CT).filter_by(is_active=True).order_by(_CT.name).all()
+            db_ct.close()
+            return templates
+    except Exception:
+        pass
+    return []
+
+
+def _get_overdue_followups_count():
+    try:
+        if current_user.is_authenticated:
+            from web.utils.communication_utils import get_overdue_follow_up_count
+            db10 = get_session()
+            count = get_overdue_follow_up_count(db10)
+            db10.close()
+            return count
+    except Exception:
+        pass
+    return 0
+
+
+def _get_comm_overdue_for_dashboard(db):
+    try:
+        from models.communication import CommunicationLog
+        return db.query(CommunicationLog).filter(
+            CommunicationLog.follow_up_required == True,
+            CommunicationLog.follow_up_completed == False,
+            CommunicationLog.follow_up_date < date.today()
+        ).count()
+    except Exception:
+        return 0
+
+
+def _get_comm_due_today_for_dashboard(db):
+    try:
+        from models.communication import CommunicationLog
+        return db.query(CommunicationLog).filter(
+            CommunicationLog.follow_up_required == True,
+            CommunicationLog.follow_up_completed == False,
+            CommunicationLog.follow_up_date == date.today()
+        ).count()
+    except Exception:
+        return 0
+
+
+def _get_warranty_dashboard_stats(db):
+    try:
+        from web.utils.warranty_utils import get_warranty_stats
+        return get_warranty_stats(db)
+    except Exception:
+        return {'total_active': 0, 'expiring_soon': 0, 'expired_this_month': 0, 'claims_this_month': 0}
+
+
+def _get_callback_dashboard_stats(db):
+    try:
+        from web.utils.callback_utils import get_callback_stats
+        return get_callback_stats(db, current_user.organization_id)
+    except Exception:
+        return {'open_callbacks': 0, 'resolved_this_month': 0, 'callback_rate': 0, 'recent_callbacks': 0}
+
+
+def _get_recurring_alert_count():
+    """Get count of overdue + due-soon recurring schedules for sidebar badge."""
+    try:
+        if current_user.is_authenticated and current_user.role in ('owner', 'admin', 'dispatcher'):
+            from web.utils.recurring_engine import get_dashboard_summary
+            db7 = get_session()
+            summary = get_dashboard_summary(db7, current_user.organization_id)
+            db7.close()
+            return summary.get('alert_count', 0)
     except Exception:
         pass
     return 0
@@ -620,6 +863,10 @@ def dashboard():
             pending_approvals=pending_approvals,
             expiring_pos=expiring_pos,
             compliance_alerts=compliance_alerts,
+            warranty_stats=_get_warranty_dashboard_stats(db),
+            callback_stats=_get_callback_dashboard_stats(db),
+            comm_overdue_count=_get_comm_overdue_for_dashboard(db),
+            comm_due_today_count=_get_comm_due_today_for_dashboard(db),
         )
     finally:
         db.close()
@@ -757,6 +1004,19 @@ def create_job():
             estimated_amount=float(data.get('estimated_amount', 0)),
             created_by_id=current_user.id,
         )
+        # Callback handling
+        if data.get('is_callback') and data.get('original_job_id'):
+            job.is_callback = True
+            job.original_job_id = int(data['original_job_id'])
+            # Check if original job has warranty
+            from models.warranty import Warranty as _Warranty
+            orig_warranty = db.query(_Warranty).filter(
+                _Warranty.job_id == int(data['original_job_id']),
+                _Warranty.status.in_(['active', 'expiring_soon']),
+            ).first()
+            if orig_warranty:
+                job.is_warranty_work = True
+
         db.add(job)
         db.flush()
 
@@ -771,7 +1031,36 @@ def create_job():
             sla = detect_sla_for_job(contract, data.get('priority', 'normal'))
             apply_sla_to_job(job, contract, sla, created_at=job.created_at)
 
+        # Auto-create callback record if this is a callback job
+        if job.is_callback and job.original_job_id:
+            from models.callback import Callback
+            from web.utils.callback_utils import generate_callback_number
+            cb = Callback(
+                callback_number=generate_callback_number(db),
+                original_job_id=job.original_job_id,
+                callback_job_id=job.id,
+                client_id=job.client_id,
+                reason='other',
+                description=f'Callback for job {job.original_job_id}',
+                severity='minor',
+                is_warranty=job.is_warranty_work,
+                reported_date=date.today(),
+                status='reported',
+                created_by=current_user.id,
+            )
+            db.add(cb)
+
         db.commit()
+
+        # Notification triggers
+        try:
+            from web.utils.notification_service import NotificationService
+            NotificationService.notify('job_created', job, triggered_by=current_user)
+            if job.assigned_technician_id and job.scheduled_date:
+                NotificationService.notify('job_scheduled', job, triggered_by=current_user)
+        except Exception:
+            pass
+
         return jsonify({'success': True, 'job': job.to_dict()})
     except Exception as e:
         db.rollback()
@@ -865,6 +1154,21 @@ def job_detail(job_id):
         job_documents = get_entity_documents(db, 'job', job.id,
                                               include_confidential=current_user.role in ('owner', 'admin'))
 
+        # Materials data
+        from models.job_material import JobMaterial
+        from models.inventory import InventoryLocation
+        from web.utils.materials_utils import get_job_material_summary
+        job_materials = db.query(JobMaterial).filter_by(job_id=job.id).order_by(JobMaterial.added_at.desc()).all()
+        material_summary = get_job_material_summary(db, job.id)
+        inv_locations = db.query(InventoryLocation).filter_by(
+            organization_id=current_user.organization_id, is_active=True
+        ).order_by(InventoryLocation.name).all()
+        job_phases = job.phases if job.is_multi_phase else []
+
+        # Cost breakdown
+        from web.utils.job_costing import get_job_cost_breakdown
+        cost_breakdown = get_job_cost_breakdown(db, job)
+
         return render_template('job_detail.html',
             active_page='jobs', user=current_user, divisions=get_divisions(),
             job=job.to_dict(), job_obj=job, show_sla_details=show_sla_details,
@@ -892,9 +1196,34 @@ def job_detail(job_id):
             job_checklists=job_checklists,
             job_lien_waivers=job_lien_waivers,
             job_documents=job_documents,
+            job_materials=job_materials,
+            material_summary=material_summary,
+            inv_locations=inv_locations,
+            job_phases=job_phases,
+            can_admin=current_user.role in ('owner', 'admin'),
+            cost_breakdown=cost_breakdown,
+            job_communications=_get_job_communications(db, job.id),
+            job_comm_count=_count_job_communications(db, job.id),
         )
     finally:
         db.close()
+
+
+def _get_job_communications(db, job_id):
+    try:
+        from models.communication import CommunicationLog
+        return db.query(CommunicationLog).filter_by(job_id=job_id).order_by(CommunicationLog.communication_date.desc()).all()
+    except Exception:
+        return []
+
+
+def _count_job_communications(db, job_id):
+    try:
+        from models.communication import CommunicationLog
+        from sqlalchemy import func as _f
+        return db.query(_f.count(CommunicationLog.id)).filter_by(job_id=job_id).scalar() or 0
+    except Exception:
+        return 0
 
 
 @app.route('/jobs/<int:job_id>/pm-notes', methods=['POST'])
@@ -977,7 +1306,28 @@ def update_job_status(job_id):
         if new_status == 'in_progress' and not job.started_at:
             job.started_at = datetime.now(timezone.utc)
         db.commit()
-        return jsonify({'success': True, 'job': job.to_dict()})
+
+        # Notification triggers
+        try:
+            from web.utils.notification_service import NotificationService
+            NotificationService.notify('job_status_changed', job, triggered_by=current_user,
+                                       extra_context={'status': new_status})
+            if new_status == 'completed':
+                NotificationService.notify('job_completed', job, triggered_by=current_user)
+            elif new_status == 'on_hold':
+                NotificationService.notify('job_on_hold', job, triggered_by=current_user)
+        except Exception:
+            pass
+
+        # Check if we should prompt for warranty on completion
+        prompt_warranty = False
+        if new_status == 'completed':
+            from models.warranty import Warranty
+            has_warranty = db.query(Warranty).filter_by(job_id=job_id).first()
+            if not has_warranty:
+                prompt_warranty = True
+
+        return jsonify({'success': True, 'job': job.to_dict(), 'prompt_warranty': prompt_warranty})
     except Exception as e:
         db.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -1117,6 +1467,15 @@ def create_quote():
         if data.get('notes'):
             quote.notes = data['notes']
         db.commit()
+
+        # Notification: quote sent
+        if data.get('status') == 'sent':
+            try:
+                from web.utils.notification_service import NotificationService
+                NotificationService.notify('quote_sent', quote, triggered_by=current_user)
+            except Exception:
+                pass
+
         return jsonify({'success': True, 'quote': quote.to_dict()})
     except Exception as e:
         db.rollback()
@@ -1345,6 +1704,10 @@ def client_detail(client_id):
             default_stmt_start=default_stmt_start,
             default_stmt_end=today_date,
             client_projects=client.projects if hasattr(client, 'projects') else [],
+            active_warranties=client.warranties if hasattr(client, 'warranties') else [],
+            client_callbacks=client.callbacks if hasattr(client, 'callbacks') else [],
+            client_communications=_get_client_communications(db, client_id),
+            client_comm_count=_count_client_communications(db, client_id),
         )
     finally:
         db.close()
@@ -2023,6 +2386,19 @@ def invoice_new():
         db.close()
 
 
+@app.route('/api/invoices/prefill-materials/<int:job_id>')
+@login_required
+def invoice_prefill_materials(job_id):
+    """Return billable verified materials as JSON for invoice line item prefill."""
+    db = get_session()
+    try:
+        from web.utils.materials_utils import get_billable_materials_for_invoice
+        items = get_billable_materials_for_invoice(db, job_id)
+        return jsonify(items)
+    finally:
+        db.close()
+
+
 @app.route('/invoices/<int:invoice_id>')
 @login_required
 def invoice_detail(invoice_id):
@@ -2464,6 +2840,12 @@ def approve_invoice(invoice_id):
         invoice.rejection_reason = None
         db.commit()
 
+        try:
+            from web.utils.notification_service import NotificationService
+            NotificationService.notify('item_approved', invoice, triggered_by=current_user)
+        except Exception:
+            pass
+
         if request.is_json:
             return jsonify({'success': True, 'invoice_number': invoice.invoice_number})
 
@@ -2501,6 +2883,13 @@ def reject_invoice(invoice_id):
         invoice.status = 'draft'
         db.commit()
 
+        try:
+            from web.utils.notification_service import NotificationService
+            NotificationService.notify('item_rejected', invoice, triggered_by=current_user,
+                                       extra_context={'reason': reason})
+        except Exception:
+            pass
+
         if request.is_json:
             return jsonify({'success': True, 'invoice_number': invoice.invoice_number})
 
@@ -2531,6 +2920,103 @@ def save_approval_settings():
         settings.updated_by = current_user.id
         db.commit()
         flash('Approval settings saved.', 'success')
+    finally:
+        db.close()
+    return redirect(url_for('settings_page'))
+
+
+@app.route('/settings/warranty', methods=['POST'])
+@login_required
+def save_warranty_settings():
+    from models.settings import OrganizationSettings
+    if current_user.role not in ('owner', 'admin'):
+        abort(403)
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        settings = OrganizationSettings.get_or_create(db, org_id)
+        settings.default_labor_warranty_months = int(request.form.get('default_labor_warranty_months', 12))
+        settings.default_parts_warranty_months = int(request.form.get('default_parts_warranty_months', 12))
+        mcv = request.form.get('default_max_claim_value', '').strip()
+        settings.default_max_claim_value = float(mcv) if mcv else None
+        settings.callback_lookback_days = int(request.form.get('callback_lookback_days', 90))
+        settings.callback_rate_threshold = float(request.form.get('callback_rate_threshold', 5.0))
+        settings.auto_create_warranty_on_completion = 'auto_create_warranty_on_completion' in request.form
+        settings.default_warranty_terms = request.form.get('default_warranty_terms', '').strip() or None
+        db.commit()
+        flash('Warranty settings saved.', 'success')
+    finally:
+        db.close()
+    return redirect(url_for('settings_page'))
+
+
+@app.route('/settings/communications', methods=['POST'])
+@login_required
+def save_comm_settings():
+    from models.settings import OrganizationSettings
+    if current_user.role not in ('owner', 'admin'):
+        abort(403)
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        settings = OrganizationSettings.get_or_create(db, org_id)
+        settings.inactive_client_alert_days = int(request.form.get('inactive_client_alert_days', 7))
+        settings.default_follow_up_days = int(request.form.get('default_follow_up_days', 3))
+        settings.require_comm_log_on_status_change = 'require_comm_log_on_status_change' in request.form
+        db.commit()
+        flash('Communication settings saved.', 'success')
+    finally:
+        db.close()
+    return redirect(url_for('settings_page'))
+
+
+@app.route('/settings/expenses', methods=['POST'])
+@login_required
+def save_expense_settings():
+    from models.settings import OrganizationSettings
+    if current_user.role not in ('owner', 'admin'):
+        abort(403)
+    db = get_session()
+    try:
+        org_id = current_user.organization_id
+        settings = OrganizationSettings.get_or_create(db, org_id)
+        for field in ['expense_approval_threshold', 'expense_receipt_required_threshold', 'mileage_rate', 'default_expense_markup']:
+            val = request.form.get(field, '').strip()
+            if val:
+                setattr(settings, field, float(val))
+            else:
+                setattr(settings, field, None)
+        settings.expense_approval_roles = request.form.get('expense_approval_roles', 'owner,admin').strip()
+        db.commit()
+        flash('Expense settings saved.', 'success')
+    finally:
+        db.close()
+    return redirect(url_for('settings_page'))
+
+
+@app.route('/settings/notifications/global', methods=['POST'])
+@login_required
+def save_notification_settings():
+    from models.settings import OrganizationSettings
+    if current_user.role not in ('owner', 'admin'):
+        abort(403)
+    db = get_session()
+    try:
+        settings = OrganizationSettings.get_or_create(db, current_user.organization_id)
+        # Boolean fields
+        for field in ('notifications_enabled', 'client_notifications_enabled', 'sms_enabled'):
+            setattr(settings, field, request.form.get(field) == '1')
+        # Integer fields
+        for field in ('notification_polling_interval', 'appointment_reminder_hours'):
+            val = request.form.get(field, '').strip()
+            if val:
+                setattr(settings, field, int(val))
+        # String fields
+        for field in ('email_from_name', 'email_from_address', 'email_reply_to',
+                      'sms_provider', 'sms_api_key', 'sms_from_number', 'invoice_reminder_days'):
+            setattr(settings, field, request.form.get(field, '').strip() or None)
+        db.commit()
+        flash('Notification settings saved.', 'success')
     finally:
         db.close()
     return redirect(url_for('settings_page'))

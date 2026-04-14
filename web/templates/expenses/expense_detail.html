@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ expense.expense_number }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);font-size:var(--font-size-sm);"><a href="{{ url_for('expenses.expense_list') }}" style="color:var(--color-text-muted);text-decoration:none;">Expenses</a> <span style="color:var(--color-text-muted);margin:0 4px;">/</span> {{ expense.expense_number }}</div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0 0 var(--space-1);">{{ expense.title }}</h1>
+        <div style="display:flex;gap:var(--space-2);align-items:center;">
+            <code>{{ expense.expense_number }}</code>
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ expense.status_color }});">{{ expense.status_display }}</span>
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ expense.category_color }});">{{ expense.category_display }}</span>
+            {% if expense.is_billable %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">Billable</span>{% endif %}
+            {% if expense.is_reimbursable %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.1);color:var(--color-info);">Reimbursable</span>{% endif %}
+        </div>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        {% if expense.status == 'draft' %}
+        <form method="POST" action="{{ url_for('expenses.expense_submit', expense_id=expense.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Submit for Approval</button>
+        </form>
+        <a href="{{ url_for('expenses.expense_edit', expense_id=expense.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-pencil"></i> Edit</a>
+        {% elif expense.status == 'submitted' and can_admin %}
+        <form method="POST" action="{{ url_for('expenses.expense_approve', expense_id=expense.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);background:var(--color-success);border-color:var(--color-success);"><i class="bi bi-check-lg"></i> Approve</button>
+        </form>
+        <form method="POST" action="{{ url_for('expenses.expense_reject', expense_id=expense.id) }}" style="display:inline;">
+            <input type="hidden" name="rejection_reason" value="Rejected by admin">
+            <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);color:var(--color-danger);">Reject</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-receipt" style="color:var(--color-accent);"></i> Details</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Date</span><div>{{ expense.expense_date.strftime('%B %d, %Y') if expense.expense_date else '—' }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Vendor</span><div>{{ expense.vendor_name or '—' }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Payment Method</span><div>{{ expense.payment_method_display }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Receipt #</span><div>{{ expense.receipt_number or '—' }}</div></div>
+                    {% if expense.job %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Job</span><div><a href="/jobs/{{ expense.job_id }}" style="color:var(--color-accent);text-decoration:none;">{{ expense.job.job_number }} — {{ expense.job.title[:30] }}</a></div></div>{% endif %}
+                    {% if expense.project %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Project</span><div>{{ expense.project.project_number }}</div></div>{% endif %}
+                    {% if expense.client %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Client</span><div>{{ expense.client.display_name }}</div></div>{% endif %}
+                </div>
+                {% if expense.description %}<div style="margin-top:var(--space-3);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Description</span><div style="font-size:var(--font-size-sm);">{{ expense.description }}</div></div>{% endif %}
+            </div>
+        </div>
+
+        {% if expense.status == 'rejected' and expense.rejection_reason %}
+        <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-md);padding:var(--space-3);margin-bottom:var(--space-4);">
+            <strong style="color:var(--color-danger);"><i class="bi bi-x-circle"></i> Rejected</strong>
+            <div style="margin-top:var(--space-1);color:var(--color-text-muted);">{{ expense.rejection_reason }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Financial</h3></div>
+            <div class="card-body">
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Amount</span><span style="font-weight:600;">${{ "{:,.2f}".format(expense.amount or 0) }}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Tax</span><span>${{ "{:,.2f}".format(expense.tax_amount or 0) }}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total</span><span style="font-weight:700;font-size:var(--font-size-lg);">${{ "{:,.2f}".format(expense.total_amount or 0) }}</span></div>
+                {% if expense.is_billable %}
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Markup</span><span>{{ expense.markup_percentage }}%</span></div>
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Billable Amount</span><span style="font-weight:600;color:var(--color-success);">${{ "{:,.2f}".format(expense.billable_amount or 0) }}</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3 class="card-title">Record Info</h3></div>
+            <div class="card-body" style="font-size:var(--font-size-xs);color:var(--color-text-muted);">
+                <div>Created by {{ expense.created_by_user.full_name if expense.created_by_user else '—' }}</div>
+                <div>{{ expense.created_at.strftime('%b %d, %Y') if expense.created_at else '' }}</div>
+                {% if expense.paid_by_user %}<div>Paid by {{ expense.paid_by_user.full_name }}</div>{% endif %}
+                {% if expense.approved_by_user %}<div>Approved by {{ expense.approved_by_user.full_name }} on {{ expense.approved_date.strftime('%b %d') if expense.approved_date else '' }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

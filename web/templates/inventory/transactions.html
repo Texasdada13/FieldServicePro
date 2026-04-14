@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Inventory Transactions{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Transaction Audit Trail</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">All inventory movements — {{ total }} total records</p>
+    </div>
+    <a href="{{ url_for('inventory.dashboard') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-grid"></i> Dashboard</a>
+</div>
+
+<!-- Filters -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <input type="text" name="part" class="form-control" style="width:auto;min-width:180px;" placeholder="Search part name/number..." value="{{ part_search }}">
+        <select name="type" class="form-control" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+            <option value="">All Types</option>
+            {% for val, label in tx_types %}
+            <option value="{{ val }}" {{ 'selected' if tx_type == val }}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select name="location" class="form-control" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+            <option value="">All Locations</option>
+            {% for loc in locations %}
+            <option value="{{ loc.id }}" {{ 'selected' if location_id == loc.id|string }}>{{ loc.name }}</option>
+            {% endfor %}
+        </select>
+        <input type="date" name="date_from" class="form-control" style="width:auto;" value="{{ date_from }}">
+        <input type="date" name="date_to" class="form-control" style="width:auto;" value="{{ date_to }}">
+        <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Filter</button>
+        {% if tx_type or part_search or location_id or date_from or date_to %}
+        <a href="{{ url_for('inventory.transactions') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="card"><div style="overflow-x:auto;">
+{% if transactions %}
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date/Time</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Part</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Type</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Location</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Qty</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Unit Cost</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Reference</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Notes</th>
+    </tr></thead>
+    <tbody>
+    {% set tx_colors = {'received':'success','issued':'danger','returned':'info','adjusted':'secondary','transferred_in':'accent','transferred_out':'warning','scrapped':'danger','cycle_count':'secondary'} %}
+    {% for tx in transactions %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);white-space:nowrap;">{{ tx.created_at.strftime('%b %d, %Y %H:%M') if tx.created_at else '' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);">
+            {% if tx.part %}
+            <a href="{{ url_for('parts.part_detail', part_id=tx.part_id) }}" style="text-decoration:none;color:var(--color-accent);font-size:var(--font-size-sm);">{{ tx.part.name }}</a>
+            {% else %}—{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);">
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ tx_colors.get(tx.transaction_type, 'secondary') }});">{{ tx.type_display }}</span>
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ tx.location.name if tx.location else '—' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:600;color:{% if tx.quantity > 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">{{ '+' if tx.quantity > 0 else '' }}{{ tx.quantity }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ "${:,.2f}".format(tx.unit_cost|float) if tx.unit_cost else '—' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ "${:,.2f}".format(tx.total_cost|float) if tx.total_cost else '—' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">
+            {{ tx.reference_number or '' }}
+            {% if tx.job_id %}<a href="/jobs/{{ tx.job_id }}" style="color:var(--color-accent);">Job</a>{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);max-width:150px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="{{ tx.notes or '' }}">{{ tx.notes or '' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) var(--space-3);border-top:1px solid var(--color-border);">
+    <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Showing {{ (page-1)*per_page + 1 }}–{{ [page*per_page, total]|min }} of {{ total }}</span>
+    <div style="display:flex;gap:var(--space-1);">
+        {% if page > 1 %}
+        <a href="?page={{ page-1 }}&type={{ tx_type }}&location={{ location_id }}&date_from={{ date_from }}&date_to={{ date_to }}&part={{ part_search }}" class="btn btn-ghost" style="padding:2px 8px;font-size:var(--font-size-xs);">&laquo; Prev</a>
+        {% endif %}
+        {% for p in range([1, page-2]|max, [total_pages+1, page+3]|min) %}
+        <a href="?page={{ p }}&type={{ tx_type }}&location={{ location_id }}&date_from={{ date_from }}&date_to={{ date_to }}&part={{ part_search }}" class="btn {% if p == page %}btn-accent{% else %}btn-ghost{% endif %}" style="padding:2px 8px;font-size:var(--font-size-xs);">{{ p }}</a>
+        {% endfor %}
+        {% if page < total_pages %}
+        <a href="?page={{ page+1 }}&type={{ tx_type }}&location={{ location_id }}&date_from={{ date_from }}&date_to={{ date_to }}&part={{ part_search }}" class="btn btn-ghost" style="padding:2px 8px;font-size:var(--font-size-xs);">Next &raquo;</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-clock-history" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4 style="color:var(--color-text-muted);">No transactions found</h4>
+</div>
+{% endif %}
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

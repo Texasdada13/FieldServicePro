@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Inventory Locations{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Inventory Locations</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Warehouses, vehicles, and job sites</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        <a href="{{ url_for('inventory.dashboard') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-grid"></i> Dashboard</a>
+        {% if can_admin %}
+        <a href="{{ url_for('inventory.new_location') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> Add Location</a>
+        {% endif %}
+    </div>
+</div>
+
+{% set loc_groups = [
+    ('warehouse', 'Warehouses', 'building'),
+    ('truck', 'Vehicles / Trucks', 'truck'),
+    ('job_site', 'Job Sites', 'geo-alt'),
+    ('office', 'Offices', 'building'),
+    ('other', 'Other', 'box'),
+] %}
+
+{% for type_key, group_name, icon in loc_groups %}
+    {% set group_locs = locations|selectattr('location_type', 'equalto', type_key)|list %}
+    {% if group_locs %}
+    <div style="margin-bottom:var(--space-4);">
+        <h3 style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-transform:uppercase;margin:0 0 var(--space-2);display:flex;align-items:center;gap:var(--space-2);">
+            <i class="bi bi-{{ icon }}"></i> {{ group_name }}
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ group_locs|length }}</span>
+        </h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--space-3);">
+            {% for loc in group_locs %}
+            <div class="card" style="{% if not loc.is_active %}opacity:0.6;{% endif %}">
+                <div class="card-body" style="padding:var(--space-3);">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-2);">
+                        <h4 style="font-size:var(--font-size-base);font-weight:600;margin:0;">{{ loc.name }}</h4>
+                        {% if loc.is_active %}
+                        <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);">Active</span>
+                        {% else %}
+                        <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">Inactive</span>
+                        {% endif %}
+                    </div>
+                    {% if loc.address %}
+                    <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin:0 0 var(--space-2);"><i class="bi bi-geo-alt" style="margin-right:4px;"></i>{{ loc.address }}</p>
+                    {% endif %}
+                    {% if loc.technician %}
+                    <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin:0 0 var(--space-2);"><i class="bi bi-person" style="margin-right:4px;"></i>{{ loc.technician.full_name }}</p>
+                    {% endif %}
+                    <div style="display:flex;gap:var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">
+                        <span><i class="bi bi-box" style="margin-right:2px;"></i>{{ loc.stocks|length }} parts</span>
+                        <span><i class="bi bi-stack" style="margin-right:2px;"></i>{{ loc.total_items }} units</span>
+                    </div>
+                </div>
+                <div style="padding:var(--space-2) var(--space-3);border-top:1px solid var(--color-border);display:flex;gap:var(--space-2);">
+                    <a href="{{ url_for('inventory.location_detail', loc_id=loc.id) }}" class="btn btn-ghost" style="flex:1;font-size:var(--font-size-sm);text-align:center;"><i class="bi bi-eye"></i> View Stock</a>
+                    {% if can_admin %}
+                    <a href="{{ url_for('inventory.edit_location', loc_id=loc.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-pencil"></i></a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+
+{% if not locations %}
+<div style="text-align:center;padding:var(--space-6);color:var(--color-text-muted);">
+    <i class="bi bi-building" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4 style="color:var(--color-text-muted);">No locations yet</h4>
+    {% if can_admin %}
+    <a href="{{ url_for('inventory.new_location') }}" class="btn btn-accent" style="margin-top:var(--space-2);">Add First Location</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Notification Log{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;"><i class="bi bi-journal-text" style="color:var(--color-accent);"></i> Notification Log</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Audit trail for all sent notifications and emails</p>
+    </div>
+</div>
+
+<!-- Stats -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--color-accent);">{{ stats.total_today }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Sent Today</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--color-success);">{{ stats.total_emails }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Emails</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--color-info);">{{ stats.total_sms }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total SMS</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--color-danger);">{{ stats.total_failed }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Failed</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<form method="get" class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr) auto auto;gap:var(--space-2);align-items:end;">
+        <div>
+            <select name="channel" class="form-select" style="font-size:var(--font-size-sm);">
+                <option value="">All Channels</option>
+                <option value="email" {% if current_filters.channel == 'email' %}selected{% endif %}>Email</option>
+                <option value="sms" {% if current_filters.channel == 'sms' %}selected{% endif %}>SMS</option>
+                <option value="in_app" {% if current_filters.channel == 'in_app' %}selected{% endif %}>In-App</option>
+            </select>
+        </div>
+        <div>
+            <select name="status" class="form-select" style="font-size:var(--font-size-sm);">
+                <option value="">All Statuses</option>
+                <option value="sent" {% if current_filters.status == 'sent' %}selected{% endif %}>Sent</option>
+                <option value="failed" {% if current_filters.status == 'failed' %}selected{% endif %}>Failed</option>
+                <option value="logged_not_sent" {% if current_filters.status == 'logged_not_sent' %}selected{% endif %}>Logged</option>
+            </select>
+        </div>
+        <div>
+            <input type="date" name="date_from" class="form-control" value="{{ current_filters.date_from }}" style="font-size:var(--font-size-sm);">
+        </div>
+        <div>
+            <input type="date" name="date_to" class="form-control" value="{{ current_filters.date_to }}" style="font-size:var(--font-size-sm);">
+        </div>
+        <div>
+            <input type="text" name="q" class="form-control" value="{{ current_filters.q }}" placeholder="Search email/subject..." style="font-size:var(--font-size-sm);">
+        </div>
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Filter</button>
+        <a href="{{ url_for('notifications.notification_log') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+    </div>
+</form>
+
+<!-- Log Table -->
+<div class="card" style="padding:0;">
+<div style="overflow-x:auto;">
+{% if logs %}
+<table style="width:100%;border-collapse:collapse;">
+    <thead>
+        <tr style="border-bottom:2px solid var(--color-border);">
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Time</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Channel</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Recipient</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Subject / Message</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Entity</th>
+            <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Status</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for log in logs %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);white-space:nowrap;">
+            {{ log.created_at.strftime('%m/%d %H:%M') if log.created_at else '' }}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);">
+            <span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:{% if log.channel == 'email' %}var(--color-accent){% elif log.channel == 'sms' %}var(--color-success){% else %}var(--color-info){% endif %};color:#fff;">
+                <i class="bi {% if log.channel == 'email' %}bi-envelope{% elif log.channel == 'sms' %}bi-phone{% else %}bi-bell{% endif %}"></i>
+                {{ log.channel }}
+            </span>
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ log.recipient_email or log.recipient_phone or '' }}">
+            {{ log.recipient_email or log.recipient_phone or '—' }}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);max-width:300px;">
+            {% if log.subject %}<div style="font-size:var(--font-size-sm);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ log.subject }}">{{ log.subject }}</div>{% endif %}
+            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ log.body[:100] if log.body else '' }}</div>
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);white-space:nowrap;">
+            {% if log.entity_type %}{{ log.entity_type|title }} #{{ log.entity_id }}{% else %}—{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">
+            <span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:{% if log.status == 'sent' %}var(--color-success){% elif log.status == 'failed' %}var(--color-danger){% else %}var(--color-warning){% endif %};color:#fff;">
+                {{ log.status|replace('_',' ') }}
+            </span>
+            {% if log.error_message %}
+            <i class="bi bi-info-circle" style="color:var(--color-danger);cursor:help;margin-left:4px;" title="{{ log.error_message }}"></i>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-journal" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4>No log entries found</h4>
+</div>
+{% endif %}
+</div>
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div style="display:flex;justify-content:center;gap:var(--space-2);padding:var(--space-3);">
+    {% if page > 1 %}
+    <a href="{{ url_for('notifications.notification_log', page=page-1, **current_filters) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">&laquo; Prev</a>
+    {% endif %}
+    <span style="padding:var(--space-2);font-size:var(--font-size-sm);color:var(--color-text-muted);">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="{{ url_for('notifications.notification_log', page=page+1, **current_filters) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Next &raquo;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

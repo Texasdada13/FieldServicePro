@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}{{ tech.full_name }} — Truck Stock{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div style="margin-bottom:var(--space-2);font-size:var(--font-size-sm);">
+    <a href="{{ url_for('inventory.dashboard') }}" style="color:var(--color-text-muted);text-decoration:none;">Inventory</a>
+    <span style="color:var(--color-text-muted);margin:0 4px;">/</span>
+    <span>Truck Stock</span>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0 0 var(--space-1);"><i class="bi bi-truck" style="color:var(--color-accent);margin-right:var(--space-2);"></i>{{ tech.full_name }}'s Truck</h1>
+        {% if truck_location %}
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:0;">{{ truck_location.name }}</p>
+        {% else %}
+        <div style="display:inline-flex;align-items:center;gap:var(--space-2);background:rgba(245,158,11,0.1);border-radius:var(--radius-md);padding:var(--space-1) var(--space-3);margin-top:var(--space-1);">
+            <i class="bi bi-exclamation-triangle" style="color:var(--color-warning);"></i>
+            <span style="font-size:var(--font-size-sm);color:var(--color-warning);">No vehicle location assigned.
+            {% if can_admin %}<a href="{{ url_for('inventory.new_location') }}" style="color:var(--color-accent);">Create one</a>{% endif %}</span>
+        </div>
+        {% endif %}
+    </div>
+    <div style="display:flex;gap:var(--space-2);align-items:center;">
+        {% if active_job %}
+        <span style="font-size:var(--font-size-xs);font-weight:600;padding:4px 12px;border-radius:999px;background:rgba(16,185,129,0.1);color:var(--color-success);"><i class="bi bi-briefcase" style="margin-right:4px;"></i>Active: {{ active_job.title[:30] }}</span>
+        {% endif %}
+        {% if truck_location and warehouses %}
+        <button onclick="document.getElementById('restockOverlay').style.display='flex'" class="btn btn-accent" style="font-size:var(--font-size-sm);"><i class="bi bi-cart-plus"></i> Request Restock</button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pending Restocks -->
+{% if pending_restocks %}
+<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-2);">
+    <i class="bi bi-truck" style="color:var(--color-info);font-size:1.1rem;"></i>
+    <span style="font-size:var(--font-size-sm);"><strong>{{ pending_restocks|length }} restock request{{ 's' if pending_restocks|length > 1 else '' }}</strong> in progress:
+    {% for t in pending_restocks %}
+    <a href="{{ url_for('transfers.transfer_detail', transfer_id=t.id) }}" style="color:var(--color-accent);margin-left:var(--space-2);">{{ t.transfer_number }} ({{ t.status_display }})</a>
+    {% endfor %}
+    </span>
+</div>
+{% endif %}
+
+{% if truck_location %}
+<!-- Truck Stock -->
+<div class="card">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 class="card-title"><i class="bi bi-box" style="color:var(--color-info);"></i> Current Stock</h3>
+        <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ stocks|length }} parts &middot; {{ stocks|sum(attribute='quantity_on_hand') }} total units</span>
+    </div>
+    <div class="card-body" style="padding:0;">
+        {% if stocks %}
+        {% set ns = namespace(current_trade='') %}
+        {% for stock in stocks %}
+            {% if stock.part.trade != ns.current_trade %}
+                {% set ns.current_trade = stock.part.trade %}
+                <div style="padding:var(--space-1) var(--space-3);background:var(--color-surface-raised);border-bottom:1px solid var(--color-border);">
+                    <span style="font-size:var(--font-size-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;">{{ stock.part.trade_display }}</span>
+                </div>
+            {% endif %}
+            <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);{% if stock.is_low_stock %}background:rgba(245,158,11,0.04);{% endif %}">
+                <div style="flex:1;">
+                    <div style="font-weight:500;">{{ stock.part.name }}
+                        {% if stock.is_low_stock %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:1px 6px;border-radius:999px;background:rgba(245,158,11,0.15);color:var(--color-warning);margin-left:4px;">Low Stock</span>{% endif %}
+                    </div>
+                    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);font-family:monospace;">{{ stock.part.part_number }}</div>
+                </div>
+                <div style="text-align:center;min-width:70px;">
+                    <div style="font-weight:700;font-size:var(--font-size-lg);{% if stock.is_low_stock %}color:var(--color-warning);{% endif %}">{{ stock.quantity_on_hand }}</div>
+                    <div style="font-size:0.65rem;color:var(--color-text-muted);">{{ stock.part.unit_display }}</div>
+                </div>
+                {% if active_job %}
+                <div>
+                    <button onclick="prepareQuickUse({{ stock.part.id }}, '{{ stock.part.name|replace("'", "\\'") }}', {{ stock.quantity_on_hand }}, '{{ stock.part.unit_display }}')" class="btn btn-ghost" style="font-size:var(--font-size-sm);color:var(--color-success);border-color:var(--color-success);"><i class="bi bi-lightning-fill"></i> Used This</button>
+                </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        {% else %}
+        <div style="text-align:center;padding:var(--space-6);color:var(--color-text-muted);">
+            <i class="bi bi-inbox" style="font-size:1.5rem;opacity:0.3;display:block;margin-bottom:var(--space-1);"></i>
+            <p style="margin:0;">No stock loaded on this truck.</p>
+            {% if warehouses %}
+            <button onclick="document.getElementById('restockOverlay').style.display='flex'" class="btn btn-ghost" style="margin-top:var(--space-2);">Request Initial Restock</button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Quick Use Modal ── -->
+{% if active_job %}
+<div id="quickUseOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+<div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:400px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 var(--space-3);"><i class="bi bi-lightning-fill" style="color:var(--color-success);margin-right:var(--space-2);"></i>Log Material Used</h3>
+    <form method="POST" action="{{ url_for('truck.quick_use', tech_id=tech.id) }}">
+        <input type="hidden" name="job_id" value="{{ active_job.id }}">
+        <input type="hidden" name="part_id" id="quickPartId">
+        <p style="margin:0 0 var(--space-1);font-size:var(--font-size-sm);">Part: <strong id="quickPartName"></strong></p>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-xs);margin:0 0 var(--space-3);">Job: {{ active_job.title }} ({{ active_job.job_number }})</p>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Quantity Used</label>
+            <div style="display:flex;gap:var(--space-2);align-items:center;">
+                <input type="number" name="quantity" id="quickQty" class="form-control" style="width:120px;" step="0.01" min="0.01" value="1" required>
+                <span style="font-size:var(--font-size-sm);color:var(--color-text-muted);" id="quickUnit"></span>
+            </div>
+            <small style="color:var(--color-text-muted);">Available on truck: <span id="quickAvail"></span></small>
+        </div>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+            <button type="button" onclick="document.getElementById('quickUseOverlay').style.display='none'" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-accent" style="background:var(--color-success);border-color:var(--color-success);"><i class="bi bi-check-lg"></i> Log Usage</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endif %}
+
+<!-- ── Restock Request Modal ── -->
+{% if warehouses %}
+<div id="restockOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+<div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:var(--space-4);width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+        <h3 style="margin:0;"><i class="bi bi-cart-plus" style="color:var(--color-accent);margin-right:var(--space-2);"></i>Request Restock</h3>
+        <button onclick="document.getElementById('restockOverlay').style.display='none'" style="border:none;background:none;cursor:pointer;font-size:1.2rem;color:var(--color-text-muted);">&times;</button>
+    </div>
+    <form method="POST" action="{{ url_for('truck.request_restock', tech_id=tech.id) }}">
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">From Warehouse *</label>
+            <select name="warehouse_id" class="form-control" required id="restockWarehouse" onchange="loadWarehouseStock(this.value)">
+                <option value="">Select warehouse...</option>
+                {% for wh in warehouses %}
+                <option value="{{ wh.id }}">{{ wh.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="restockItems">
+            <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);">Select a warehouse to see available parts</p>
+        </div>
+        <button type="button" onclick="addRestockRow()" class="btn btn-ghost" style="font-size:var(--font-size-sm);margin-bottom:var(--space-3);"><i class="bi bi-plus-lg"></i> Add Part</button>
+        <div class="form-group" style="margin-bottom:var(--space-3);">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="e.g., Running low on copper fittings"></textarea>
+        </div>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+            <button type="button" onclick="document.getElementById('restockOverlay').style.display='none'" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-accent">Submit Restock Request</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endif %}
+
+<script>
+function prepareQuickUse(partId, partName, available, unit) {
+    document.getElementById('quickPartId').value = partId;
+    document.getElementById('quickPartName').textContent = partName;
+    document.getElementById('quickAvail').textContent = available + ' ' + unit;
+    document.getElementById('quickUnit').textContent = unit;
+    document.getElementById('quickQty').max = available;
+    document.getElementById('quickUseOverlay').style.display = 'flex';
+}
+
+var warehouseStock = [];
+function loadWarehouseStock(locationId) {
+    if (!locationId) return;
+    fetch('/inventory/transfers/api/location-stock/' + locationId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            warehouseStock = data;
+            var container = document.getElementById('restockItems');
+            container.innerHTML = '';
+            addRestockRow();
+        });
+}
+
+function addRestockRow() {
+    if (warehouseStock.length === 0) { alert('Select a warehouse first.'); return; }
+    var container = document.getElementById('restockItems');
+    var div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:var(--space-2);margin-bottom:var(--space-2);align-items:center;';
+    div.innerHTML = '<select name="part_id[]" class="form-control" style="flex:1;" required>' +
+        '<option value="">Select part...</option>' +
+        warehouseStock.map(function(s) { return '<option value="' + s.part_id + '">' + s.part_name + ' (' + s.available + ' avail)</option>'; }).join('') +
+        '</select>' +
+        '<input type="number" name="quantity[]" class="form-control" style="width:80px;" placeholder="Qty" min="1" required>' +
+        '<button type="button" onclick="this.parentElement.remove()" class="btn btn-ghost" style="padding:2px 6px;font-size:var(--font-size-xs);color:var(--color-danger);"><i class="bi bi-trash"></i></button>';
+    container.appendChild(div);
+}
+
+// Close overlays on backdrop click
+['quickUseOverlay','restockOverlay'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
+});
+</script>
+{% endblock %}

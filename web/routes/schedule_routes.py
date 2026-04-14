@@ -124,6 +124,12 @@ def schedule_assign():
 
         db.commit()
 
+        try:
+            from web.utils.notification_service import NotificationService
+            NotificationService.notify('job_scheduled', job, triggered_by=current_user)
+        except Exception:
+            pass
+
         div_color = job.division.color if job.division else '#2563eb'
         event_end = job.scheduled_end or (job.scheduled_date + timedelta(hours=2))
 
@@ -176,11 +182,21 @@ def schedule_reschedule():
         if not job:
             return jsonify({'success': False, 'error': 'Job not found'}), 404
 
+        original_date = job.scheduled_date
         job.scheduled_date = datetime.fromisoformat(new_start.replace('Z', ''))
         if new_end:
             job.scheduled_end = datetime.fromisoformat(new_end.replace('Z', ''))
 
         db.commit()
+
+        if original_date and original_date != job.scheduled_date:
+            try:
+                from web.utils.notification_service import NotificationService
+                NotificationService.notify('schedule_changed', job, triggered_by=current_user,
+                                           extra_context={'scheduled_date': job.scheduled_date.strftime('%B %d, %Y')})
+            except Exception:
+                pass
+
         return jsonify({'success': True})
     except Exception as e:
         db.rollback()

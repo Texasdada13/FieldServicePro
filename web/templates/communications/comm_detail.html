@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ log.log_number }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);font-size:var(--font-size-sm);">
+    <a href="{{ url_for('communications.communication_list') }}" style="color:var(--color-text-muted);text-decoration:none;">Communications</a>
+    <span style="color:var(--color-text-muted);margin:0 4px;">/</span>{{ log.log_number }}
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0 0 var(--space-1);">{{ log.subject }}</h1>
+        <div style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+            <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);"><i class="{{ log.type_icon }}"></i> {{ log.type_display }}</span>
+            <span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ log.priority_color }});">{{ log.priority|title }}</span>
+            {% if log.sentiment %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ log.sentiment_color }});">{{ log.sentiment|title }}</span>{% endif %}
+            {% if log.is_escalation %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.1);color:var(--color-danger);">Escalation</span>{% endif %}
+            {% if log.direction %}<span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ log.direction_display }}</span>{% endif %}
+        </div>
+    </div>
+    {% if can_admin %}
+    <div style="display:flex;gap:var(--space-2);">
+        <a href="{{ url_for('communications.communication_edit', log_id=log.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-pencil"></i> Edit</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if log.is_follow_up_overdue %}
+<div style="display:flex;align-items:center;gap:var(--space-2);background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <i class="bi bi-exclamation-triangle" style="color:var(--color-danger);"></i>
+    <span style="font-size:var(--font-size-sm);"><strong>Follow-up overdue</strong> — was due {{ log.follow_up_date.strftime('%b %d, %Y') }}</span>
+    <form method="POST" action="{{ url_for('communications.complete_follow_up', log_id=log.id) }}" style="margin-left:auto;">
+        <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-xs);color:var(--color-success);"><i class="bi bi-check-circle"></i> Complete</button>
+    </form>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <!-- Left -->
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="{{ log.type_icon }}" style="color:var(--color-accent);"></i> Details</h3></div>
+            <div class="card-body">
+                {% if log.description %}<div style="margin-bottom:var(--space-3);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Description</span><div style="font-size:var(--font-size-sm);white-space:pre-wrap;">{{ log.description }}</div></div>{% endif %}
+                {% if log.outcome %}<div style="margin-bottom:var(--space-3);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Outcome</span><div style="font-size:var(--font-size-sm);white-space:pre-wrap;">{{ log.outcome }}</div></div>{% endif %}
+                {% if log.duration_minutes %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Duration</span><div>{{ log.duration_minutes }} minutes</div></div>{% endif %}
+            </div>
+        </div>
+
+        {% if log.follow_up_required %}
+        <div class="card" style="margin-bottom:var(--space-4);border-left:3px solid {% if log.follow_up_completed %}var(--color-success){% elif log.is_follow_up_overdue %}var(--color-danger){% else %}var(--color-warning){% endif %};">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-bell" style="color:{% if log.follow_up_completed %}var(--color-success){% elif log.is_follow_up_overdue %}var(--color-danger){% else %}var(--color-warning){% endif %};"></i> Follow-up</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Due Date</span><div style="font-weight:600;{% if log.is_follow_up_overdue %}color:var(--color-danger);{% endif %}">{{ log.follow_up_date.strftime('%b %d, %Y') if log.follow_up_date else 'Not set' }}</div></div>
+                    <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Status</span><div>{% if log.follow_up_completed %}<span style="color:var(--color-success);font-weight:600;"><i class="bi bi-check-circle-fill"></i> Completed {{ log.follow_up_completed_date.strftime('%b %d') if log.follow_up_completed_date else '' }}</span>{% elif log.is_follow_up_overdue %}<span style="color:var(--color-danger);font-weight:600;">Overdue</span>{% else %}<span style="color:var(--color-warning);">Pending</span>{% endif %}</div></div>
+                </div>
+                {% if log.follow_up_notes %}<div style="margin-top:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Notes</span><div style="font-size:var(--font-size-sm);">{{ log.follow_up_notes }}</div></div>{% endif %}
+                {% if not log.follow_up_completed %}
+                <form method="POST" action="{{ url_for('communications.complete_follow_up', log_id=log.id) }}" style="margin-top:var(--space-2);">
+                    <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);background:var(--color-success);border-color:var(--color-success);"><i class="bi bi-check-lg"></i> Mark Complete</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if thread %}
+        <div class="card">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-chat-dots" style="color:var(--color-info);"></i> Communication Thread</h3></div>
+            <div class="card-body" style="padding:0;">
+                {% for t in thread %}
+                <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;">
+                    <div>
+                        <a href="{{ url_for('communications.communication_detail', log_id=t.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:500;font-size:var(--font-size-sm);">{{ t.subject }}</a>
+                        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);"><i class="{{ t.type_icon }}"></i> {{ t.type_display }} — {{ t.communication_date.strftime('%b %d, %H:%M') if t.communication_date else '' }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right -->
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Info</h3></div>
+            <div class="card-body">
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Log #</span><code>{{ log.log_number }}</code></div>
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Date</span><span>{{ log.communication_date.strftime('%b %d, %Y %H:%M') if log.communication_date else '' }}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Client</span><span>{{ log.client.display_name if log.client else '—' }}</span></div>
+                {% if log.contact_name %}<div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Contact</span><span>{{ log.contact_name }}</span></div>{% endif %}
+                {% if log.related_entity_label %}<div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Related</span><span>{{ log.related_entity_label }}</span></div>{% endif %}
+                <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Logged By</span><span>{{ log.logged_by.full_name if log.logged_by else '—' }}</span></div>
+            </div>
+        </div>
+
+        {% if log.tags_list %}
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Tags</h3></div>
+            <div class="card-body">
+                {% for tag in log.tags_list %}<span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);margin-right:var(--space-1);">{{ tag }}</span>{% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

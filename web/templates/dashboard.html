@@ -30,6 +30,44 @@ a.metric-card--link:hover .metric-card__label {
   <h1 class="dash-hello">Good {% if now %}{% set h = now().hour %}{% if h < 12 %}morning{% elif h < 17 %}afternoon{% else %}evening{% endif %}{% else %}day{% endif %}, {{ user.first_name or 'there' }}</h1>
 </div>
 
+<!-- PM Due Alert -->
+{% if recurring_alert_count is defined and recurring_alert_count > 0 %}
+<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:flex;align-items:center;gap:var(--space-2);">
+        <i class="bi bi-arrow-repeat" style="font-size:1.2rem;color:var(--color-warning);"></i>
+        <span style="font-size:var(--font-size-sm);"><strong>{{ recurring_alert_count }} Recurring Schedule{{ 's' if recurring_alert_count != 1 else '' }} Due</strong> — Preventive maintenance jobs need attention.</span>
+    </div>
+    <a href="{{ url_for('recurring.schedule_list') }}?status=active" class="btn btn-ghost" style="font-size:var(--font-size-xs);color:var(--color-warning);border-color:var(--color-warning);">View Schedules</a>
+</div>
+{% endif %}
+
+<!-- Warranty/Callback Alerts -->
+{% if warranty_stats is defined and warranty_stats.expiring_soon > 0 %}
+<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-2);">
+    <span style="font-size:var(--font-size-sm);"><i class="bi bi-shield-exclamation" style="color:var(--color-warning);margin-right:var(--space-2);"></i><strong>{{ warranty_stats.expiring_soon }}</strong> warranty(s) expiring within 30 days</span>
+    <a href="{{ url_for('warranty.warranty_list') }}?expiring_soon=1" class="btn btn-ghost" style="font-size:var(--font-size-xs);color:var(--color-warning);">View</a>
+</div>
+{% endif %}
+{% if callback_stats is defined and callback_stats.open_callbacks > 0 %}
+<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.12);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <span style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-return-left" style="color:var(--color-danger);margin-right:var(--space-2);"></i><strong>{{ callback_stats.open_callbacks }}</strong> open callback(s) need resolution{% if callback_stats.callback_rate > 5 %} &middot; <span style="color:var(--color-danger);">{{ callback_stats.callback_rate }}% rate</span>{% endif %}</span>
+    <a href="{{ url_for('callback.callback_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-xs);color:var(--color-danger);">View</a>
+</div>
+{% endif %}
+
+<!-- Communication Follow-ups -->
+{% if comm_overdue_count is defined and comm_overdue_count > 0 %}
+<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-2);">
+    <span style="font-size:var(--font-size-sm);"><i class="bi bi-calendar-check" style="color:var(--color-danger);margin-right:var(--space-2);"></i><strong>{{ comm_overdue_count }}</strong> overdue follow-up{{ 's' if comm_overdue_count != 1 else '' }}{% if comm_due_today_count is defined and comm_due_today_count > 0 %} + <strong>{{ comm_due_today_count }}</strong> due today{% endif %}</span>
+    <a href="{{ url_for('communications.follow_up_queue') }}" class="btn btn-ghost" style="font-size:var(--font-size-xs);color:var(--color-danger);">View Queue</a>
+</div>
+{% elif comm_due_today_count is defined and comm_due_today_count > 0 %}
+<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-2);">
+    <span style="font-size:var(--font-size-sm);"><i class="bi bi-calendar-check" style="color:var(--color-warning);margin-right:var(--space-2);"></i><strong>{{ comm_due_today_count }}</strong> follow-up{{ 's' if comm_due_today_count != 1 else '' }} due today</span>
+    <a href="{{ url_for('communications.follow_up_queue') }}" class="btn btn-ghost" style="font-size:var(--font-size-xs);color:var(--color-warning);">View Queue</a>
+</div>
+{% endif %}
+
 <!-- ══════════════ ROW 1 — KPI Cards ══════════════ -->
 <div class="dash-kpi-row">
 

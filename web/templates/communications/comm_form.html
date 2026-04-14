@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% set is_edit = log is not none %}
+{% block title %}{{ 'Edit' if is_edit else 'Log' }} Communication{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('communications.communication_list') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a></div>
+<h1 style="margin:0 0 var(--space-4);">{{ 'Edit' if is_edit else 'Log' }} Communication</h1>
+
+<form method="POST">
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <div>
+        <!-- Template + Type -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-chat-dots" style="color:var(--color-accent);"></i> Communication</h3></div>
+            <div class="card-body">
+                {% if templates and not is_edit %}
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">Use Template</label>
+                    <select id="templateSelect" class="form-control" onchange="loadTemplate(this.value)">
+                        <option value="">— None —</option>
+                        {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Type *</label>
+                        <select name="communication_type" id="commType" class="form-control" required>
+                            {% for val, label in comm_types %}<option value="{{ val }}" {{ 'selected' if (is_edit and log.communication_type == val) or (not is_edit and prefill.type == val) }}>{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Date/Time *</label>
+                        <input type="datetime-local" name="communication_date" class="form-control" value="{{ log.communication_date.strftime('%Y-%m-%dT%H:%M') if is_edit else '' }}">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Subject *</label>
+                    <input type="text" name="subject" id="commSubject" class="form-control" required value="{{ log.subject if is_edit else '' }}" placeholder="Brief summary of the communication">
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Description</label>
+                    <textarea name="description" id="commDesc" class="form-control" rows="4" placeholder="Full details of the conversation...">{{ log.description if is_edit else '' }}</textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Outcome</label>
+                    <textarea name="outcome" class="form-control" rows="2" placeholder="What was decided or agreed upon?">{{ log.outcome if is_edit else '' }}</textarea>
+                </div>
+                <div class="form-group"><label class="form-label">Duration (minutes)</label>
+                    <input type="number" name="duration_minutes" class="form-control" style="width:120px;" min="0" value="{{ log.duration_minutes if is_edit else '' }}">
+                </div>
+            </div>
+        </div>
+
+        <!-- Client + Links -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-people" style="color:var(--color-info);"></i> Client & Links</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Client *</label>
+                        <select name="client_id" id="clientSelect" class="form-control" required onchange="loadEntities(this.value)">
+                            <option value="">Select client...</option>
+                            {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if (is_edit and log.client_id == c.id) or (not is_edit and prefill.client_id == c.id|string) }}>{{ c.display_name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Job</label>
+                        <select name="job_id" id="jobSelect" class="form-control">
+                            <option value="">—</option>
+                            {% if is_edit and log.job %}<option value="{{ log.job_id }}" selected>{{ log.job.job_number }} — {{ log.job.title[:30] }}</option>{% endif %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Contact Name</label><input type="text" name="contact_name" class="form-control" value="{{ log.contact_name if is_edit else '' }}"></div>
+                    <div class="form-group"><label class="form-label">Contact Phone</label><input type="text" name="contact_phone" class="form-control" value="{{ log.contact_phone if is_edit else '' }}"></div>
+                    <div class="form-group"><label class="form-label">Contact Email</label><input type="email" name="contact_email" class="form-control" value="{{ log.contact_email if is_edit else '' }}"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Tags <small style="color:var(--color-text-muted);">comma-separated</small></label>
+                    <input type="text" name="tags" class="form-control" value="{{ log.tags_list|join(', ') if is_edit else '' }}" placeholder="e.g., billing, complaint, scheduling">
+                </div>
+            </div>
+        </div>
+
+        <!-- Follow-up -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-bell" style="color:var(--color-warning);"></i> Follow-up</h3></div>
+            <div class="card-body">
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-3);">
+                    <input type="checkbox" name="follow_up_required" id="fuCheck" {{ 'checked' if is_edit and log.follow_up_required }} onchange="document.getElementById('fuFields').style.display=this.checked?'block':'none'">
+                    <span style="font-weight:500;">Follow-up required</span>
+                </label>
+                <div id="fuFields" style="{% if not is_edit or not log.follow_up_required %}display:none;{% endif %}">
+                    <div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-3);">
+                        <div class="form-group"><label class="form-label">Follow-up Date</label><input type="date" name="follow_up_date" id="fuDate" class="form-control" value="{{ log.follow_up_date.isoformat() if is_edit and log.follow_up_date else '' }}"></div>
+                        <div class="form-group"><label class="form-label">Follow-up Notes</label><input type="text" name="follow_up_notes" class="form-control" value="{{ log.follow_up_notes if is_edit else '' }}" placeholder="What needs to happen next?"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right -->
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Priority & Sentiment</h3></div>
+            <div class="card-body">
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Priority</label>
+                    <select name="priority" id="commPriority" class="form-control">
+                        {% for val, label in comm_priorities %}<option value="{{ val }}" {{ 'selected' if is_edit and log.priority == val }}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Sentiment</label>
+                    <select name="sentiment" class="form-control">
+                        <option value="">—</option>
+                        {% for val, label in comm_sentiments %}<option value="{{ val }}" {{ 'selected' if is_edit and log.sentiment == val }}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                    <input type="checkbox" name="is_escalation" {{ 'checked' if is_edit and log.is_escalation }}>
+                    <span style="font-weight:500;color:var(--color-danger);">Escalation</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+            <button type="submit" class="btn btn-accent" style="width:100%;"><i class="bi bi-check-lg"></i> {{ 'Save Changes' if is_edit else 'Log Communication' }}</button>
+            <a href="{{ url_for('communications.communication_list') }}" class="btn btn-ghost" style="width:100%;text-align:center;">Cancel</a>
+        </div>
+    </div>
+</div>
+</form>
+
+<script>
+function loadEntities(clientId) {
+    if (!clientId) return;
+    fetch('/communications/api/client/' + clientId + '/entities')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var jobSel = document.getElementById('jobSelect');
+            jobSel.innerHTML = '<option value="">—</option>';
+            (data.jobs || []).forEach(function(j) {
+                jobSel.innerHTML += '<option value="' + j.id + '">' + j.number + ' — ' + j.title + '</option>';
+            });
+        });
+}
+
+function loadTemplate(templateId) {
+    if (!templateId) return;
+    fetch('/communications/api/template/' + templateId)
+        .then(function(r) { return r.json(); })
+        .then(function(t) {
+            if (t.communication_type) document.getElementById('commType').value = t.communication_type;
+            if (t.subject) document.getElementById('commSubject').value = t.subject;
+            if (t.description) document.getElementById('commDesc').value = t.description;
+            if (t.priority) document.getElementById('commPriority').value = t.priority;
+            if (t.follow_up_required) {
+                document.getElementById('fuCheck').checked = true;
+                document.getElementById('fuFields').style.display = 'block';
+                if (t.follow_up_date) document.getElementById('fuDate').value = t.follow_up_date;
+            }
+        });
+}
+
+{% if is_edit and log.client_id %}
+document.addEventListener('DOMContentLoaded', function() { loadEntities({{ log.client_id }}); });
+{% elif prefill.client_id %}
+document.addEventListener('DOMContentLoaded', function() { loadEntities({{ prefill.client_id }}); });
+{% endif %}
+</script>
+{% endblock %}

@@ -80,3 +80,52 @@ def compute_project_financials(db, project):
         'job_count': len(jobs),
         'invoice_count': len(invoices),
     }
+
+
+def get_project_material_summary(db, project_id):
+    """Aggregate material costs across all jobs in a project."""
+    from models.job_material import JobMaterial
+
+    jobs = db.query(Job).filter_by(project_id=project_id).all()
+    job_ids = [j.id for j in jobs]
+
+    if not job_ids:
+        return {'total_cost': 0, 'total_sell': 0, 'margin': 0, 'by_trade': {}, 'by_job': [], 'item_count': 0}
+
+    materials = db.query(JobMaterial).filter(
+        JobMaterial.job_id.in_(job_ids), JobMaterial.quantity > 0
+    ).all()
+
+    total_cost = sum(float(m.total_cost or 0) for m in materials)
+    total_sell = sum(float(m.total_sell or 0) for m in materials if m.is_billable)
+
+    # By trade
+    by_trade = {}
+    for m in materials:
+        trade = m.part.trade if m.part else 'general'
+        if trade not in by_trade:
+            by_trade[trade] = {'cost': 0, 'sell': 0, 'count': 0}
+        by_trade[trade]['cost'] += float(m.total_cost or 0)
+        by_trade[trade]['sell'] += float(m.total_sell or 0) if m.is_billable else 0
+        by_trade[trade]['count'] += 1
+
+    # By job
+    job_map = {j.id: j for j in jobs}
+    by_job = {}
+    for m in materials:
+        jid = m.job_id
+        if jid not in by_job:
+            j = job_map.get(jid)
+            by_job[jid] = {'job_id': jid, 'job_title': j.title if j else f'Job #{jid}', 'cost': 0, 'sell': 0, 'count': 0}
+        by_job[jid]['cost'] += float(m.total_cost or 0)
+        by_job[jid]['sell'] += float(m.total_sell or 0) if m.is_billable else 0
+        by_job[jid]['count'] += 1
+
+    return {
+        'total_cost': round(total_cost, 2),
+        'total_sell': round(total_sell, 2),
+        'margin': round(total_sell - total_cost, 2),
+        'by_trade': by_trade,
+        'by_job': sorted(by_job.values(), key=lambda x: x['cost'], reverse=True),
+        'item_count': len(materials),
+    }

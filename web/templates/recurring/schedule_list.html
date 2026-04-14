@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Recurring Schedules{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div>
+        <h1 style="margin:0;">Recurring Schedules</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Preventive maintenance & recurring jobs</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        {% if can_admin %}
+        <form method="POST" action="{{ url_for('recurring.run_all') }}" style="display:inline;">
+            <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="return confirm('Run generation for all due schedules?')"><i class="bi bi-lightning"></i> Generate Due Jobs</button>
+        </form>
+        <a href="{{ url_for('recurring.new_schedule') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Schedule</a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);border-left:3px solid var(--color-success);">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;">{{ summary.total_active }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Active Schedules</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if summary.due_soon > 0 %}var(--color-info){% else %}var(--color-border){% endif %};">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;{% if summary.due_soon > 0 %}color:var(--color-info);{% endif %}">{{ summary.due_soon }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Due Soon</div>
+    </div>
+    <div class="card" style="padding:var(--space-3);border-left:3px solid {% if summary.overdue > 0 %}var(--color-danger){% else %}var(--color-border){% endif %};">
+        <div style="font-size:var(--font-size-2xl);font-weight:700;{% if summary.overdue > 0 %}color:var(--color-danger);{% endif %}">{{ summary.overdue }}</div>
+        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Overdue</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+        <select name="status" class="form-control" style="width:auto;min-width:120px;" onchange="this.form.submit()">
+            <option value="">Active & Paused</option>
+            {% for val, label in statuses %}
+            <option value="{{ val }}" {{ 'selected' if status_filter == val }}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="search" class="form-control" style="width:auto;min-width:180px;" placeholder="Search..." value="{{ search }}">
+        <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Search</button>
+        {% if status_filter or search %}
+        <a href="{{ url_for('recurring.schedule_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Table -->
+<div class="card"><div style="overflow-x:auto;">
+{% if schedules %}
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Schedule</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Client</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Frequency</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Next Due</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Jobs</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+        <th style="width:60px;"></th>
+    </tr></thead>
+    <tbody>
+    {% for s in schedules %}
+    <tr style="border-bottom:1px solid var(--color-border);{% if s.is_overdue %}background:rgba(239,68,68,0.04);{% endif %}">
+        <td style="padding:var(--space-2) var(--space-3);">
+            <a href="{{ url_for('recurring.schedule_detail', schedule_id=s.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:600;">{{ s.schedule_number }}</a>
+            <div style="font-size:var(--font-size-sm);">{{ s.title }}</div>
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ s.client.display_name if s.client else '—' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-text-muted);">{{ s.frequency_display }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);font-weight:600;color:{% if s.is_overdue %}var(--color-danger){% elif s.days_until_due <= 7 %}var(--color-warning){% else %}var(--color-text){% endif %};">
+            {{ s.next_due_date.strftime('%b %d, %Y') }}
+            {% if s.is_overdue %}<span style="font-size:var(--font-size-xs);color:var(--color-danger);margin-left:4px;">({{ s.days_until_due|abs }}d overdue)</span>{% endif %}
+        </td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;font-weight:600;">{{ s.total_jobs_generated }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);font-weight:600;padding:2px 8px;border-radius:999px;background:var(--color-surface-raised);color:var(--color-{{ s.status_color }});">{{ s.status_display }}</span></td>
+        <td style="padding:var(--space-2);">
+            {% if can_admin and s.status == 'active' and s.is_due_for_generation %}
+            <form method="POST" action="{{ url_for('recurring.generate_now', schedule_id=s.id) }}" style="display:inline;">
+                <button type="submit" class="btn btn-ghost" style="padding:2px 8px;font-size:var(--font-size-xs);color:var(--color-success);" title="Generate Now"><i class="bi bi-lightning-fill"></i></button>
+            </form>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+    <i class="bi bi-arrow-repeat" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+    <h4 style="color:var(--color-text-muted);">No recurring schedules</h4>
+    {% if can_admin %}<a href="{{ url_for('recurring.new_schedule') }}" style="color:var(--color-accent);">Create your first schedule</a>{% endif %}
+</div>
+{% endif %}
+</div></div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}New Callback{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('callback.callback_list') }}" style="color:var(--color-text-muted);text-decoration:none;font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a></div>
+<h1 style="margin:0 0 var(--space-4);">New Callback</h1>
+
+<form method="POST">
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);">
+    <div>
+        <!-- Job Links -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-arrow-return-left" style="color:var(--color-warning);"></i> Job Links</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Original Job (source of issue) *</label>
+                        <select name="original_job_id" class="form-control" required>
+                            <option value="">Select original job...</option>
+                            {% for j in jobs %}{% if j.status == 'completed' %}<option value="{{ j.id }}" {{ 'selected' if original_job_id and j.id == original_job_id }}>{{ j.job_number }} — {{ j.title[:40] }}</option>{% endif %}{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Callback Job (return visit) *</label>
+                        <select name="callback_job_id" class="form-control" required>
+                            <option value="">Select callback job...</option>
+                            {% for j in jobs %}<option value="{{ j.id }}">{{ j.job_number }} — {{ j.title[:40] }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Classification -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-tag" style="color:var(--color-info);"></i> Classification</h3></div>
+            <div class="card-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Reason *</label>
+                        <select name="reason" class="form-control" required>
+                            {% for val, label in reasons %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Severity *</label>
+                        <select name="severity" class="form-control" required>
+                            {% for val, label in severities %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">Description *</label>
+                    <textarea name="description" class="form-control" rows="3" required placeholder="Describe the callback issue..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Customer Impact</label>
+                    <textarea name="customer_impact" class="form-control" rows="2" placeholder="How did this affect the customer?"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Investigation -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title"><i class="bi bi-search" style="color:var(--color-accent);"></i> Initial Investigation</h3></div>
+            <div class="card-body">
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">Root Cause (if known)</label>
+                    <textarea name="root_cause" class="form-control" rows="2" placeholder="What caused the issue?"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">Corrective Action</label>
+                    <textarea name="corrective_action" class="form-control" rows="2" placeholder="What will be done to fix it?"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Internal Notes</label>
+                    <textarea name="internal_notes" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right -->
+    <div>
+        <div class="card" style="margin-bottom:var(--space-4);">
+            <div class="card-header"><h3 class="card-title">Assignment</h3></div>
+            <div class="card-body">
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">Responsible Technician</label>
+                    <select name="responsible_technician_id" class="form-control">
+                        <option value="">—</option>
+                        {% for t in technicians %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;margin-bottom:var(--space-2);">
+                    <input type="checkbox" name="is_warranty"> <span style="font-weight:500;">Warranty Callback</span>
+                </label>
+                <div class="form-group" style="margin-bottom:var(--space-3);">
+                    <label class="form-label">Warranty (if applicable)</label>
+                    <select name="warranty_id" class="form-control">
+                        <option value="">—</option>
+                        {% for w in warranties %}<option value="{{ w.id }}">{{ w.warranty_number }} — {{ w.title[:30] }}</option>{% endfor %}
+                    </select>
+                </div>
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+                    <input type="checkbox" name="is_billable"> <span style="font-weight:500;">Billable to Client</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+            <button type="submit" class="btn btn-accent" style="width:100%;"><i class="bi bi-check-lg"></i> Create Callback</button>
+            <a href="{{ url_for('callback.callback_list') }}" class="btn btn-ghost" style="width:100%;text-align:center;">Cancel</a>
+        </div>
+    </div>
+</div>
+</form>
+{% endblock %}

@@ -68,6 +68,9 @@ class Client(Base):
     contracts = relationship("Contract", back_populates="client",
                              order_by="Contract.start_date.desc()", lazy='select')
     purchase_orders = relationship("PurchaseOrder", back_populates="client", lazy='select')
+    recurring_schedules = relationship("RecurringSchedule", back_populates="client", lazy='select')
+    warranties = relationship("Warranty", back_populates="client", lazy='select')
+    callbacks = relationship("Callback", back_populates="client", lazy='select')
 
     @property
     def payment_terms_days(self):
