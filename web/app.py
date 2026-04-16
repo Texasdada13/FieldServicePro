@@ -5,7 +5,7 @@ import sys
 import logging
 from datetime import datetime, date, timezone, timedelta
 from sqlalchemy import func, case, text
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, stream_with_context, session, g, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, stream_with_context, session, g, abort, send_from_directory
 from flask_login import login_required, current_user
 from flask_cors import CORS
 from flask_talisman import Talisman
@@ -724,6 +724,12 @@ def _get_recurring_alert_count():
 
 
 # ========== HEALTH CHECK (Render uses this) ==========
+
+@app.route('/robots.txt')
+def robots_txt():
+    """Serve robots.txt at the conventional top-level URL."""
+    return send_from_directory(app.static_folder, 'robots.txt', mimetype='text/plain')
+
 
 @app.route('/health')
 def health_check():
