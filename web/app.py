@@ -100,7 +100,13 @@ logger = logging.getLogger(__name__)
 IS_PRODUCTION = os.environ.get('FLASK_ENV') == 'production'
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'fsp-dev-secret-key-change-in-prod')
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if IS_PRODUCTION and not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY env var is required in production. "
+        "Set it in the Render dashboard before deploying."
+    )
+app.secret_key = SECRET_KEY or 'fsp-dev-secret-key-change-in-prod'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION
