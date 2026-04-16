@@ -1,75 +1,106 @@
 # Deploying FieldServicePro to Render
 
+This setup uses **paid plans** for both the web service and the PostgreSQL
+database. The database is provisioned **separately** from the blueprint so
+its lifecycle is independent of the web service.
+
 ## Prerequisites
 
 - GitHub repository connected to Render
 - Branch to deploy: `master`
+- A Render account with billing enabled
 
 ---
 
-## Option A: Blueprint Deploy (Recommended)
+## Step 1 — Create the PostgreSQL database (manual, one-time)
 
-The `render.yaml` file auto-configures everything.
+1. Render Dashboard → **New** → **PostgreSQL**
+2. Settings:
+   - **Name**: `fieldservicepro-db`
+   - **Database**: `fieldservicepro`
+   - **User**: `fsp_admin`
+   - **Region**: pick the same region you'll use for the web service (defaults
+     in `render.yaml` to `oregon` — change both together if needed)
+   - **Plan**: any paid plan (Basic-256MB or higher)
+3. After provisioning, copy the **Internal Connection String** (starts with
+   `postgresql://...internal`). You'll paste this in Step 3.
 
-1. Go to **Render Dashboard** > **New** > **Blueprint**
-2. Connect your GitHub repo and select the `master` branch
-3. Render will auto-detect `render.yaml` and create:
-   - **Web Service**: `fieldservicepro`
-   - **PostgreSQL Database**: `fieldservicepro-db` (free plan)
-4. The following env vars are auto-configured:
-   - `DATABASE_URL` — linked from the PostgreSQL instance
-   - `SECRET_KEY` — auto-generated secure value
-   - `FLASK_ENV` — set to `production`
-   - `PYTHON_VERSION` — `3.11.4`
-5. **Manually add** (Render Dashboard > Environment):
-   - `ANTHROPIC_API_KEY` — your Anthropic API key (only if you want AI chat)
-6. Click **Apply** to deploy
+> Internal Connection String is preferred — it doesn't traverse the public
+> internet and isn't bandwidth-metered.
 
 ---
 
-## Option B: Manual Setup
+## Step 2 — Deploy the web service via Blueprint
 
-### 1. Create PostgreSQL Database
-
-- Render Dashboard > **New** > **PostgreSQL**
-- Name: `fieldservicepro-db`
-- Database: `fieldservicepro`
-- User: `fsp_admin`
-- Plan: Free
-- Copy the **Internal Connection String**
-
-### 2. Create Web Service
-
-- Render Dashboard > **New** > **Web Service**
-- Connect GitHub repo, branch `master`
-- Runtime: **Python**
-- Build Command: `./build.sh`
-- Start Command: `gunicorn web.app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120`
-- Health Check Path: `/health`
-
-### 3. Set Environment Variables
-
-| Variable | Value |
-|---|---|
-| `DATABASE_URL` | (paste Internal Connection String from step 1) |
-| `SECRET_KEY` | (generate a random string: `python -c "import secrets; print(secrets.token_hex(32))"`) |
-| `FLASK_ENV` | `production` |
-| `PYTHON_VERSION` | `3.11.4` |
-| `ANTHROPIC_API_KEY` | (optional — your Anthropic key for AI chat) |
+1. Render Dashboard → **New** → **Blueprint**
+2. Connect the GitHub repo and select the `master` branch
+3. Render auto-detects `render.yaml` and creates:
+   - **Web Service**: `fieldservicepro` (Starter plan)
+   - **Persistent Disk**: `fsp-uploads` (10 GB, mounted at `/var/data/uploads`)
+4. The following env vars are auto-configured by the blueprint:
+   - `PYTHON_VERSION` = `3.11.4`
+   - `FLASK_ENV` = `production`
+   - `SECRET_KEY` (auto-generated)
+   - `UPLOAD_FOLDER` = `/var/data/uploads`
 
 ---
 
-## Post-Deployment Checklist
+## Step 3 — Set required env vars in the Render dashboard
 
-1. **Check deploy logs** — look for `gunicorn` startup message
-2. **Test health check** — `GET https://your-app.onrender.com/health` should return `{"status": "healthy", "database": "connected"}`
-3. **Test the demo** — visit `/demo` to create a pre-loaded demo account
-4. **Test login** — register a new account at `/register`
-5. **Test AI chat** — only works if `ANTHROPIC_API_KEY` is set; returns 503 otherwise (graceful)
+Open the web service → **Environment** tab and set:
 
-## Notes
+| Variable | Required? | Value |
+|---|---|---|
+| `DATABASE_URL` | **YES** | Internal Connection String from Step 1 |
+| `ANTHROPIC_API_KEY` | optional | Anthropic API key — enables AI chat panel |
+| `MAIL_SERVER` | optional | SMTP host (e.g. `smtp.sendgrid.net`) |
+| `MAIL_PORT` | optional | usually `587` |
+| `MAIL_USE_TLS` | optional | `true` |
+| `MAIL_USERNAME` | optional | SMTP username |
+| `MAIL_PASSWORD` | optional | SMTP password |
+| `MAIL_DEFAULT_SENDER` | optional | `noreply@yourdomain.com` |
 
-- **Database tables** are auto-created on first startup via SQLAlchemy `create_all()`
-- **No migrations needed** — the app uses auto-schema creation
-- **Free tier spin-down**: Render free tier spins down after 15 min of inactivity. First request after spin-down takes ~30s
-- **SQLite is NOT used in production** — when `DATABASE_URL` is set, the app connects to PostgreSQL
+Without `ANTHROPIC_API_KEY` the AI chat returns 503 (graceful).
+Without `MAIL_*` all emails log to console only (no failure).
+
+Click **Save Changes** — Render will redeploy.
+
+---
+
+## Step 4 — Post-deploy verification
+
+1. **Watch deploy logs** — look for:
+   - `==> Build complete.`
+   - `Database tables initialized successfully.`
+   - `FieldServicePro app initialized (production=True)`
+   - `Listening at: http://0.0.0.0:$PORT (gunicorn)`
+2. **Health check** — `GET https://your-app.onrender.com/health` → `{"status":"healthy","database":"connected"}`
+3. **Demo account** — visit `/demo` to auto-create a pre-loaded demo org
+4. **Register a real account** at `/auth/register`
+5. **Upload a file** (any document) → reload after a few minutes → confirm it persists (validates the disk mount)
+6. **AI chat** (only if `ANTHROPIC_API_KEY` set) — open the chat panel from the dashboard
+
+---
+
+## Notes & Operations
+
+- **Schema**: tables are auto-created on first startup via SQLAlchemy
+  `Base.metadata.create_all()` in `init_db()`. No Alembic migrations needed
+  for a fresh deploy.
+- **Future schema changes**: the `migrate_*.py` scripts in the repo are
+  SQLite-only. For production schema changes, either (a) add columns via
+  manual `psql` ALTER TABLE, or (b) introduce Alembic.
+- **Uploads**: stored on the persistent disk at `/var/data/uploads`. Disk is
+  zone-pinned and survives deploys/restarts.
+- **Backups**: Render paid Postgres includes daily backups; verify the
+  retention policy on your plan.
+- **Region affinity**: web service and database must be in the same Render
+  region for the Internal Connection String to work. Default in this
+  blueprint is `oregon` — update `render.yaml` if you provision the DB in
+  another region.
+- **Scaling**: bump `plan:` in `render.yaml` (starter → standard → pro) and
+  consider raising `--workers` in the start command once the instance has
+  more RAM. Rule of thumb: `(2 × CPU) + 1` workers.
+- **Custom domain & TLS**: add it in the dashboard under **Settings →
+  Custom Domains**. Talisman in `web/app.py` already enforces HTTPS-redirect
+  and HSTS when `FLASK_ENV=production`.
