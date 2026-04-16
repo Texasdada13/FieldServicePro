@@ -178,7 +178,7 @@ def list_feedback():
             q = q.filter(FeedbackSurvey.follow_up_required == True)
 
         surveys = q.order_by(desc(FeedbackSurvey.completed_at)).all()
-        technicians = db.query(Technician).filter_by(status='active').all()
+        technicians = db.query(Technician).filter_by(is_active=True).all()
 
         return render_template('feedback/list.html',
             active_page='feedback', user=current_user,
