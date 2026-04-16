@@ -48,6 +48,11 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
 
+      # Operator-only token to authorize wiping & re-seeding the demo org via
+      # GET /demo?reset=1&token=<value>. Without this set, /demo?reset=1 is a no-op.
+      - key: DEMO_RESET_TOKEN
+        sync: false
+
       # ── SMTP / email (optional — leave unset to keep console-only emails) ──
       - key: MAIL_SERVER
         sync: false

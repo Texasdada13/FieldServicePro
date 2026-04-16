@@ -1,5 +1,6 @@
 """Authentication routes."""
 
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
@@ -214,9 +215,15 @@ def demo():
 
     db = get_session()
     try:
-        # Check if demo account already exists — reset on ?reset=1
+        # Check if demo account already exists — reset on ?reset=1&token=<DEMO_RESET_TOKEN>
         demo_user = db.query(User).filter_by(email='demo@fieldservicepro.app').first()
-        if demo_user and request.args.get('reset') != '1':
+        # Reset is only honored when the caller supplies the operator-only token.
+        # Without a valid token, fall through to the "log in to existing demo" path.
+        expected_token = os.environ.get('DEMO_RESET_TOKEN')
+        provided_token = request.args.get('token')
+        reset_requested = request.args.get('reset') == '1'
+        reset_authorized = bool(expected_token) and provided_token == expected_token
+        if demo_user and not (reset_requested and reset_authorized):
             login_user(demo_user)
             flash('Welcome back to the demo!', 'success')
             return redirect(url_for('dashboard'))
