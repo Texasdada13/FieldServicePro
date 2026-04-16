@@ -111,6 +111,13 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION
 
+# Belt-and-suspenders: never expose the Werkzeug debugger in production,
+# even if a stray FLASK_DEBUG env var or future code change tries to enable it.
+if IS_PRODUCTION:
+    app.config['DEBUG'] = False
+    app.config['PROPAGATE_EXCEPTIONS'] = False
+    app.config['TRAP_HTTP_EXCEPTIONS'] = False
+
 # File upload config
 app.config['UPLOAD_FOLDER'] = os.environ.get(
     'UPLOAD_FOLDER', os.path.join(app.instance_path, 'uploads'))
