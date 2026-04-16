@@ -86,21 +86,31 @@ These changes were made in the brainstorming session preceding this spec and are
 
 ### 4.3 — `robots.txt`
 
-**File:** new file at `web/static/robots.txt`
+**Files:** new file at `web/static/robots.txt`; new route in `web/app.py`.
 
 **Decision:** Noindex everything by default. The demo is auth-walled, there's no marketing content for crawlers, and we don't want Render demo URLs polluting search results.
 
-**Content:**
+**Content of `web/static/robots.txt`:**
 ```
 User-agent: *
 Disallow: /
 ```
 
-**Acceptance:**
-- `GET /static/robots.txt` returns the above content with a 200 response (Flask's static handler serves it automatically; no route needed).
-- Optional follow-up: configure Render or your reverse proxy to also expose it at `/robots.txt`. If not, document that crawlers conventionally also try `/static/robots.txt` and accept the limitation. (Recommended: also add a thin route `@app.route('/robots.txt')` that serves the static file. Doing so is permitted under this spec since it's a 2-line addition to `web/app.py`.)
+**Route in `web/app.py`** (crawlers only check `/robots.txt`, never `/static/robots.txt`, so a top-level route is required):
 
-**Diff size:** 2 lines new file + optional 4-line route in `web/app.py`.
+```python
+from flask import send_from_directory
+
+@app.route('/robots.txt')
+def robots_txt():
+    return send_from_directory(app.static_folder, 'robots.txt', mimetype='text/plain')
+```
+
+**Acceptance:**
+- `GET /robots.txt` returns the content above with HTTP 200 and `Content-Type: text/plain`.
+- `GET /static/robots.txt` also works (Flask's static handler).
+
+**Diff size:** 2-line new file + ~5-line route in `web/app.py`.
 
 ### 4.4 — Defensively pin debug-off in production
 
