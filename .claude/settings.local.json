@@ -15,7 +15,9 @@
       "Bash(venv/Scripts/python seed_communications.py)",
       "Bash(venv/Scripts/python migrate_expenses.py)",
       "Bash(venv/Scripts/python seed_expenses.py)",
-      "Bash(pkill -f \"python.*58391\")"
+      "Bash(pkill -f \"python.*58391\")",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import os, sys; sys.path.insert\\(0, ''''.''''\\); os.environ[''''SECRET_KEY'''']=''''test''''; from web.auth import demo; print\\(''''demo route imports OK:'''', callable\\(demo\\)\\)\")"
     ]
   }
 }
