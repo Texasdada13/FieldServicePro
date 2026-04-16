@@ -1,19 +1,63 @@
+# Render Blueprint — FieldServicePro
+#
+# This blueprint provisions ONLY the web service.
+# The PostgreSQL database is intentionally NOT defined here — create it
+# separately in the Render dashboard (paid plan recommended) and paste its
+# Internal Connection String into the DATABASE_URL env var below.
+
 services:
   - type: web
     name: fieldservicepro
     runtime: python
-    plan: free
+    plan: starter   # paid plan — upgrade to standard/pro as load grows
+    region: oregon  # change if your DB is in a different region (must match DB region for low-latency Internal URL)
+    branch: master
     buildCommand: "./build.sh"
-    startCommand: "gunicorn web.app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    startCommand: "gunicorn web.app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - --error-logfile -"
     healthCheckPath: /health
+    autoDeploy: true
+
+    # Persistent disk for user uploads (job photos, documents, attachments, etc.)
+    # Without this, every deploy/restart wipes uploaded files.
+    disk:
+      name: fsp-uploads
+      mountPath: /var/data/uploads
+      sizeGB: 10
+
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.4"
-      - key: SECRET_KEY
-        generateValue: true
+
       - key: FLASK_ENV
         value: production
+
+      - key: SECRET_KEY
+        generateValue: true   # Render generates a secure random value once
+
+      # Point uploads at the persistent disk above
+      - key: UPLOAD_FOLDER
+        value: /var/data/uploads
+
+      # ── Manual / external secrets (set in Render dashboard) ──
+      # Paste the Internal Connection String from your separately-provisioned
+      # Render PostgreSQL instance.
       - key: DATABASE_URL
         sync: false
+
+      # Anthropic API key — required for AI chat panel; leave unset to disable.
       - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # ── SMTP / email (optional — leave unset to keep console-only emails) ──
+      - key: MAIL_SERVER
+        sync: false
+      - key: MAIL_PORT
+        sync: false
+      - key: MAIL_USE_TLS
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_DEFAULT_SENDER
         sync: false

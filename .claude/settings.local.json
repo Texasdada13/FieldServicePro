@@ -14,7 +14,8 @@
       "Bash(venv/Scripts/python migrate_warranty.py)",
       "Bash(venv/Scripts/python seed_communications.py)",
       "Bash(venv/Scripts/python migrate_expenses.py)",
-      "Bash(venv/Scripts/python seed_expenses.py)"
+      "Bash(venv/Scripts/python seed_expenses.py)",
+      "Bash(pkill -f \"python.*58391\")"
     ]
   }
 }
