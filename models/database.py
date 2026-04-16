@@ -40,7 +40,7 @@ def get_session():
 
 def init_db():
     """Initialize the database, creating all tables."""
-    from . import user, division, client, job, quote, invoice, technician, sla, contract, purchase_order, po_attachment, app_settings, settings, job_phase, change_order, document, permit, insurance, certification, checklist, lien_waiver, portal_user, portal_message, portal_notification, portal_settings, service_request, equipment, project, time_entry, part, inventory, job_material, stock_transfer, recurring_schedule, warranty, callback, communication, expense, notification, vehicle_profile, vehicle_mileage_log, vehicle_fuel_log, payroll_period, payroll_line_item  # noqa: F401
+    from . import user, division, client, job, quote, invoice, technician, sla, contract, purchase_order, po_attachment, app_settings, settings, job_phase, change_order, document, permit, insurance, certification, checklist, lien_waiver, portal_user, portal_message, portal_notification, portal_settings, service_request, equipment, project, time_entry, part, inventory, job_material, stock_transfer, recurring_schedule, warranty, callback, communication, expense, notification, vehicle_profile, vehicle_mileage_log, vehicle_fuel_log, payroll_period, payroll_line_item, rfi, submittal, punch_list, daily_log, vendor, vendor_price, supplier_po, vendor_payment  # noqa: F401
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables initialized successfully.")
