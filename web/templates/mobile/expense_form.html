@@ -1,0 +1,57 @@
+{% extends "mobile/base.html" %}
+{% set show_back = true %}
+{% block title %}Log Expense — FSP{% endblock %}
+{% block header_title %}Log Expense{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('mobile.log_expense') }}" enctype="multipart/form-data">
+  <div class="m-form-group">
+    <label class="m-label">Job (optional)</label>
+    <select name="job_id" class="m-input m-select">
+      <option value="">-- No specific job --</option>
+      {% for j in jobs %}
+      <option value="{{ j.id }}" {{ 'selected' if job_id and j.id == job_id }}>#{{ j.job_number or j.id }} — {{ j.title or 'Job' }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="m-form-group">
+    <label class="m-label">Category</label>
+    <div class="m-category-grid">
+      <div class="m-category-btn" data-value="materials"><span>&#128295;</span>Materials</div>
+      <div class="m-category-btn" data-value="tools"><span>&#128736;&#65039;</span>Tools</div>
+      <div class="m-category-btn" data-value="fuel"><span>&#9981;&#65039;</span>Fuel</div>
+      <div class="m-category-btn" data-value="parking"><span>&#127359;&#65039;</span>Parking</div>
+      <div class="m-category-btn selected" data-value="other"><span>&#128221;</span>Other</div>
+    </div>
+    <input type="hidden" name="category" id="expense-category" value="other">
+  </div>
+
+  <div class="m-form-group">
+    <label class="m-label">Amount</label>
+    <input type="number" name="amount" class="m-input m-input--lg" step="0.01" min="0" placeholder="$0.00" required style="text-align:center;">
+  </div>
+
+  <div class="m-form-group">
+    <label class="m-label">Description</label>
+    <input type="text" name="description" class="m-input" placeholder="What was this expense for?">
+  </div>
+
+  <div class="m-form-group">
+    <label class="m-label">Receipt (optional)</label>
+    <label class="m-camera-btn" style="cursor:pointer;height:80px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Take receipt photo
+      <input type="file" name="receipt" accept="image/*" capture="environment" style="display:none;">
+    </label>
+  </div>
+
+  <div class="m-sticky-action">
+    <button type="submit" class="m-btn m-btn--primary m-btn--full m-btn--lg">&#128176; Log Expense</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>document.addEventListener('DOMContentLoaded', function() { initCategorySelector('expense-category'); });</script>
+{% endblock %}

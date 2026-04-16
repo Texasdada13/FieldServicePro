@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if log else 'New' }} Daily Log{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <h1 style="margin:0;">{{ 'Edit' if log else 'New' }} Daily Log{% if log %} <span style="color:var(--color-text-muted);font-size:var(--font-size-sm);">{{ log.log_number }}</span>{% endif %}</h1>
+    <a href="{{ url_for('daily_logs.daily_log_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+{% if log and log.is_late_entry %}<div style="background:var(--color-warning);color:#000;padding:var(--space-2) var(--space-3);border-radius:var(--radius-sm);margin-bottom:var(--space-3);font-size:var(--font-size-sm);"><i class="bi bi-exclamation-triangle"></i> This log is for {{ log.log_date.strftime('%B %d, %Y') }} — {{ (today - log.log_date).days }} days ago.</div>{% endif %}
+
+<form method="POST" style="max-width:950px;">
+    <!-- Project & Date -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Log Information</h3>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Project *</label><select name="project_id" class="form-select" required {% if log %}disabled{% endif %}><option value="">Select...</option>{% for p in projects %}<option value="{{ p.id }}" {% if (log and log.project_id == p.id) or (project and project.id == p.id) %}selected{% endif %}>{{ p.title }}</option>{% endfor %}</select>{% if log %}<input type="hidden" name="project_id" value="{{ log.project_id }}">{% endif %}</div>
+            <div class="form-group"><label class="form-label">Date *</label><input type="date" name="log_date" class="form-control" required {% if log %}disabled{% endif %} value="{{ (log.log_date if log else today).strftime('%Y-%m-%d') }}">{% if log %}<input type="hidden" name="log_date" value="{{ log.log_date.strftime('%Y-%m-%d') }}">{% endif %}</div>
+            <div class="form-group"><label class="form-label">Job (Optional)</label><select name="job_id" class="form-select"><option value="">Not job-specific</option>{% for j in jobs %}<option value="{{ j.id }}" {% if log and log.job_id == j.id %}selected{% endif %}>{{ j.title[:30] }}</option>{% endfor %}</select></div>
+        </div>
+    </div>
+
+    <!-- Weather -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;"><i class="bi bi-cloud-sun" style="color:var(--color-info);"></i> Weather & Site</h3>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Weather</label><input type="text" name="weather" class="form-control" value="{{ log.weather if log else '' }}" placeholder="Sunny, 72F..."></div>
+            <div class="form-group"><label class="form-label">High (F)</label><input type="number" name="temperature_high" class="form-control" value="{{ log.temperature_high if log else '' }}"></div>
+            <div class="form-group"><label class="form-label">Low (F)</label><input type="number" name="temperature_low" class="form-control" value="{{ log.temperature_low if log else '' }}"></div>
+            <div class="form-group"><label class="form-label">Impact</label><select name="weather_impact" class="form-select">{% for val, label in weather_impacts %}<option value="{{ val }}" {% if (log and log.weather_impact == val) or (not log and val == 'none') %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Site Conditions</label><textarea name="site_conditions" class="form-control" rows="2">{{ log.site_conditions if log else '' }}</textarea></div>
+    </div>
+
+    <!-- Workforce -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;"><i class="bi bi-people" style="color:var(--color-accent);"></i> Workforce</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Total Workers</label><input type="number" name="total_workers" class="form-control" min="0" value="{{ log.total_workers if log else 0 }}"></div>
+            <div class="form-group"><label class="form-label">Total Hours</label><input type="number" name="hours_worked" class="form-control" step="0.5" min="0" value="{{ log.hours_worked if log else 0 }}"></div>
+        </div>
+        <label class="form-label" style="font-weight:600;">Crew (by trade)</label>
+        <div id="crewRows">
+            {% set crew = log.crew_list if log and log.crew_list else [{'trade':'','count':'','names':''}] %}
+            {% for row in crew %}
+            <div class="crew-row" style="display:grid;grid-template-columns:1fr 80px 2fr 40px;gap:var(--space-2);margin-bottom:var(--space-2);">
+                <select name="crew_trade[]" class="form-select" style="font-size:var(--font-size-sm);"><option value="">Trade...</option>{% for t in ['plumbing','hvac','electrical','general','painting','flooring','other'] %}<option value="{{ t }}" {% if row.trade == t %}selected{% endif %}>{{ t|title }}</option>{% endfor %}</select>
+                <input type="number" name="crew_count[]" class="form-control" style="font-size:var(--font-size-sm);" min="0" value="{{ row.count }}" placeholder="#">
+                <input type="text" name="crew_names[]" class="form-control" style="font-size:var(--font-size-sm);" value="{{ row.names }}" placeholder="Names (optional)">
+                <button type="button" class="btn btn-ghost remove-crew" style="color:var(--color-danger);padding:0 4px;"><i class="bi bi-x"></i></button>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" class="btn btn-ghost" style="font-size:var(--font-size-sm);" id="addCrewRow"><i class="bi bi-plus"></i> Add Trade</button>
+        <div class="form-group" style="margin-top:var(--space-3);"><label class="form-label">Subcontractors</label><textarea name="subcontractors_on_site" class="form-control" rows="2">{{ log.subcontractors_on_site if log else '' }}</textarea></div>
+    </div>
+
+    <!-- Work -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;"><i class="bi bi-tools" style="color:var(--color-success);"></i> Work Performed</h3>
+        <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Description *</label><textarea name="work_description" class="form-control" rows="5" required>{{ log.work_description if log else '' }}</textarea></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Areas Worked</label><textarea name="areas_worked" class="form-control" rows="2">{{ log.areas_worked if log else '' }}</textarea></div>
+            <div class="form-group"><label class="form-label">Milestones</label><textarea name="milestones_reached" class="form-control" rows="2">{{ log.milestones_reached if log else '' }}</textarea></div>
+        </div>
+    </div>
+
+    <!-- Materials -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Materials & Equipment</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Materials Received</label><textarea name="materials_received" class="form-control" rows="2">{{ log.materials_received if log else '' }}</textarea></div>
+            <div class="form-group"><label class="form-label">Equipment On Site</label><textarea name="equipment_on_site" class="form-control" rows="2">{{ log.equipment_on_site if log else '' }}</textarea></div>
+        </div>
+    </div>
+
+    <!-- Issues -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;"><i class="bi bi-exclamation-triangle" style="color:var(--color-warning);"></i> Issues & Delays</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Delays</label><textarea name="delays" class="form-control" rows="2">{{ log.delays if log else '' }}</textarea></div>
+            <div class="form-group"><label class="form-label">Safety Incidents</label><textarea name="safety_incidents" class="form-control" rows="2">{{ log.safety_incidents if log else '' }}</textarea></div>
+            <div class="form-group"><label class="form-label">Visitors</label><textarea name="visitor_log" class="form-control" rows="2">{{ log.visitor_log if log else '' }}</textarea></div>
+            <div class="form-group"><label class="form-label">Issues / Concerns</label><textarea name="issues_or_concerns" class="form-control" rows="2">{{ log.issues_or_concerns if log else '' }}</textarea></div>
+        </div>
+    </div>
+
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);"><div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2">{{ log.notes if log else '' }}</textarea></div></div>
+
+    <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+        <a href="{{ url_for('daily_logs.daily_log_list') }}" class="btn btn-ghost">Cancel</a>
+        <button type="submit" name="submit_action" value="draft" class="btn btn-ghost"><i class="bi bi-save"></i> Save Draft</button>
+        <button type="submit" name="submit_action" value="submit" class="btn btn-accent"><i class="bi bi-send"></i> {{ 'Update & Submit' if log else 'Save & Submit' }}</button>
+    </div>
+</form>
+
+<script>
+document.getElementById('addCrewRow').addEventListener('click', function() {
+    var html = '<div class="crew-row" style="display:grid;grid-template-columns:1fr 80px 2fr 40px;gap:var(--space-2);margin-bottom:var(--space-2);"><select name="crew_trade[]" class="form-select" style="font-size:var(--font-size-sm);"><option value="">Trade...</option><option value="plumbing">Plumbing</option><option value="hvac">HVAC</option><option value="electrical">Electrical</option><option value="general">General</option><option value="painting">Painting</option><option value="flooring">Flooring</option><option value="other">Other</option></select><input type="number" name="crew_count[]" class="form-control" style="font-size:var(--font-size-sm);" min="0" placeholder="#"><input type="text" name="crew_names[]" class="form-control" style="font-size:var(--font-size-sm);" placeholder="Names (optional)"><button type="button" class="btn btn-ghost remove-crew" style="color:var(--color-danger);padding:0 4px;"><i class="bi bi-x"></i></button></div>';
+    document.getElementById('crewRows').insertAdjacentHTML('beforeend', html);
+    bindRemove();
+});
+function bindRemove() { document.querySelectorAll('.remove-crew').forEach(function(b) { b.onclick = function() { this.closest('.crew-row').remove(); }; }); }
+bindRemove();
+</script>
+{% endblock %}

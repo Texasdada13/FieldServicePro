@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Project Budget{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);"><div><h1 style="margin:0;">Project Budget Report</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ date_label }}</p></div><div style="display:flex;gap:var(--space-2);"><button class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i></button></div></div>
+
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:end;">
+        <select name="status" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">All Statuses</option>{% for s in ['planning','active','completed','on_hold','closed'] %}<option value="{{ s }}" {% if selected_status == s %}selected{% endif %}>{{ s.replace('_',' ')|title }}</option>{% endfor %}</select>
+        <select name="client_id" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">All Clients</option>{% for c in all_clients %}<option value="{{ c.id }}" {% if selected_client == c.id %}selected{% endif %}>{{ c.display_name }}</option>{% endfor %}</select>
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Apply</button>
+    </form>
+</div>
+
+{% if empty %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><h4>No projects found</h4></div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card summary-card border-info" style="padding:var(--space-3);"><div class="metric-label">Projects</div><div class="metric-value" style="color:var(--color-info);">{{ active_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">active</div></div>
+    <div class="card summary-card border-primary" style="padding:var(--space-3);"><div class="metric-label">Total Budget</div><div class="metric-value" style="color:var(--color-accent);">${{ "{:,.0f}".format(total_budget) }}</div></div>
+    <div class="card summary-card border-danger" style="padding:var(--space-3);"><div class="metric-label">Total Spent</div><div class="metric-value" style="color:var(--color-danger);">${{ "{:,.0f}".format(total_spent) }}</div></div>
+    <div class="card summary-card border-{% if total_variance >= 0 %}success{% else %}danger{% endif %}" style="padding:var(--space-3);"><div class="metric-label">Variance</div><div class="metric-value" style="color:{% if total_variance >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">${{ "{:,.0f}".format(total_variance) }}</div></div>
+    <div class="card summary-card border-warning" style="padding:var(--space-3);"><div class="metric-label">Over Budget</div><div class="metric-value" style="color:var(--color-warning);">{{ project_rows|selectattr('over_budget')|list|length }}</div></div>
+</div>
+
+<!-- Chart -->
+<div class="card" style="padding:var(--space-3);margin-bottom:var(--space-4);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Budget vs Actual</h3><div style="height:300px;"><canvas id="budgetChart"></canvas></div></div>
+
+<!-- Table -->
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Project Summary</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);">
+            <th style="padding:var(--space-2) var(--space-3);" data-sort>Project</th>
+            <th style="padding:var(--space-2) var(--space-3);" data-sort>Client</th>
+            <th style="padding:var(--space-2) var(--space-3);" data-sort>Status</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Budget</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Spent</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Variance</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>% Spent</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>% Complete</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;">Jobs</th>
+        </tr></thead>
+        <tbody>{% for r in project_rows %}<tr style="border-bottom:1px solid var(--color-border);{% if r.over_budget %}background:rgba(220,53,69,0.05);{% endif %}">
+            <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('projects_bp.project_detail', project_id=r.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:600;">{{ r.title }}</a>{% if r.over_budget %} <span style="font-size:var(--font-size-xs);padding:1px 4px;border-radius:var(--radius-sm);background:var(--color-danger);color:#fff;">Over</span>{% endif %}</td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ r.client }}</td>
+            <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-surface-raised);">{{ r.status|title }}</span></td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(r.budget) }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r.over_budget %}color:var(--color-danger);font-weight:700;{% endif %}">${{ "{:,.0f}".format(r.spent) }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;color:{% if r.variance >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};font-weight:600;">${{ "{:,.0f}".format(r.variance) }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.pct_spent }}%</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.pct_complete }}%</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.jobs_count }}</td>
+        </tr>{% endfor %}</tbody>
+        <tfoot><tr style="background:var(--color-surface-raised);font-weight:700;border-top:2px solid var(--color-border);"><td style="padding:var(--space-2) var(--space-3);" colspan="3">TOTAL</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(total_budget) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(total_spent) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;color:{% if total_variance >= 0 %}var(--color-success){% else %}var(--color-danger){% endif %};">${{ "{:,.0f}".format(total_variance) }}</td><td colspan="3"></td></tr></tfoot>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% if not empty %}
+<script>
+var pr = {{ project_rows|tojson }};
+new Chart(document.getElementById('budgetChart'), { type: 'bar', data: {
+    labels: pr.map(function(r) { return r.title.length > 20 ? r.title.substr(0,20)+'...' : r.title; }),
+    datasets: [
+        { label: 'Budget', data: pr.map(function(r) { return r.budget; }), backgroundColor: 'rgba(13,110,253,0.5)' },
+        { label: 'Spent', data: pr.map(function(r) { return r.spent; }), backgroundColor: pr.map(function(r) { return r.over_budget ? 'rgba(220,53,69,0.8)' : 'rgba(25,135,84,0.7)'; }) }
+    ]}, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: function(v) { return '$' + v.toLocaleString(); } } } } } });
+</script>
+{% endif %}
+{% endblock %}

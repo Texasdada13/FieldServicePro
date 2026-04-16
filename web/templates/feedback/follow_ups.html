@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Follow-ups Required{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <h1 style="margin:0;"><i class="bi bi-flag" style="color:var(--color-danger);"></i> Follow-ups Required</h1>
+  <a href="{{ url_for('feedback.dashboard') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Dashboard</a>
+</div>
+
+{% if open_fups %}
+<div class="card" style="padding:0;margin-bottom:var(--space-4);">
+  <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;color:var(--color-danger);">Open ({{ open_fups|length }})</div>
+  <table style="width:100%;border-collapse:collapse;">
+    <tbody>{% for s in open_fups %}<tr style="border-bottom:1px solid var(--color-border);border-left:4px solid var(--color-danger);">
+      <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('feedback.detail', survey_id=s.id) }}" style="color:var(--color-accent);font-weight:600;text-decoration:none;">{{ s.survey_number }}</a></td>
+      <td style="padding:var(--space-2) var(--space-3);">{{ s.client.display_name if s.client else '&mdash;' }}</td>
+      <td style="padding:var(--space-2) var(--space-3);color:var(--color-warning);font-weight:700;">{% for i in range(s.overall_rating or 0) %}&#9733;{% endfor %} {{ s.overall_rating }}/5</td>
+      <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);color:var(--color-text-muted);max-width:200px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">{{ (s.comments or s.what_could_improve or '')[:80] }}</td>
+      <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ s.completed_at.strftime('%b %d') if s.completed_at else '' }}</td>
+      <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('feedback.detail', survey_id=s.id) }}" class="btn btn-accent" style="font-size:var(--font-size-xs);">Handle</a></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% else %}
+<div class="card" style="padding:var(--space-6);text-align:center;color:var(--color-success);margin-bottom:var(--space-4);"><i class="bi bi-check-circle" style="font-size:2rem;display:block;margin-bottom:var(--space-2);"></i>No open follow-ups!</div>
+{% endif %}
+
+{% if recent_completed %}
+<div class="card" style="padding:0;">
+  <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Recently Completed</div>
+  <table style="width:100%;border-collapse:collapse;">
+    <tbody>{% for s in recent_completed %}<tr style="border-bottom:1px solid var(--color-border);">
+      <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('feedback.detail', survey_id=s.id) }}" style="color:var(--color-accent);text-decoration:none;">{{ s.survey_number }}</a></td>
+      <td style="padding:var(--space-2) var(--space-3);">{{ s.client.display_name if s.client else '' }}</td>
+      <td style="padding:var(--space-2) var(--space-3);color:var(--color-warning);">{{ s.overall_rating }}&#9733;</td>
+      <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ (s.follow_up_notes or '')[:60] }}</td>
+      <td style="padding:var(--space-2) var(--space-3);"><span style="color:var(--color-success);font-size:var(--font-size-xs);"><i class="bi bi-check-circle"></i> Done</span></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

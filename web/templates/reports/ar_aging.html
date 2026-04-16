@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}AR Aging Report{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a> <span style="color:var(--color-text-muted);font-size:var(--font-size-sm);">/ Financial</span></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);"><div><h1 style="margin:0;">AR Aging Report</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ date_label }}</p></div><div style="display:flex;gap:var(--space-2);"><button class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="window.print()"><i class="bi bi-printer"></i></button><button class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i></button></div></div>
+
+<!-- Filter -->
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:end;">
+        <select name="client_id" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">All Clients</option>{% for c in all_clients %}<option value="{{ c.id }}" {% if selected_client == c.id %}selected{% endif %}>{{ c.display_name }}</option>{% endfor %}</select>
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Apply</button>
+    </form>
+</div>
+
+{% if empty %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-success);"><i class="bi bi-check-circle" style="font-size:2rem;display:block;margin-bottom:var(--space-2);"></i><h4>All accounts current!</h4><p style="font-size:var(--font-size-sm);">No outstanding invoices.</p></div>
+{% else %}
+<!-- Summary -->
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card summary-card border-danger" style="padding:var(--space-3);"><div class="metric-label">Total Outstanding</div><div class="metric-value" style="color:var(--color-danger);">${{ "{:,.0f}".format(grand_total) }}</div></div>
+    <div class="card summary-card border-success" style="padding:var(--space-3);"><div class="metric-label">Current</div><div class="metric-value" style="color:var(--color-success);">${{ "{:,.0f}".format(total_current) }}</div></div>
+    <div class="card summary-card border-warning" style="padding:var(--space-3);"><div class="metric-label">1-30 Days</div><div class="metric-value" style="color:var(--color-warning);">${{ "{:,.0f}".format(total_1_30) }}</div></div>
+    <div class="card" style="padding:var(--space-3);border-left:4px solid #fd7e14;"><div class="metric-label">31-60 Days</div><div class="metric-value" style="color:#fd7e14;">${{ "{:,.0f}".format(total_31_60) }}</div></div>
+    <div class="card summary-card border-danger" style="padding:var(--space-3);"><div class="metric-label">61-90 Days</div><div class="metric-value" style="color:var(--color-danger);">${{ "{:,.0f}".format(total_61_90) }}</div></div>
+    <div class="card" style="padding:var(--space-3);border-left:4px solid #6c2c52;"><div class="metric-label">90+ Days</div><div class="metric-value" style="color:#6c2c52;">${{ "{:,.0f}".format(total_90_plus) }}</div></div>
+</div>
+
+<!-- Chart -->
+<div class="card" style="padding:var(--space-3);margin-bottom:var(--space-4);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Aging Distribution</h3><div style="height:250px;"><canvas id="agingChart"></canvas></div></div>
+
+<!-- By Client -->
+<div class="card" style="padding:0;margin-bottom:var(--space-4);">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Aging by Client</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);" data-sort>Client</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Current</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>1-30</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>31-60</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>61-90</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>90+</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Total</th></tr></thead>
+        <tbody>{% for r in client_rows %}<tr style="border-bottom:1px solid var(--color-border);{% if r['90_plus'] > 0 %}background:rgba(220,53,69,0.05);{% endif %}"><td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ r.client }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(r.current) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r['1_30'] > 0 %}color:var(--color-warning);{% endif %}">${{ "{:,.0f}".format(r['1_30']) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r['31_60'] > 0 %}color:#fd7e14;font-weight:600;{% endif %}">${{ "{:,.0f}".format(r['31_60']) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r['61_90'] > 0 %}color:var(--color-danger);{% endif %}">${{ "{:,.0f}".format(r['61_90']) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r['90_plus'] > 0 %}color:var(--color-danger);font-weight:700;{% endif %}">${{ "{:,.0f}".format(r['90_plus']) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">${{ "{:,.0f}".format(r.total) }}</td></tr>{% endfor %}</tbody>
+        <tfoot><tr style="background:var(--color-surface-raised);font-weight:700;border-top:2px solid var(--color-border);"><td style="padding:var(--space-2) var(--space-3);">TOTAL</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(total_current) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(total_1_30) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(total_31_60) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(total_61_90) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(total_90_plus) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(grand_total) }}</td></tr></tfoot>
+    </table></div>
+</div>
+
+<!-- Invoice Detail -->
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Invoice Detail</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);" data-sort>Invoice #</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Client</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Amount Due</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Due Date</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Days Overdue</th><th style="padding:var(--space-2) var(--space-3);">Bucket</th></tr></thead>
+        <tbody>{% for r in invoice_rows %}<tr style="border-bottom:1px solid var(--color-border);{% if r.days_overdue > 90 %}background:rgba(220,53,69,0.05);{% elif r.days_overdue > 60 %}background:rgba(255,193,7,0.05);{% endif %}"><td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('invoice_detail', invoice_id=r.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:600;">{{ r.number }}</a></td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ r.client }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;">${{ "{:,.0f}".format(r.amount) }}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ r.due_date.strftime('%m/%d/%Y') if r.due_date else '--' }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r.days_overdue > 30 %}color:var(--color-danger);font-weight:700;{% endif %}">{{ r.days_overdue if r.days_overdue > 0 else '--' }}</td><td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 6px;border-radius:var(--radius-sm);background:{% if r.bucket == 'current' %}var(--color-success){% elif r.bucket == '1_30' %}var(--color-warning){% elif r.bucket == '31_60' %}#fd7e14{% else %}var(--color-danger){% endif %};color:#fff;">{% if r.bucket == 'current' %}Current{% elif r.bucket == '1_30' %}1-30d{% elif r.bucket == '31_60' %}31-60d{% elif r.bucket == '61_90' %}61-90d{% else %}90+d{% endif %}</span></td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% if not empty %}
+<script>
+new Chart(document.getElementById('agingChart'), {
+    type: 'doughnut', data: { labels: ['Current','1-30 Days','31-60 Days','61-90 Days','90+ Days'], datasets: [{ data: [{{ total_current }},{{ total_1_30 }},{{ total_31_60 }},{{ total_61_90 }},{{ total_90_plus }}], backgroundColor: ['#198754','#ffc107','#fd7e14','#dc3545','#6c2c52'] }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': $' + ctx.raw.toLocaleString(); } } } } }
+});
+</script>
+{% endif %}
+{% endblock %}

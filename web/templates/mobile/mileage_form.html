@@ -1,0 +1,43 @@
+{% extends "mobile/base.html" %}
+{% set show_back = true %}
+{% block title %}Log Mileage — FSP{% endblock %}
+{% block header_title %}Log Mileage{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('mobile.log_mileage') }}">
+  <div class="m-form-group">
+    <label class="m-label">Job (optional)</label>
+    <select name="job_id" class="m-input m-select">
+      <option value="">-- No specific job --</option>
+      {% for j in jobs %}
+      <option value="{{ j.id }}" {{ 'selected' if job_id and j.id == job_id }}>#{{ j.job_number or j.id }} — {{ j.title or 'Job' }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="m-form-group">
+    <label class="m-label">Miles Driven</label>
+    <input type="number" name="miles" class="m-input m-input--lg" step="0.1" min="0" placeholder="0.0" required style="text-align:center;" oninput="updateEst(this.value)">
+  </div>
+
+  <div id="mileage-est" class="m-text-sm m-text-muted" style="text-align:center;margin:-8px 0 16px;">
+    Reimbursement: $0.00 (@ $0.70/mi)
+  </div>
+
+  <div class="m-form-group">
+    <label class="m-label">Description (optional)</label>
+    <input type="text" name="description" class="m-input" placeholder="e.g., Round trip to job site">
+  </div>
+
+  <div class="m-sticky-action">
+    <button type="submit" class="m-btn m-btn--primary m-btn--full m-btn--lg">&#128663; Log Mileage</button>
+  </div>
+</form>
+
+<script>
+function updateEst(v) {
+  var a = (parseFloat(v) || 0) * 0.70;
+  document.getElementById('mileage-est').textContent = 'Reimbursement: $' + a.toFixed(2) + ' (@ $0.70/mi)';
+}
+</script>
+{% endblock %}

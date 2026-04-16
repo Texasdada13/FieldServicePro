@@ -1,0 +1,52 @@
+{% extends "booking/base.html" %}
+{% block title %}Request Status{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="booking-card">
+    <h4 class="fw-bold mb-3">Request Status</h4>
+
+    <div class="review-section">
+      <div class="review-label">Reference</div>
+      <div class="review-value fw-bold" style="color:var(--book-primary);">{{ sr.request_number }}</div>
+    </div>
+    <div class="review-section">
+      <div class="review-label">Status</div>
+      <div class="review-value">
+        <span class="badge bg-{{ 'info' if sr.status == 'new' else ('success' if sr.status == 'converted' else 'secondary') }}">
+          {{ sr.status_display }}
+        </span>
+      </div>
+    </div>
+    <div class="review-section">
+      <div class="review-label">Submitted</div>
+      <div class="review-value">{{ sr.created_at.strftime('%B %d, %Y at %I:%M %p') if sr.created_at else '—' }}</div>
+    </div>
+    <div class="review-section">
+      <div class="review-label">Service</div>
+      <div class="review-value">{{ sr.type_display }}</div>
+    </div>
+    <div class="review-section">
+      <div class="review-label">Description</div>
+      <div class="review-value">{{ sr.description|truncate(300) if sr.description else '—' }}</div>
+    </div>
+
+    {% if sr.status == 'new' %}
+    <div class="alert alert-info mt-4 small">
+      <i class="bi bi-hourglass-split"></i> Your request is being reviewed. We'll contact you shortly to confirm scheduling.
+    </div>
+    {% elif sr.status == 'converted' %}
+    <div class="alert alert-success mt-4 small">
+      <i class="bi bi-check-circle"></i> Your request has been scheduled! Check your email for appointment details.
+    </div>
+    {% endif %}
+
+    {% if org.phone %}
+    <div class="text-center mt-4">
+      <p class="small text-muted mb-1">Need to make changes?</p>
+      <a href="tel:{{ org.phone }}" class="fw-bold" style="color:var(--book-primary);"><i class="bi bi-telephone"></i> {{ org.phone }}</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

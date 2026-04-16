@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ tech.full_name }} — Performance{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('advanced_reports.tech_leaderboard', period=period) }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Leaderboard</a></div>
+
+<div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-4);">
+  <h1 style="margin:0;">{{ tech.full_name }}</h1>
+  {% if score %}<span style="font-size:var(--font-size-sm);padding:4px 12px;border-radius:12px;background:{% if score.overall_score >= 75 %}var(--color-success-light){% elif score.overall_score >= 50 %}rgba(245,158,11,.15){% else %}rgba(239,68,68,.12){% endif %};font-weight:700;">{{ score.overall_score|round(1) }}</span>{% if score.rank %}<span style="font-size:var(--font-size-sm);padding:4px 10px;border-radius:12px;background:var(--color-surface-raised);">Rank #{{ score.rank }}</span>{% endif %}{% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:5fr 7fr;gap:var(--space-4);align-items:start;">
+  <div>
+    <!-- Radar Chart -->
+    <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+      <div style="font-weight:700;margin-bottom:var(--space-2);">Performance Breakdown</div>
+      <div style="height:300px;"><canvas id="radarChart"></canvas></div>
+    </div>
+
+    {% if score %}
+    <!-- Metric Bars -->
+    {% set metrics = [
+      ('Customer Rating', score.customer_rating_score, '&#9733;'),
+      ('Completion Rate', score.completion_rate_score, '&#9989;'),
+      ('Callback Rate', score.callback_rate_score, '&#128260;'),
+      ('Utilization', score.utilization_score, '&#9201;'),
+      ('Revenue', score.revenue_score, '&#128176;'),
+      ('Efficiency', score.efficiency_score, '&#9889;'),
+      ('Profitability', score.profitability_score, '&#128202;'),
+    ] %}
+    {% for name, val, icon in metrics %}
+    <div class="card" style="padding:8px 12px;margin-bottom:4px;border-left:4px solid {% if val >= 75 %}var(--color-success){% elif val >= 50 %}var(--color-warning){% else %}var(--color-danger){% endif %};">
+      <div style="display:flex;justify-content:space-between;font-size:var(--font-size-sm);margin-bottom:2px;"><span>{{ icon }} {{ name }}</span><span style="font-weight:700;">{{ val|round(1) }}</span></div>
+      <div style="height:6px;background:var(--color-surface-raised);border-radius:3px;overflow:hidden;"><div style="height:100%;width:{{ val }}%;border-radius:3px;background:{% if val >= 75 %}var(--color-success){% elif val >= 50 %}var(--color-warning){% else %}var(--color-danger){% endif %};"></div></div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+
+  <div>
+    <!-- Trend -->
+    <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+      <div style="font-weight:700;margin-bottom:var(--space-2);">Score History</div>
+      <div style="height:200px;"><canvas id="trendChart"></canvas></div>
+    </div>
+
+    {% if score %}
+    <!-- Stats Grid -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:var(--space-3);">
+      <div class="card" style="padding:8px;text-align:center;"><div style="font-weight:700;">{{ score.jobs_completed }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Jobs</div></div>
+      <div class="card" style="padding:8px;text-align:center;"><div style="font-weight:700;">{{ "%.1f"|format(score.avg_customer_rating) }}&#9733;</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Avg Rating</div></div>
+      <div class="card" style="padding:8px;text-align:center;"><div style="font-weight:700;">{{ score.total_callbacks }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Callbacks</div></div>
+      <div class="card" style="padding:8px;text-align:center;"><div style="font-weight:700;">{{ score.billable_hours|round(0)|int }}h</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Billable</div></div>
+      <div class="card" style="padding:8px;text-align:center;"><div style="font-weight:700;">${{ "{:,.0f}".format(score.total_revenue) }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Revenue</div></div>
+      <div class="card" style="padding:8px;text-align:center;"><div style="font-weight:700;">{{ "%.1f"|format(score.avg_job_margin) }}%</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Margin</div></div>
+    </div>
+    {% endif %}
+
+    <!-- Achievements -->
+    <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+      <div style="font-weight:700;margin-bottom:var(--space-2);">Achievements</div>
+      {% if achievements %}
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        {% for a in achievements %}
+        <span style="padding:6px 12px;border-radius:8px;background:var(--color-surface-raised);font-size:var(--font-size-sm);" title="{{ a.description }}">{{ a.icon }} {{ a.achievement_name }} <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ a.earned_at.strftime('%b %Y') if a.earned_at else '' }}</span></span>
+        {% endfor %}
+      </div>
+      {% else %}<p style="color:var(--color-text-muted);font-size:var(--font-size-sm);">No achievements yet.</p>{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Feedback + Callbacks -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-top:var(--space-3);">
+  <div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Recent Feedback</div>
+    {% for f in recent_feedback %}
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);{% if f.overall_rating and f.overall_rating <= 2 %}background:rgba(239,68,68,.05);{% endif %}">
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--color-warning);">{% for i in range(f.overall_rating or 0) %}&#9733;{% endfor %}</span><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ f.completed_at.strftime('%b %d') if f.completed_at else '' }}</span></div>
+      {% if f.comments %}<p style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin:4px 0 0;">{{ f.comments[:150] }}</p>{% endif %}
+    </div>
+    {% else %}<div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No feedback yet.</div>{% endfor %}
+  </div>
+  <div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Recent Callbacks</div>
+    {% for c in recent_callbacks %}
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);border-left:4px solid var(--color-danger);">
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:var(--font-size-sm);font-weight:600;">Job #{{ c.original_job_id }}</span><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ c.created_at.strftime('%b %d') if c.created_at else '' }}</span></div>
+      <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ c.reason or 'No reason' }}</div>
+    </div>
+    {% else %}<div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No callbacks. &#127919;</div>{% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+var trend={{ trend|tojson }};
+{% if score %}
+new Chart(document.getElementById('radarChart'),{type:'radar',data:{labels:['Customer Rating','Completion','Callbacks','Utilization','Revenue','Efficiency','Profitability'],datasets:[{label:'{{ tech.full_name }}',data:[{{ score.customer_rating_score }},{{ score.completion_rate_score }},{{ score.callback_rate_score }},{{ score.utilization_score }},{{ score.revenue_score }},{{ score.efficiency_score }},{{ score.profitability_score }}],backgroundColor:'rgba(99,102,241,0.2)',borderColor:'#6366f1',pointBackgroundColor:'#6366f1',pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{r:{min:0,max:100,ticks:{stepSize:20}}},plugins:{legend:{display:false}}}});
+{% endif %}
+new Chart(document.getElementById('trendChart'),{type:'line',data:{labels:trend.map(function(t){return new Date(t.period_start).toLocaleDateString('en-US',{month:'short',year:'2-digit'})}),datasets:[{label:'Score',data:trend.map(function(t){return t.overall_score}),borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,0.1)',fill:true,tension:0.3,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:100}}}});
+</script>
+{% endblock %}

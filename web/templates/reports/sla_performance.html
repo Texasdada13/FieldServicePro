@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}SLA Performance{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<h1 style="margin:0 0 var(--space-1);">SLA Performance</h1>
+<p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:0 0 var(--space-3);">{{ date_label }}</p>
+
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" id="reportFilterForm">
+        <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;margin-bottom:var(--space-2);">{% for val, label in [('this_month','This Month'),('this_quarter','This Quarter'),('this_year','This Year')] %}<button type="button" class="btn {% if selected_preset == val %}btn-accent{% else %}btn-ghost{% endif %} preset-btn" style="font-size:var(--font-size-xs);padding:2px 8px;" data-preset="{{ val }}">{{ label }}</button>{% endfor %}</div>
+        <input type="hidden" name="preset" id="presetInput" value="{{ selected_preset }}">
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Apply</button>
+    </form>
+</div>
+
+{% if empty %}<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><h4>No SLA-tracked jobs for this period</h4></div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card summary-card border-primary" style="padding:var(--space-3);"><div class="metric-label">SLA Jobs</div><div class="metric-value" style="color:var(--color-accent);">{{ total }}</div></div>
+    <div class="card summary-card border-{% if resp_pct >= 95 %}success{% elif resp_pct >= 85 %}warning{% else %}danger{% endif %}" style="padding:var(--space-3);"><div class="metric-label">Response Met</div><div class="metric-value">{{ resp_pct }}%</div></div>
+    <div class="card summary-card border-{% if res_pct >= 95 %}success{% elif res_pct >= 85 %}warning{% else %}danger{% endif %}" style="padding:var(--space-3);"><div class="metric-label">Resolution Met</div><div class="metric-value">{{ res_pct }}%</div></div>
+</div>
+
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">SLA Detail</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);" data-sort>Job #</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Client</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Resp Target</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Resp Actual</th><th style="padding:var(--space-2) var(--space-3);">Response</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Res Target</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Res Actual</th><th style="padding:var(--space-2) var(--space-3);">Resolution</th></tr></thead>
+        <tbody>{% for r in sla_rows %}<tr style="border-bottom:1px solid var(--color-border);{% if not r.resp_met or not r.res_met %}background:rgba(220,53,69,0.05);{% endif %}">
+            <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('job_detail', job_id=r.job_id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:600;">{{ r.job_number }}</a></td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ r.client }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.resp_target }}h</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if not r.resp_met %}color:var(--color-danger);font-weight:700;{% endif %}">{{ r.resp_actual if r.resp_actual is not none else '--' }}h</td>
+            <td style="padding:var(--space-2) var(--space-3);">{% if r.resp_actual is none %}<span style="color:var(--color-text-muted);">--</span>{% elif r.resp_met %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-success);color:#fff;">Met</span>{% else %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-danger);color:#fff;">Breached</span>{% endif %}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.res_target }}h</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r.res_actual and not r.res_met %}color:var(--color-danger);font-weight:700;{% endif %}">{{ r.res_actual if r.res_actual is not none else '--' }}h</td>
+            <td style="padding:var(--space-2) var(--space-3);">{% if r.res_actual is none %}<span style="color:var(--color-text-muted);">Pending</span>{% elif r.res_met %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-success);color:#fff;">Met</span>{% else %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-danger);color:#fff;">Breached</span>{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/reports.js') }}"></script>{% endblock %}

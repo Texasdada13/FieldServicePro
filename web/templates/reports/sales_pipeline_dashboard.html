@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Sales Pipeline Dashboard{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+  <div>
+    <h1 style="margin:0;"><i class="bi bi-funnel-fill" style="color:var(--color-accent);"></i> Sales Pipeline</h1>
+    <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ start.strftime('%b %d') }} &ndash; {{ end.strftime('%b %d, %Y') }}</p>
+  </div>
+  <button class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="window.print()"><i class="bi bi-printer"></i></button>
+</div>
+
+<!-- Filters -->
+<form method="GET" class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+  <div style="display:flex;gap:var(--space-2);align-items:end;flex-wrap:wrap;">
+    <input type="date" name="start" class="form-control" style="font-size:var(--font-size-sm);width:auto;" value="{{ start.isoformat() }}">
+    <input type="date" name="end" class="form-control" style="font-size:var(--font-size-sm);width:auto;" value="{{ end.isoformat() }}">
+    {% if divisions %}<select name="division_id" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">All Divisions</option>{% for d in divisions %}<option value="{{ d.id }}" {{ 'selected' if division_id == d.id }}>{{ d.name }}</option>{% endfor %}</select>{% endif %}
+    <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Apply</button>
+  </div>
+</form>
+
+<!-- KPI Cards -->
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+  <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Pipeline</div><div style="font-size:1.3rem;font-weight:700;">${{ "{:,.0f}".format(funnel.total_pipeline_value) }}</div></div>
+  <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Weighted</div><div style="font-size:1.3rem;font-weight:700;color:var(--color-accent);">${{ "{:,.0f}".format(funnel.weighted_pipeline_value) }}</div></div>
+  <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Forecast (Mo)</div><div style="font-size:1.3rem;font-weight:700;color:var(--color-success);">${{ "{:,.0f}".format(forecast.months[0].weighted if forecast.months else 0) }}</div></div>
+  <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Win Rate (90d)</div><div style="font-size:1.3rem;font-weight:700;{% if win_loss.win_rate >= 50 %}color:var(--color-success);{% else %}color:var(--color-danger);{% endif %}">{{ win_loss.win_rate }}%</div></div>
+  <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Avg Deal</div><div style="font-size:1.3rem;font-weight:700;">${{ "{:,.0f}".format(win_loss.avg_deal_size) }}</div></div>
+  <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Days to Close</div><div style="font-size:1.3rem;font-weight:700;">{{ avg_days_to_close }}d</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:5fr 7fr;gap:var(--space-3);margin-bottom:var(--space-4);">
+  <!-- Funnel -->
+  <div class="card" style="padding:var(--space-3);">
+    <div style="font-weight:700;margin-bottom:var(--space-2);">Pipeline Funnel</div>
+    {% set stage_colors = {'draft':'#94a3b8','sent':'#3b82f6','follow_up':'#f59e0b','approved':'#10b981','converted':'#059669','declined':'#ef4444','expired':'#9ca3af'} %}
+    {% set max_val = [funnel.stages.values()|map(attribute='value')|max, 1]|max %}
+    {% for key, label, prob in [('draft','Draft',0.10),('sent','Sent',0.40),('follow_up','Follow-Up',0.40),('approved','Approved',0.90),('converted','Won',1.00)] %}
+    {% set s = funnel.stages.get(key, {}) %}
+    {% set w = [((s.value or 0) / max_val * 100), 15]|max %}
+    <div style="height:42px;margin-bottom:4px;border-radius:4px;display:flex;align-items:center;padding:0 12px;background:{{ stage_colors.get(key,'#6b7280') }};width:{{ w }}%;cursor:pointer;" title="{{ label }}: {{ s.count or 0 }} quotes, ${{ '{:,.0f}'.format(s.value or 0) }}">
+      <span style="color:#fff;font-weight:600;flex:1;font-size:var(--font-size-sm);">{{ label }}</span>
+      <span style="color:rgba(255,255,255,.8);font-size:var(--font-size-xs);margin-right:8px;">{{ s.count or 0 }}</span>
+      <span style="color:#fff;font-weight:700;font-size:var(--font-size-sm);">${{ "{:,.0f}".format(s.value or 0) }}</span>
+    </div>
+    {% endfor %}
+    <hr style="margin:12px 0;">
+    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);display:flex;justify-content:space-between;">
+      <span>Declined: {{ funnel.stages.get('declined',{}).count or 0 }}</span>
+      <span>Expired: {{ funnel.stages.get('expired',{}).count or 0 }}</span>
+    </div>
+  </div>
+
+  <!-- Forecast Chart -->
+  <div class="card" style="padding:var(--space-3);">
+    <div style="font-weight:700;margin-bottom:var(--space-2);">Revenue Forecast (3 Months)</div>
+    <div style="height:250px;"><canvas id="forecastChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Aging + Win/Loss -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4);">
+  <div class="card" style="padding:var(--space-3);">
+    <div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:var(--space-2);">
+      <span>Quote Aging</span>
+      {% if aging.stale_count > 0 %}<span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:10px;background:var(--color-danger);color:#fff;">{{ aging.stale_count }} stale</span>{% endif %}
+    </div>
+    {% for bk, bv in aging.buckets.items() %}
+    <div style="margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;font-size:var(--font-size-sm);margin-bottom:2px;"><span>{{ bv.label }}</span><span style="font-weight:600;">{{ bv.quotes|length }} &middot; ${{ "{:,.0f}".format(bv.value) }}</span></div>
+      {% set max_c = [aging.buckets.values()|map(attribute='quotes')|map('length')|max, 1]|max %}
+      <div style="height:10px;background:var(--color-surface-raised);border-radius:5px;overflow:hidden;"><div style="height:100%;width:{{ [(bv.quotes|length / max_c * 100), 2]|max }}%;border-radius:5px;background:{% if bk == '60+' %}var(--color-danger){% elif bk == '31-60' %}var(--color-warning){% else %}var(--color-accent){% endif %};"></div></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card" style="padding:var(--space-3);">
+    <div style="font-weight:700;margin-bottom:var(--space-2);">Win/Loss (90d)</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-bottom:var(--space-2);">
+      <div><div style="font-size:1.5rem;font-weight:700;color:var(--color-success);">{{ win_loss.won_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Won</div></div>
+      <div><div style="font-size:1.5rem;font-weight:700;color:var(--color-danger);">{{ win_loss.lost_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Lost</div></div>
+      <div><div style="font-size:1.5rem;font-weight:700;">{{ win_loss.win_rate }}%</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Win Rate</div></div>
+    </div>
+    <div style="height:180px;"><canvas id="winLossChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Top Opportunities -->
+<div class="card" style="padding:0;">
+  <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Top Opportunities</div>
+  <div style="overflow-x:auto;">
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Quote #</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Client</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Value</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Stage</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Days Open</th>
+    </tr></thead>
+    <tbody>{% for q in top_opportunities %}
+    {% set days = (today - q.created_at.date()).days if q.created_at else 0 %}
+    <tr style="border-bottom:1px solid var(--color-border);{% if days > 14 %}background:rgba(245,158,11,.05);{% endif %}">
+      <td style="padding:var(--space-2) var(--space-3);font-weight:600;"><a href="{{ url_for('quote_detail', quote_id=q.id) }}" style="color:var(--color-accent);text-decoration:none;">{{ q.quote_number }}</a></td>
+      <td style="padding:var(--space-2) var(--space-3);">{{ q.client.display_name if q.client else '&mdash;' }}</td>
+      <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">${{ "{:,.0f}".format(q.total or 0) }}</td>
+      <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:{% if q.status == 'approved' %}var(--color-success){% elif q.status == 'sent' %}var(--color-accent){% else %}var(--color-surface-raised){% endif %};color:{% if q.status in ('approved','sent') %}#fff{% else %}inherit{% endif %};">{{ q.status|title }}</span></td>
+      <td style="padding:var(--space-2) var(--space-3);">{{ days }}d{% if days > 14 %} <span style="color:var(--color-danger);">&#9888;</span>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No open opportunities.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+
+<script id="reportSummaryData" type="application/json">{{ {"Total Pipeline": "${:,.0f}".format(funnel.total_pipeline_value), "Weighted": "${:,.0f}".format(funnel.weighted_pipeline_value), "Win Rate": "{}%".format(win_loss.win_rate), "Avg Deal": "${:,.0f}".format(win_loss.avg_deal_size), "Stale Quotes": aging.stale_count}|tojson|safe }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+<script>
+var forecastData={{ forecast|tojson }};
+var winLossData={{ win_loss|tojson }};
+
+// Forecast
+(function(){
+  var months=forecastData.months||[];
+  new Chart(document.getElementById('forecastChart'),{type:'bar',data:{
+    labels:months.map(function(m){return m.month}),
+    datasets:[
+      {label:'Approved',data:months.map(function(m){return m.sources.approved_quotes}),backgroundColor:'#10b981',stack:'s'},
+      {label:'Sent',data:months.map(function(m){return m.sources.sent_quotes}),backgroundColor:'#3b82f6',stack:'s'},
+      {label:'Recurring',data:months.map(function(m){return m.sources.recurring}),backgroundColor:'#8b5cf6',stack:'s'},
+      {label:'Contracts',data:months.map(function(m){return m.sources.contracts}),backgroundColor:'#f59e0b',stack:'s'},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{stacked:true,ticks:{callback:function(v){return '$'+v.toLocaleString()}}},x:{stacked:true}}}});
+})();
+
+// Win/Loss
+(function(){
+  var b=winLossData.value_buckets||{};
+  var labels=Object.keys(b);
+  new Chart(document.getElementById('winLossChart'),{type:'bar',data:{labels:labels,datasets:[
+    {label:'Won',data:labels.map(function(l){return b[l].won||0}),backgroundColor:'#10b981'},
+    {label:'Lost',data:labels.map(function(l){return b[l].lost||0}),backgroundColor:'#ef4444'},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
+})();
+</script>
+{% endblock %}

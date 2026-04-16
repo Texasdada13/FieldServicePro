@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if sub else 'New' }} Submittal{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <h1 style="margin:0;">{{ 'Edit' if sub else 'New' }} Submittal{% if sub %} <span style="color:var(--color-text-muted);font-size:var(--font-size-sm);">{{ sub.submittal_number }}</span>{% endif %}</h1>
+    <a href="{{ url_for('submittals.submittal_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<form method="POST" style="max-width:900px;">
+    <!-- Context -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Project Context</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Project *</label><select name="project_id" class="form-select" required {% if sub %}disabled{% endif %}><option value="">Select...</option>{% for p in projects %}<option value="{{ p.id }}" {% if (sub and sub.project_id == p.id) or (project and project.id == p.id) %}selected{% endif %}>{{ p.title }}</option>{% endfor %}</select>{% if sub %}<input type="hidden" name="project_id" value="{{ sub.project_id }}">{% endif %}</div>
+            <div class="form-group"><label class="form-label">Job (Optional)</label><select name="job_id" class="form-select"><option value="">--</option>{% for j in jobs %}<option value="{{ j.id }}" {% if sub and sub.job_id == j.id %}selected{% endif %}>{{ j.job_number }} - {{ j.title[:20] }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label class="form-label">Type *</label><select name="submittal_type" class="form-select">{% for val, label in submittal_types %}<option value="{{ val }}" {% if (sub and sub.submittal_type == val) or (not sub and val == 'product_data') %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        </div>
+    </div>
+
+    <!-- Info -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Submittal Information</h3>
+        <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Title *</label><input type="text" name="title" class="form-control" required value="{{ sub.title if sub else '' }}" placeholder="e.g., Carrier 25HCB660A003 Condensing Unit"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Spec Section</label><input type="text" name="spec_section" class="form-control" value="{{ sub.spec_section if sub else '' }}" placeholder="23 00 00 - HVAC"></div>
+            <div class="form-group"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2">{{ sub.description if sub else '' }}</textarea></div>
+        </div>
+    </div>
+
+    <!-- Product -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Product Details</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Manufacturer</label><input type="text" name="manufacturer" class="form-control" value="{{ sub.manufacturer if sub else '' }}"></div>
+            <div class="form-group"><label class="form-label">Model Number</label><input type="text" name="model_number" class="form-control" value="{{ sub.model_number if sub else '' }}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Quantity</label><input type="number" name="quantity" id="qtyInput" class="form-control" min="1" value="{{ sub.quantity if sub else '' }}"></div>
+            <div class="form-group"><label class="form-label">Unit Cost ($)</label><input type="number" name="unit_cost" id="unitCostInput" class="form-control" step="0.01" value="{{ sub.unit_cost if sub else '' }}"></div>
+            <div class="form-group"><label class="form-label">Total Cost ($)</label><input type="number" name="total_cost" id="totalCostInput" class="form-control" step="0.01" value="{{ sub.total_cost if sub else '' }}" readonly></div>
+        </div>
+        <div class="form-group"><label class="form-label">Alternatives Considered</label><textarea name="alternatives_considered" class="form-control" rows="2" placeholder="Other products evaluated...">{{ sub.alternatives_considered if sub else '' }}</textarea></div>
+    </div>
+
+    <!-- Routing -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Routing & Dates</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Submitted To</label><input type="text" name="submitted_to" class="form-control" value="{{ sub.submitted_to if sub else '' }}" placeholder="Architect, GC..."></div>
+            <div class="form-group"><label class="form-label">Email</label><input type="email" name="submitted_to_email" class="form-control" value="{{ sub.submitted_to_email if sub else '' }}"></div>
+            <div class="form-group"><label class="form-label">Required By</label><input type="date" name="date_required" class="form-control" value="{{ sub.date_required.strftime('%Y-%m-%d') if sub and sub.date_required else '' }}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Lead Time (days)</label><input type="number" name="lead_time_days" class="form-control" value="{{ sub.lead_time_days if sub else '' }}"></div>
+            <div class="form-group"><label class="form-label">Status</label><select name="status" class="form-select"><option value="draft" {% if sub and sub.status == 'draft' %}selected{% endif %}>Draft</option><option value="submitted" {% if (sub and sub.status == 'submitted') or not sub %}selected{% endif %}>Submitted</option></select></div>
+        </div>
+    </div>
+
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2">{{ sub.notes if sub else '' }}</textarea></div>
+    </div>
+
+    <div style="display:flex;gap:var(--space-2);justify-content:flex-end;"><a href="{{ url_for('submittals.submittal_list') }}" class="btn btn-ghost">Cancel</a><button type="submit" class="btn btn-accent"><i class="bi bi-check-lg"></i> {{ 'Update' if sub else 'Create' }} Submittal</button></div>
+</form>
+
+<script>
+document.getElementById('qtyInput').addEventListener('input', calcTotal);
+document.getElementById('unitCostInput').addEventListener('input', calcTotal);
+function calcTotal() { var q=parseFloat(document.getElementById('qtyInput').value)||0; var u=parseFloat(document.getElementById('unitCostInput').value)||0; if(q&&u) document.getElementById('totalCostInput').value=(q*u).toFixed(2); }
+</script>
+{% endblock %}

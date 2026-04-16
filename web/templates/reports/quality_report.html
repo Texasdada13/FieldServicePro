@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Quality & Callbacks{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);"><div><h1 style="margin:0;">Quality & Callbacks</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ date_label }}</p></div><button class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i></button></div>
+
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" id="reportFilterForm">
+        <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;margin-bottom:var(--space-2);">{% for val, label in [('this_month','This Month'),('this_quarter','This Quarter'),('this_year','This Year'),('last_quarter','Last Quarter')] %}<button type="button" class="btn {% if selected_preset == val %}btn-accent{% else %}btn-ghost{% endif %} preset-btn" style="font-size:var(--font-size-xs);padding:2px 8px;" data-preset="{{ val }}">{{ label }}</button>{% endfor %}</div>
+        <input type="hidden" name="preset" id="presetInput" value="{{ selected_preset }}">
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Apply</button>
+    </form>
+</div>
+
+{% if empty %}<div style="padding:var(--space-6);text-align:center;color:var(--color-success);"><i class="bi bi-check-circle" style="font-size:2rem;display:block;margin-bottom:var(--space-2);"></i><h4>No callbacks for this period</h4></div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card summary-card border-{% if callback_rate <= 5 %}success{% elif callback_rate <= 10 %}warning{% else %}danger{% endif %}" style="padding:var(--space-3);"><div class="metric-label">Callback Rate</div><div class="metric-value" style="color:{% if callback_rate <= 5 %}var(--color-success){% elif callback_rate <= 10 %}var(--color-warning){% else %}var(--color-danger){% endif %};">{{ callback_rate }}%</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ total_callbacks }} callbacks / {{ total_jobs }} jobs</div></div>
+    <div class="card summary-card border-danger" style="padding:var(--space-3);"><div class="metric-label">Total Callbacks</div><div class="metric-value" style="color:var(--color-danger);">{{ total_callbacks }}</div></div>
+    <div class="card summary-card border-primary" style="padding:var(--space-3);"><div class="metric-label">Total Jobs</div><div class="metric-value" style="color:var(--color-accent);">{{ total_jobs }}</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">By Reason</h3><div style="height:250px;"><canvas id="reasonChart"></canvas></div></div>
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Monthly Callbacks</h3><div style="height:250px;"><canvas id="monthlyChart"></canvas></div></div>
+</div>
+
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Callback Detail</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);" data-sort>Original Job</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Reason</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Severity</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Technician</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Status</th><th style="padding:var(--space-2) var(--space-3);">Date</th></tr></thead>
+        <tbody>{% for r in callback_rows %}<tr style="border-bottom:1px solid var(--color-border);">
+            <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ r.original_job }}</td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ r.reason }}</td>
+            <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:{% if r.severity == 'critical' %}var(--color-danger){% elif r.severity == 'major' %}var(--color-warning){% else %}var(--color-surface-raised){% endif %};color:{% if r.severity in ('critical','major') %}#fff{% else %}inherit{% endif %};">{{ r.severity|title }}</span></td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ r.tech }}</td>
+            <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-surface-raised);">{{ r.status|title }}</span></td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ r.created_at.strftime('%m/%d/%y') if r.created_at else '' }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+{% block scripts %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script><script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% if not empty %}<script>
+new Chart(document.getElementById('reasonChart'),{type:'bar',data:{labels:{{ reason_rows|map(attribute='reason')|list|tojson }},datasets:[{label:'Count',data:{{ reason_rows|map(attribute='count')|list|tojson }},backgroundColor:'rgba(220,53,69,0.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false}});
+new Chart(document.getElementById('monthlyChart'),{type:'bar',data:{labels:{{ month_labels|tojson }},datasets:[{label:'Callbacks',data:{{ monthly_callbacks|tojson }},backgroundColor:'rgba(255,193,7,0.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false}});
+</script>{% endif %}{% endblock %}

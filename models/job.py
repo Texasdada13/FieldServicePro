@@ -107,6 +107,7 @@ class Job(Base):
     callback_record = relationship("Callback", foreign_keys="Callback.callback_job_id", back_populates="callback_job", uselist=False, lazy='select')
     expenses = relationship("Expense", back_populates="job", foreign_keys="Expense.job_id", lazy='select')
     original_job = relationship("Job", foreign_keys=[original_job_id], remote_side='Job.id', backref="callback_jobs", lazy='select')
+    feedback_surveys = relationship("FeedbackSurvey", back_populates="job", cascade="all, delete-orphan", lazy='select')
 
     # -- Phase helper properties --
 

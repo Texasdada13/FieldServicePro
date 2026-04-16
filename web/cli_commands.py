@@ -404,3 +404,25 @@ def cleanup_old_notifications(days):
         click.echo(f"Deleted {deleted} old dismissed notifications.")
     finally:
         db.close()
+
+
+# ── Project Management CLI ──────────────────────────────────────────────────
+
+project_mgmt_cli = Blueprint('project_mgmt_cli', __name__, cli_group='project-mgmt')
+
+
+@project_mgmt_cli.cli.command('check-overdue')
+def check_overdue_cmd():
+    """Send overdue notifications for RFIs and Submittals."""
+    from web.utils.project_mgmt_notifications import notify_rfi_overdue, notify_submittal_overdue
+    rfi_count = notify_rfi_overdue()
+    sub_count = notify_submittal_overdue()
+    click.echo(f'Notified: {rfi_count} overdue RFIs, {sub_count} overdue submittals.')
+
+
+@project_mgmt_cli.cli.command('check-deliveries')
+def check_deliveries_cmd():
+    """Alert on approaching submittal deliveries."""
+    from web.utils.project_mgmt_notifications import notify_delivery_approaching
+    count = notify_delivery_approaching()
+    click.echo(f'Sent {count} delivery approaching alerts.')

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Inventory Valuation{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);"><div><h1 style="margin:0;">Inventory Valuation</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ date_label }}</p></div><button class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i></button></div>
+
+{% if empty %}<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><h4>No inventory</h4></div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card summary-card border-success" style="padding:var(--space-3);"><div class="metric-label">Total Value</div><div class="metric-value" style="color:var(--color-success);">${{ "{:,.0f}".format(total_value) }}</div></div>
+    <div class="card summary-card border-primary" style="padding:var(--space-3);"><div class="metric-label">SKUs</div><div class="metric-value" style="color:var(--color-accent);">{{ total_skus }}</div></div>
+    <div class="card summary-card border-danger" style="padding:var(--space-3);"><div class="metric-label">Below Reorder</div><div class="metric-value" style="color:var(--color-danger);">{{ items_below_reorder }}</div></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">By Location</h3><div style="height:250px;"><canvas id="locChart"></canvas></div></div>
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">By Category</h3><div style="height:250px;"><canvas id="catChart"></canvas></div></div>
+</div>
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Inventory Detail</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);" data-sort>Part #</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Name</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Location</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Qty</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Cost</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Value</th><th style="padding:var(--space-2) var(--space-3);">Status</th></tr></thead>
+        <tbody>{% for r in part_rows %}<tr style="border-bottom:1px solid var(--color-border);{% if r.below_reorder %}background:rgba(255,193,7,0.08);{% endif %}"><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ r.part_number }}</td><td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ r.name }}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ r.location }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.qty }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "%.2f"|format(r.unit_cost) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">${{ "{:,.2f}".format(r.value) }}</td><td style="padding:var(--space-2) var(--space-3);">{% if r.qty == 0 %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-danger);color:#fff;">Out</span>{% elif r.below_reorder %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-warning);color:#000;">Low</span>{% else %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-success);color:#fff;">OK</span>{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+{% block scripts %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script><script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% if not empty %}<script>
+new Chart(document.getElementById('locChart'),{type:'doughnut',data:{labels:{{ location_rows|map(attribute='location')|list|tojson }},datasets:[{data:{{ location_rows|map(attribute='value')|list|tojson }},backgroundColor:['#0d6efd','#198754','#ffc107','#dc3545','#0dcaf0','#6c757d']}]},options:{responsive:true,maintainAspectRatio:false}});
+new Chart(document.getElementById('catChart'),{type:'bar',data:{labels:{{ category_rows|map(attribute='category')|list|tojson }},datasets:[{label:'Value',data:{{ category_rows|map(attribute='value')|list|tojson }},backgroundColor:'rgba(13,110,253,0.7)',borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{callback:function(v){return '$'+v.toLocaleString();}}}}}});
+</script>{% endif %}{% endblock %}

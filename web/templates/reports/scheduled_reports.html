@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Scheduled Reports{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <div><h1 style="margin:0;"><i class="bi bi-clock-history" style="color:var(--color-accent);"></i> Scheduled Reports</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">Automate report delivery via email</p></div>
+</div>
+
+{% if scheduled %}
+<div class="card" style="padding:0;">
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);">Name</th><th style="padding:var(--space-2) var(--space-3);">Report</th><th style="padding:var(--space-2) var(--space-3);">Frequency</th><th style="padding:var(--space-2) var(--space-3);">Recipients</th><th style="padding:var(--space-2) var(--space-3);">Next Send</th><th style="padding:var(--space-2) var(--space-3);">Status</th></tr></thead>
+        <tbody>{% for sr in scheduled %}<tr style="border-bottom:1px solid var(--color-border);"><td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ sr.name }}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ sr.report_type }}</td><td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-info);color:#fff;">{{ sr.frequency|title }}</span></td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ sr.recipients }}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ sr.next_send.strftime('%m/%d/%Y') if sr.next_send else '--' }}</td><td style="padding:var(--space-2) var(--space-3);">{% if sr.is_active %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-success);color:#fff;">Active</span>{% else %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-surface-raised);">Paused</span>{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+<div style="margin-top:var(--space-3);padding:var(--space-2) var(--space-3);background:var(--color-surface-raised);border-radius:var(--radius-sm);font-size:var(--font-size-sm);color:var(--color-text-muted);"><i class="bi bi-info-circle"></i> Scheduled report delivery requires email to be configured. Reports are exported as PDF attachments.</div>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><i class="bi bi-clock" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i><h4>No Scheduled Reports</h4><p style="font-size:var(--font-size-sm);">Scheduled report delivery is coming soon.</p></div>
+{% endif %}
+{% endblock %}

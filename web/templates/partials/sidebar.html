@@ -40,6 +40,40 @@
           </a>
         </li>
         <li class="sidebar__item">
+          <a href="{{ url_for('rfis.rfi_list') }}"
+             class="sidebar__link {% if active_page == 'rfis' %}is-active{% endif %}">
+            <i class="bi bi-question-circle sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">RFIs</span>
+            {% if open_rfi_count is defined and open_rfi_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-accent); color: #fff;">{{ open_rfi_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('submittals.submittal_list') }}"
+             class="sidebar__link {% if active_page == 'submittals' %}is-active{% endif %}">
+            <i class="bi bi-clipboard-check sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Submittals</span>
+            {% if pending_sub_count is defined and pending_sub_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-info); color: #fff;">{{ pending_sub_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('punch_lists.punch_list_index') }}"
+             class="sidebar__link {% if active_page == 'punch_lists' %}is-active{% endif %}">
+            <i class="bi bi-card-checklist sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Punch Lists</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('daily_logs.daily_log_list') }}"
+             class="sidebar__link {% if active_page == 'daily_logs' %}is-active{% endif %}">
+            <i class="bi bi-journal-text sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Daily Logs</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
           <a href="{{ url_for('jobs_page') }}"
              class="sidebar__link {% if active_page == 'jobs' %}is-active{% endif %}">
             <i class="bi bi-briefcase sidebar__link-icon" aria-hidden="true"></i>
@@ -129,6 +163,37 @@
             {% if pending_expenses_count is defined and pending_expenses_count > 0 %}
             <span class="sidebar__badge" style="background: var(--color-warning); color: #000;">{{ pending_expenses_count }}</span>
             {% endif %}
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Vendors -->
+    <div class="sidebar__group">
+      <span class="sidebar__group-label">Vendors</span>
+      <ul class="sidebar__list" role="list">
+        <li class="sidebar__item">
+          <a href="{{ url_for('vendors.vendor_list') }}"
+             class="sidebar__link {% if active_page == 'vendors' %}is-active{% endif %}">
+            <i class="bi bi-building sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Vendors</span>
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('supplier_pos.spo_list') }}"
+             class="sidebar__link {% if active_page == 'supplier_pos' %}is-active{% endif %}">
+            <i class="bi bi-cart3 sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Supplier POs</span>
+            {% if pending_spo_count is defined and pending_spo_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-warning); color: #000;">{{ pending_spo_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('vendors.price_comparison') }}"
+             class="sidebar__link {% if active_page == 'price_comparison' %}is-active{% endif %}">
+            <i class="bi bi-bar-chart sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Price Compare</span>
           </a>
         </li>
       </ul>
@@ -276,6 +341,16 @@
             <span class="sidebar__link-text">Checklists</span>
           </a>
         </li>
+        <li class="sidebar__item">
+          <a href="{{ url_for('feedback.dashboard') }}"
+             class="sidebar__link {% if active_page == 'feedback' %}is-active{% endif %}">
+            <i class="bi bi-chat-heart sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Feedback</span>
+            {% if feedback_badge_count is defined and feedback_badge_count > 0 %}
+            <span class="sidebar__badge" style="background: var(--color-danger); color: #fff;">{{ feedback_badge_count }}</span>
+            {% endif %}
+          </a>
+        </li>
       </ul>
     </div>
 
@@ -283,6 +358,15 @@
     <div class="sidebar__group">
       <span class="sidebar__group-label">System</span>
       <ul class="sidebar__list" role="list">
+        {% if user and user.role in ('admin', 'owner', 'dispatcher') %}
+        <li class="sidebar__item">
+          <a href="{{ url_for('reports.index') }}"
+             class="sidebar__link {% if active_page == 'reports' %}is-active{% endif %}">
+            <i class="bi bi-bar-chart-line sidebar__link-icon" aria-hidden="true"></i>
+            <span class="sidebar__link-text">Reports</span>
+          </a>
+        </li>
+        {% endif %}
         {% if user and user.role in ('admin', 'owner') %}
         <li class="sidebar__item">
           <a href="{{ url_for('payroll.payroll_dashboard') }}"

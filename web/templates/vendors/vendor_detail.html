@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}{{ vendor.company_name }}{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('vendors.vendor_list') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Vendors</a></div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <h1 style="margin:0;">{{ vendor.company_name }}
+            <span style="font-size:var(--font-size-sm);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ vendor.status_color }});color:#fff;">{{ vendor.status|title }}</span>
+        </h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ vendor.vendor_number }} &middot; {{ dict(vendor_types).get(vendor.vendor_type, vendor.vendor_type) }}{% if vendor.doing_business_as %} &middot; DBA: {{ vendor.doing_business_as }}{% endif %}</p>
+    </div>
+    {% if user.role in ('admin','owner') %}<a href="{{ url_for('vendors.vendor_edit', vendor_id=vendor.id) }}" class="btn btn-ghost"><i class="bi bi-pencil"></i> Edit</a>{% endif %}
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:var(--space-1);margin-bottom:var(--space-3);border-bottom:2px solid var(--color-border);">
+    {% for t, label, icon in [('overview','Overview','bi-eye'),('pricing','Pricing','bi-currency-dollar'),('pos','Purchase Orders','bi-receipt'),('payments','Payments','bi-credit-card')] %}
+    <a href="{{ url_for('vendors.vendor_detail', vendor_id=vendor.id, tab=t) }}" style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);font-weight:600;text-decoration:none;border-bottom:2px solid {% if tab == t %}var(--color-accent){% else %}transparent{% endif %};margin-bottom:-2px;color:{% if tab == t %}var(--color-accent){% else %}var(--color-text-muted){% endif %};"><i class="bi {{ icon }}"></i> {{ label }}</a>
+    {% endfor %}
+</div>
+
+{% if tab == 'overview' %}
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);align-items:start;">
+    <div>
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Company Information</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);font-size:var(--font-size-sm);">
+                <div><span style="color:var(--color-text-muted);">Phone</span><div>{{ vendor.phone or '--' }}</div></div>
+                <div><span style="color:var(--color-text-muted);">Email</span><div>{{ vendor.email or '--' }}</div></div>
+                <div><span style="color:var(--color-text-muted);">Website</span><div>{% if vendor.website %}<a href="{{ vendor.website }}" target="_blank">{{ vendor.website }}</a>{% else %}--{% endif %}</div></div>
+                <div><span style="color:var(--color-text-muted);">Account #</span><div>{{ vendor.account_number or '--' }}</div></div>
+                <div style="grid-column:span 2;"><span style="color:var(--color-text-muted);">Address</span><div>{{ vendor.address_line1 or '' }}{% if vendor.city %}, {{ vendor.city }}{% endif %}{% if vendor.state_province %}, {{ vendor.state_province }}{% endif %} {{ vendor.postal_code or '' }}</div></div>
+            </div>
+        </div>
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Contact & Sales Rep</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);font-size:var(--font-size-sm);">
+                <div><span style="color:var(--color-text-muted);">Primary Contact</span><div style="font-weight:600;">{{ vendor.contact_name or '--' }}</div><div style="font-size:var(--font-size-xs);">{{ vendor.contact_email or '' }} {{ vendor.contact_phone or '' }}</div></div>
+                <div><span style="color:var(--color-text-muted);">Sales Rep</span><div style="font-weight:600;">{{ vendor.sales_rep_name or '--' }}</div><div style="font-size:var(--font-size-xs);">{{ vendor.sales_rep_email or '' }} {{ vendor.sales_rep_phone or '' }}</div></div>
+            </div>
+        </div>
+        {% if vendor.notes %}<div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Notes</h3><p style="font-size:var(--font-size-sm);margin:0;">{{ vendor.notes }}</p></div>{% endif %}
+    </div>
+    <div>
+        <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Financial</h3>
+            <table style="width:100%;font-size:var(--font-size-sm);">
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);width:40%;">Terms</td><td>{{ dict(payment_terms_map).get(vendor.payment_terms, vendor.payment_terms) }}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Currency</td><td>{{ vendor.currency }}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Total Spent</td><td style="font-weight:700;">${{ "{:,.2f}".format(total_spent) }}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Balance</td><td style="{% if vendor.current_balance > 0 %}color:var(--color-warning);font-weight:700;{% endif %}">${{ "{:,.2f}".format(vendor.current_balance or 0) }}</td></tr>
+            </table>
+        </div>
+        <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Rating</h3>
+            {% if vendor.overall_rating %}<div style="font-size:1.3rem;font-weight:700;color:{% if vendor.overall_rating >= 4 %}var(--color-success){% elif vendor.overall_rating >= 3 %}var(--color-warning){% else %}var(--color-danger){% endif %};margin-bottom:var(--space-1);">{{ vendor.overall_rating }}/5 overall</div>
+            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Quality: {{ vendor.quality_rating or '--' }} | Delivery: {{ vendor.delivery_rating or '--' }} | Price: {{ vendor.price_rating or '--' }}</div>
+            {% else %}<span style="color:var(--color-text-muted);font-size:var(--font-size-sm);">Not rated yet</span>{% endif %}
+        </div>
+        {% if vendor.trade_categories %}<div class="card" style="padding:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Trades</h3>
+            <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;">{% for t in vendor.trade_categories %}<span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-surface-raised);">{{ t|title }}</span>{% endfor %}</div>
+        </div>{% endif %}
+    </div>
+</div>
+
+{% elif tab == 'pos' %}
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Purchase Orders</div>
+    {% if pos %}<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">PO #</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Date</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Status</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Total</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Balance</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Receipt %</th></tr></thead>
+        <tbody>{% for po in pos %}<tr style="border-bottom:1px solid var(--color-border);"><td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ po.po_number }}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ po.order_date.strftime('%m/%d/%y') if po.order_date else '' }}</td><td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 6px;border-radius:var(--radius-sm);background:var(--color-{{ po.status_color }});color:#fff;">{{ po.status.replace('_',' ')|title }}</span></td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(po.total or 0) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;{% if po.balance_due > 0 %}color:var(--color-warning);font-weight:700;{% endif %}">${{ "{:,.2f}".format(po.balance_due) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ po.receipt_progress }}%</td></tr>{% endfor %}</tbody>
+    </table></div>{% else %}<div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No purchase orders yet.</div>{% endif %}
+</div>
+
+{% elif tab == 'payments' %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2);">
+    <h3 style="margin:0;font-size:1rem;">Payment History</h3>
+    {% if user.role in ('admin','owner') %}<button class="btn btn-accent" style="font-size:var(--font-size-sm);" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="bi bi-plus"></i> Record Payment</button>{% endif %}
+</div>
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Payments</div>
+    {% if payments %}<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Payment #</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Date</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Method</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Amount</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Reference</th></tr></thead>
+        <tbody>{% for p in payments %}<tr style="border-bottom:1px solid var(--color-border);"><td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ p.payment_number }}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ p.payment_date.strftime('%m/%d/%y') if p.payment_date else '' }}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ p.payment_method.replace('_',' ')|title }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;">${{ "{:,.2f}".format(p.amount) }}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ p.reference_number or '--' }}</td></tr>{% endfor %}</tbody>
+    </table></div>{% else %}<div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No payments recorded.</div>{% endif %}
+</div>
+
+{% elif tab == 'pricing' %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2);">
+    <h3 style="margin:0;font-size:1rem;">Products & Pricing</h3>
+    {% if user.role in ('admin','owner','dispatcher') %}<button class="btn btn-accent" style="font-size:var(--font-size-sm);" data-bs-toggle="modal" data-bs-target="#addPriceModal"><i class="bi bi-plus"></i> Add Price</button>{% endif %}
+</div>
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Vendor Pricing</div>
+    {% if prices %}<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Part</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Vendor Part #</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Unit Price</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Bulk Price</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Lead Time</th><th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Preferred</th></tr></thead>
+        <tbody>{% for vp in prices %}<tr style="border-bottom:1px solid var(--color-border);"><td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ vp.part.name if vp.part else '--' }}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ vp.vendor_part_number or '--' }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "%.2f"|format(vp.unit_price) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{% if vp.bulk_price %}<${{"%.2f"|format(vp.bulk_price)}} ({{ vp.bulk_threshold }}+){% else %}--{% endif %}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{% if vp.lead_time_days %}{{ vp.lead_time_days }}d{% else %}--{% endif %}</td><td style="padding:var(--space-2) var(--space-3);">{% if vp.is_preferred %}<i class="bi bi-star-fill" style="color:var(--color-warning);"></i>{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>{% else %}<div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No pricing records.</div>{% endif %}
+</div>
+{% endif %}
+
+<!-- Add Price Modal -->
+{% if tab == 'pricing' %}
+<div class="modal fade" id="addPriceModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Pricing Record</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <form method="POST" action="{{ url_for('vendors.add_vendor_price', vendor_id=vendor.id) }}">
+    <div class="modal-body">
+        <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Part *</label><select name="part_id" class="form-select" required><option value="">Select part...</option>{% for p in parts_list %}<option value="{{ p.id }}">{{ p.part_number }} - {{ p.name }}</option>{% endfor %}</select></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Vendor SKU</label><input type="text" name="vendor_part_number" class="form-control"></div>
+            <div class="form-group"><label class="form-label">Unit Price *</label><input type="number" name="unit_price" class="form-control" step="0.01" min="0" required></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Bulk Price</label><input type="number" name="bulk_price" class="form-control" step="0.01"></div>
+            <div class="form-group"><label class="form-label">Bulk Threshold (qty)</label><input type="number" name="bulk_threshold" class="form-control" min="1"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Lead Time (days)</label><input type="number" name="lead_time_days" class="form-control" min="0"></div>
+            <div class="form-group"><label class="form-label">Price Valid Until</label><input type="date" name="price_valid_until" class="form-control"></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;"><input type="checkbox" name="is_preferred" value="1" style="width:16px;height:16px;"> Preferred Vendor for this Part</label>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-accent">Add Pricing</button></div>
+    </form>
+</div></div></div>
+{% endif %}
+
+<!-- Record Payment Modal -->
+{% if tab == 'payments' %}
+<div class="modal fade" id="paymentModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Record Payment to {{ vendor.company_name }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <form method="POST" action="{{ url_for('vendors.record_vendor_payment', vendor_id=vendor.id) }}">
+    <div class="modal-body">
+        <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Applied to PO</label><select name="po_id" class="form-select"><option value="">General payment</option>{% for po in pos if po.balance_due > 0 %}<option value="{{ po.id }}">{{ po.po_number }} - ${{ "{:,.2f}".format(po.balance_due) }} outstanding</option>{% endfor %}</select></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Amount *</label><input type="number" name="amount" class="form-control" step="0.01" min="0.01" required></div>
+            <div class="form-group"><label class="form-label">Date *</label><input type="date" name="payment_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}" required></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Method</label><select name="payment_method" class="form-select"><option value="bank_transfer">Bank Transfer</option><option value="check">Check</option><option value="credit_card">Credit Card</option><option value="company_card">Company Card</option><option value="cash">Cash</option></select></div>
+            <div class="form-group"><label class="form-label">Reference / Check #</label><input type="text" name="reference_number" class="form-control"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Memo</label><textarea name="memo" class="form-control" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-accent">Record Payment</button></div>
+    </form>
+</div></div></div>
+{% endif %}
+{% endblock %}

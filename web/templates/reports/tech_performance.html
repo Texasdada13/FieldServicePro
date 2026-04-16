@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Technician Performance{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<h1 style="margin:0 0 var(--space-1);">Technician Performance</h1>
+<p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:0 0 var(--space-3);">{{ date_label }}</p>
+
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" id="reportFilterForm">
+        <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;margin-bottom:var(--space-2);">{% for val, label in [('this_month','This Month'),('this_quarter','This Quarter'),('this_year','This Year'),('last_month','Last Month')] %}<button type="button" class="btn {% if selected_preset == val %}btn-accent{% else %}btn-ghost{% endif %} preset-btn" style="font-size:var(--font-size-xs);padding:2px 8px;" data-preset="{{ val }}">{{ label }}</button>{% endfor %}</div>
+        <input type="hidden" name="preset" id="presetInput" value="{{ selected_preset }}">
+        <div style="display:flex;gap:var(--space-2);"><select name="division_id" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">All Divisions</option>{% for d in all_divisions %}<option value="{{ d.id }}" {% if selected_division == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select><button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Apply</button></div>
+    </form>
+</div>
+
+{% if empty %}<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><h4>No technician data</h4></div>
+{% else %}
+<!-- Charts -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Revenue by Tech</h3><div style="height:250px;"><canvas id="revChart"></canvas></div></div>
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Utilization by Tech</h3><div style="height:250px;"><canvas id="utilChart"></canvas></div></div>
+</div>
+
+<!-- Table -->
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;font-weight:700;"><span>Leaderboard</span><button class="btn btn-ghost" style="font-size:var(--font-size-xs);" onclick="exportCSV()"><i class="bi bi-download"></i> CSV</button></div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);" data-sort>#</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Technician</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Jobs</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Hours</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Utilization</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Revenue</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Callbacks</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>CB Rate</th></tr></thead>
+        <tbody>{% for r in tech_rows %}<tr style="border-bottom:1px solid var(--color-border);">
+            <td style="padding:var(--space-2) var(--space-3);color:var(--color-text-muted);">{{ loop.index }}</td>
+            <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ r.name }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.jobs_completed }}/{{ r.job_count }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.total_hours }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;color:{% if r.utilization >= 80 %}var(--color-success){% elif r.utilization >= 60 %}var(--color-warning){% else %}var(--color-danger){% endif %};">{{ r.utilization }}%</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;color:var(--color-success);">${{ "{:,.0f}".format(r.revenue) }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.callbacks }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r.callback_rate > 15 %}color:var(--color-danger);font-weight:700;{% elif r.callback_rate > 8 %}color:var(--color-warning);{% endif %}">{{ r.callback_rate }}%</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% if not empty %}<script>
+var tr = {{ tech_rows|tojson }};
+new Chart(document.getElementById('revChart'), { type:'bar', data:{ labels:tr.map(function(r){return r.name;}), datasets:[{label:'Revenue',data:tr.map(function(r){return r.revenue;}),backgroundColor:'rgba(25,135,84,0.7)',borderRadius:4}]}, options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{callback:function(v){return '$'+v.toLocaleString();}}}}}});
+new Chart(document.getElementById('utilChart'), { type:'bar', data:{ labels:tr.map(function(r){return r.name;}), datasets:[{label:'Utilization %',data:tr.map(function(r){return r.utilization;}),backgroundColor:tr.map(function(r){return r.utilization>=80?'rgba(25,135,84,0.7)':r.utilization>=60?'rgba(255,193,7,0.7)':'rgba(220,53,69,0.7)';}),borderRadius:4}]}, options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{max:100,ticks:{callback:function(v){return v+'%';}}}}}});
+</script>{% endif %}
+{% endblock %}

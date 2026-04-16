@@ -1,0 +1,120 @@
+{% extends "mobile/base.html" %}
+{% set show_back = true %}
+{% set back_url = url_for('mobile.job_detail', job_id=job.id) %}
+{% block title %}Add Material — FSP{% endblock %}
+{% block header_title %}Add Material{% endblock %}
+
+{% block content %}
+<div class="m-text-sm m-text-muted m-mb8">Job #{{ job.job_number or job.id }} — {{ job.title or 'Job' }}</div>
+
+{# ── Mode Toggle ───────────────────────────────────────────── #}
+<div class="m-tab-bar m-mb8">
+  <button class="m-tab active" id="tab-truck" onclick="switchMode('truck')">From Truck</button>
+  <button class="m-tab" id="tab-custom" onclick="switchMode('custom')">Custom Item</button>
+</div>
+
+{# ── Truck Mode ────────────────────────────────────────────── #}
+<div id="mode-truck">
+{% if truck_items %}
+  <div class="m-search-bar m-mb8">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="Search truck stock..." id="truck-search">
+  </div>
+
+  <form method="POST" id="truck-form">
+    <input type="hidden" name="mode" value="truck">
+    <input type="hidden" name="part_id" id="sel-part-id" value="">
+
+    <div id="truck-items">
+    {% for item in truck_items %}
+    <div class="m-card m-card--clickable t-item" data-pid="{{ item.part_id }}" data-search="{{ (item.name or '')|lower }} {{ (item.part_number or '')|lower }}"
+         onclick="selPart({{ item.part_id }},'{{ item.name|e }}',{{ item.qty }})">
+      <div class="m-flex-between">
+        <div>
+          <div class="m-fw-600">{{ item.name }}</div>
+          <div class="m-text-sm m-text-muted">{{ item.part_number or '' }}</div>
+        </div>
+        <div class="m-text-sm m-text-muted">{{ item.qty }} avail</div>
+      </div>
+    </div>
+    {% endfor %}
+    </div>
+
+    <div id="truck-sel" class="m-hidden m-mt8">
+      <div class="m-card" style="border:2px solid var(--color-accent);">
+        <div class="m-fw-600 m-mb8" id="sel-name"></div>
+        <div class="m-form-group m-mb8">
+          <label class="m-label">Quantity</label>
+          <input type="number" name="quantity" class="m-input" value="1" min="1" id="truck-qty">
+        </div>
+        <button type="submit" class="m-btn m-btn--primary m-btn--full">&#9989; Log Material</button>
+      </div>
+    </div>
+  </form>
+{% else %}
+  <div class="m-empty" style="padding:24px;">
+    <div class="m-empty-icon">&#128666;</div>
+    <div class="m-empty-text">No truck stock available</div>
+  </div>
+{% endif %}
+</div>
+
+{# ── Custom Mode ───────────────────────────────────────────── #}
+<div id="mode-custom" class="m-hidden">
+  <form method="POST">
+    <input type="hidden" name="mode" value="custom">
+    <div class="m-form-group">
+      <label class="m-label">Description</label>
+      <input type="text" name="description" class="m-input" placeholder="Part or material description" required>
+    </div>
+    <div class="m-form-group">
+      <label class="m-label">Quantity</label>
+      <input type="number" name="quantity" class="m-input" value="1" min="1">
+    </div>
+    <div class="m-form-group">
+      <label class="m-label">Unit Cost (optional)</label>
+      <input type="number" name="unit_cost" class="m-input" step="0.01" placeholder="0.00">
+    </div>
+    <button type="submit" class="m-btn m-btn--primary m-btn--full">&#9989; Log Material</button>
+  </form>
+</div>
+
+{# ── Recent ────────────────────────────────────────────────── #}
+{% if recent_materials %}
+<div class="m-section-header m-mt16">Recently Logged</div>
+{% for m in recent_materials %}
+<div class="m-card">
+  <div class="m-flex-between">
+    <div class="m-fw-600 m-text-sm">{{ m.custom_description or 'Item' }}</div>
+    <div class="m-text-sm m-text-muted">&times;{{ m.quantity|int }}</div>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchMode(m) {
+  document.getElementById('mode-truck').classList.toggle('m-hidden', m !== 'truck');
+  document.getElementById('mode-custom').classList.toggle('m-hidden', m !== 'custom');
+  document.getElementById('tab-truck').classList.toggle('active', m === 'truck');
+  document.getElementById('tab-custom').classList.toggle('active', m === 'custom');
+}
+function selPart(id, name, max) {
+  document.getElementById('sel-part-id').value = id;
+  document.getElementById('sel-name').textContent = name;
+  document.getElementById('truck-sel').classList.remove('m-hidden');
+  document.getElementById('truck-qty').max = max;
+  document.getElementById('truck-qty').value = 1;
+  document.querySelectorAll('.t-item').forEach(function(el) { el.style.opacity = el.dataset.pid == id ? '1' : '0.4'; });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  var s = document.getElementById('truck-search');
+  if (s) s.addEventListener('input', function() {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('.t-item').forEach(function(el) { el.style.display = el.dataset.search.includes(q) ? '' : 'none'; });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if rfi else 'New' }} RFI{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <h1 style="margin:0;">{{ 'Edit' if rfi else 'New' }} RFI{% if rfi %} <span style="color:var(--color-text-muted);font-size:var(--font-size-sm);">{{ rfi.rfi_number }}</span>{% endif %}</h1>
+    <a href="{{ url_for('rfis.rfi_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<form method="POST" style="max-width:900px;">
+    <!-- Project Context -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Project Context</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Project *</label>
+                <select name="project_id" id="projectSelect" class="form-select" required>
+                    <option value="">Select Project...</option>
+                    {% for p in projects %}
+                    <option value="{{ p.id }}" {% if (rfi and rfi.project_id == p.id) or (project and project.id == p.id) %}selected{% endif %}>{{ p.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label">Job (Optional)</label>
+                <select name="job_id" id="jobSelect" class="form-select">
+                    <option value="">Select Job...</option>
+                    {% for j in jobs %}
+                    <option value="{{ j.id }}" {% if rfi and rfi.job_id == j.id %}selected{% endif %}>{{ j.job_number }} - {{ j.title[:30] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label">Phase (Optional)</label>
+                <select name="phase_id" id="phaseSelect" class="form-select">
+                    <option value="">Select Phase...</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- RFI Content -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">RFI Content</h3>
+        <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Subject *</label>
+            <input type="text" name="subject" class="form-control" required value="{{ rfi.subject if rfi else '' }}" placeholder="Brief description of the question...">
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Question *</label>
+            <textarea name="question" class="form-control" rows="5" required placeholder="Detailed question...">{{ rfi.question if rfi else '' }}</textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Context / Background</label>
+            <textarea name="context" class="form-control" rows="3" placeholder="Why is this question important?">{{ rfi.context if rfi else '' }}</textarea>
+        </div>
+        <div class="form-group"><label class="form-label">Reference</label>
+            <input type="text" name="reference" class="form-control" value="{{ rfi.reference if rfi else '' }}" placeholder="Drawing number, spec section...">
+        </div>
+    </div>
+
+    <!-- Priority & Dates -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Priority & Dates</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Priority</label>
+                <select name="priority" class="form-select">
+                    {% for val, label in priorities %}
+                    <option value="{{ val }}" {% if (rfi and rfi.priority == val) or (not rfi and val == 'normal') %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="draft" {% if rfi and rfi.status == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="open" {% if (rfi and rfi.status == 'open') or not rfi %}selected{% endif %}>Open</option>
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label">Response Required By</label>
+                <input type="date" name="date_required" class="form-control" value="{{ rfi.date_required.strftime('%Y-%m-%d') if rfi and rfi.date_required else '' }}">
+            </div>
+        </div>
+    </div>
+
+    <!-- Routing -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Routing</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Assign To (Internal)</label>
+                <select name="assigned_to_id" class="form-select">
+                    <option value="">Unassigned</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}" {% if rfi and rfi.assigned_to_id == u.id %}selected{% endif %}>{{ u.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label">Directed To (External)</label>
+                <input type="text" name="directed_to" class="form-control" value="{{ rfi.directed_to if rfi else '' }}" placeholder="Architect, engineer...">
+            </div>
+        </div>
+        <div class="form-group"><label class="form-label">Directed To Email</label>
+            <input type="email" name="directed_to_email" class="form-control" value="{{ rfi.directed_to_email if rfi else '' }}" placeholder="external@example.com">
+        </div>
+    </div>
+
+    <!-- Impact -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Impact Assessment</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Cost Impact</label>
+                <select name="cost_impact" class="form-select">{% for val, label in impacts %}<option value="{{ val }}" {% if rfi and rfi.cost_impact == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </div>
+            <div class="form-group"><label class="form-label">Cost Amount ($)</label>
+                <input type="number" name="cost_impact_amount" class="form-control" step="0.01" value="{{ rfi.cost_impact_amount if rfi and rfi.cost_impact_amount else '' }}">
+            </div>
+            <div class="form-group"><label class="form-label">Schedule Impact</label>
+                <select name="schedule_impact" class="form-select">{% for val, label in impacts %}<option value="{{ val }}" {% if rfi and rfi.schedule_impact == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </div>
+            <div class="form-group"><label class="form-label">Schedule Days</label>
+                <input type="number" name="schedule_impact_days" class="form-control" value="{{ rfi.schedule_impact_days if rfi and rfi.schedule_impact_days else '' }}">
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Internal Notes</h3>
+        <textarea name="notes" class="form-control" rows="3" placeholder="Internal notes...">{{ rfi.notes if rfi else '' }}</textarea>
+    </div>
+
+    <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+        <a href="{{ url_for('rfis.rfi_list') }}" class="btn btn-ghost">Cancel</a>
+        <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg"></i> {{ 'Update RFI' if rfi else 'Create RFI' }}</button>
+    </div>
+</form>
+
+<script>
+document.getElementById('projectSelect').addEventListener('change', function() {
+    var pid = this.value;
+    var jobSel = document.getElementById('jobSelect');
+    jobSel.innerHTML = '<option value="">Select Job...</option>';
+    document.getElementById('phaseSelect').innerHTML = '<option value="">Select Phase...</option>';
+    if (!pid) return;
+    fetch('/rfis/api/project/' + pid + '/jobs')
+        .then(function(r) { return r.json(); })
+        .then(function(jobs) {
+            jobs.forEach(function(j) { jobSel.innerHTML += '<option value="' + j.id + '">' + j.job_number + ' - ' + j.title + '</option>'; });
+        });
+});
+document.getElementById('jobSelect').addEventListener('change', function() {
+    var jid = this.value;
+    var phaseSel = document.getElementById('phaseSelect');
+    phaseSel.innerHTML = '<option value="">Select Phase...</option>';
+    if (!jid) return;
+    fetch('/rfis/api/job/' + jid + '/phases')
+        .then(function(r) { return r.json(); })
+        .then(function(phases) {
+            phases.forEach(function(p) { phaseSel.innerHTML += '<option value="' + p.id + '">' + p.name + '</option>'; });
+        });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Technician Leaderboard{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);flex-wrap:wrap;gap:var(--space-2);">
+  <div>
+    <h1 style="margin:0;"><i class="bi bi-trophy-fill" style="color:var(--color-warning);"></i> Technician Leaderboard</h1>
+    <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ start.strftime('%b %d') }} &ndash; {{ end.strftime('%b %d, %Y') }} &middot; {{ leaderboard.rows|length }} technicians</p>
+  </div>
+  <div style="display:flex;gap:var(--space-2);">
+    {% if user_role in ('owner','admin') %}
+    <form method="POST" action="{{ url_for('advanced_reports.recalculate_scores') }}" style="display:inline;">
+      <input type="hidden" name="period" value="{{ period }}">
+      <button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-clockwise"></i> Recalculate</button>
+    </form>
+    {% endif %}
+    <button class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="window.print()"><i class="bi bi-printer"></i></button>
+  </div>
+</div>
+
+<!-- Filters -->
+<form method="GET" class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+  <div style="display:flex;gap:var(--space-2);align-items:end;flex-wrap:wrap;">
+    <select name="period" class="form-select" style="font-size:var(--font-size-sm);width:auto;" onchange="this.form.submit()">
+      <option value="this_week" {{ 'selected' if period == 'this_week' }}>This Week</option>
+      <option value="this_month" {{ 'selected' if period == 'this_month' }}>This Month</option>
+      <option value="this_quarter" {{ 'selected' if period == 'this_quarter' }}>This Quarter</option>
+    </select>
+    {% if divisions %}
+    <select name="division_id" class="form-select" style="font-size:var(--font-size-sm);width:auto;" onchange="this.form.submit()">
+      <option value="">All Divisions</option>
+      {% for d in divisions %}<option value="{{ d.id }}" {{ 'selected' if division_id == d.id }}>{{ d.name }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <select name="sort" class="form-select" style="font-size:var(--font-size-sm);width:auto;" onchange="this.form.submit()">
+      <option value="rank" {{ 'selected' if sort_by == 'rank' }}>Rank</option>
+      <option value="score" {{ 'selected' if sort_by == 'score' }}>Score</option>
+      <option value="rating" {{ 'selected' if sort_by == 'rating' }}>Rating</option>
+      <option value="revenue" {{ 'selected' if sort_by == 'revenue' }}>Revenue</option>
+    </select>
+  </div>
+</form>
+
+<!-- KPI Cards -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+  <div class="card" style="padding:var(--space-3);text-align:center;border-left:4px solid var(--color-warning);">
+    <div style="color:var(--color-warning);font-size:1.5rem;"><i class="bi bi-trophy-fill"></i></div>
+    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Top Performer</div>
+    {% if leaderboard.top_performer %}<div style="font-weight:700;">{{ leaderboard.top_performer.tech_name }}</div><div style="font-size:var(--font-size-sm);font-weight:700;padding:2px 10px;border-radius:12px;display:inline-block;background:var(--color-success-light);color:var(--color-success-dark);">{{ leaderboard.top_performer.overall_score }}</div>{% else %}<div style="color:var(--color-text-muted);">No data</div>{% endif %}
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;border-left:4px solid var(--color-success);">
+    <div style="color:var(--color-success);font-size:1.5rem;"><i class="bi bi-graph-up-arrow"></i></div>
+    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Most Improved</div>
+    {% if leaderboard.most_improved %}<div style="font-weight:700;">{{ leaderboard.most_improved.tech_name }}</div><div style="color:var(--color-success);font-weight:600;">+{{ leaderboard.most_improved.score_delta }}</div>{% else %}<div style="color:var(--color-text-muted);">No data</div>{% endif %}
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;border-left:4px solid var(--color-accent);">
+    <div style="color:var(--color-accent);font-size:1.5rem;"><i class="bi bi-star-fill"></i></div>
+    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Highest Rating</div>
+    {% if leaderboard.highest_rating %}<div style="font-weight:700;">{{ leaderboard.highest_rating.tech_name }}</div><div style="color:var(--color-warning);">&#9733; {{ "%.1f"|format(leaderboard.highest_rating.avg_customer_rating) }}</div>{% else %}<div style="color:var(--color-text-muted);">No data</div>{% endif %}
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;border-left:4px solid var(--color-accent);">
+    <div style="color:var(--color-accent);font-size:1.5rem;"><i class="bi bi-lightning-fill"></i></div>
+    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Most Efficient</div>
+    {% if leaderboard.most_efficient %}<div style="font-weight:700;">{{ leaderboard.most_efficient.tech_name }}</div><div style="font-weight:600;">{{ leaderboard.most_efficient.efficiency_score|round(0)|int }}%</div>{% else %}<div style="color:var(--color-text-muted);">No data</div>{% endif %}
+  </div>
+</div>
+
+<!-- Leaderboard Table -->
+<div class="card" style="padding:0;margin-bottom:var(--space-4);">
+  <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;font-weight:700;">
+    <span>Rankings</span><small style="color:var(--color-text-muted);font-weight:400;">Click row for details</small>
+  </div>
+  <div style="overflow-x:auto;">
+  <table style="width:100%;border-collapse:collapse;" id="leaderboard-table">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:center;width:60px;">Rank</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Technician</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:center;">Score</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:center;">&#9733; Rating</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:center;">Completion</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:center;">Callbacks</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:center;">Utilization</th>
+      {% if user_role in ('owner','admin') %}<th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:right;">Revenue</th>{% endif %}
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:center;">Trend</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-align:center;">Badges</th>
+    </tr></thead>
+    <tbody>{% for row in leaderboard.rows %}
+    <tr style="border-bottom:1px solid var(--color-border);cursor:pointer;" onclick="loadTechDetail({{ row.technician_id }})" data-tech-id="{{ row.technician_id }}">
+      <td style="padding:var(--space-2) var(--space-3);text-align:center;">{% if row.rank == 1 %}<span style="font-size:1.3rem;">&#129351;</span>{% elif row.rank == 2 %}<span style="font-size:1.3rem;">&#129352;</span>{% elif row.rank == 3 %}<span style="font-size:1.3rem;">&#129353;</span>{% else %}<span style="color:var(--color-text-muted);font-weight:700;">#{{ row.rank }}</span>{% endif %}</td>
+      <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ row.tech_name }}</td>
+      <td style="padding:var(--space-2) var(--space-3);text-align:center;"><span style="padding:3px 10px;border-radius:12px;font-weight:700;font-size:var(--font-size-sm);{% if row.overall_score >= 75 %}background:rgba(16,185,129,.15);color:#065f46;{% elif row.overall_score < 50 %}background:rgba(239,68,68,.12);color:#991b1b;{% else %}background:rgba(245,158,11,.15);color:#92400e;{% endif %}">{{ row.overall_score }}</span></td>
+      <td style="padding:var(--space-2) var(--space-3);text-align:center;{% if row.avg_customer_rating >= 4.5 %}background:rgba(16,185,129,.08);{% elif row.avg_customer_rating < 3.5 and row.avg_customer_rating > 0 %}background:rgba(239,68,68,.06);{% endif %}">{% if row.avg_customer_rating > 0 %}&#9733; {{ "%.1f"|format(row.avg_customer_rating) }}{% else %}<span style="color:var(--color-text-muted);">&mdash;</span>{% endif %}</td>
+      <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ row.completion_rate|round(0)|int }}%<div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ row.jobs_completed }}/{{ row.jobs_total }}</div></td>
+      <td style="padding:var(--space-2) var(--space-3);text-align:center;{% if row.callback_rate > 5 %}color:var(--color-danger);{% elif row.callback_rate < 2 %}color:var(--color-success);{% endif %}">{{ "%.1f"|format(row.callback_rate) }}%</td>
+      <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ row.utilization_rate|round(0)|int }}%</td>
+      {% if user_role in ('owner','admin') %}<td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.0f}".format(row.total_revenue) }}</td>{% endif %}
+      <td style="padding:var(--space-2) var(--space-3);text-align:center;">{% if row.score_delta > 0 %}<span style="color:var(--color-success);font-weight:600;">&uarr; +{{ row.score_delta }}</span>{% elif row.score_delta < 0 %}<span style="color:var(--color-danger);font-weight:600;">&darr; {{ row.score_delta }}</span>{% else %}<span style="color:var(--color-text-muted);">&rarr;</span>{% endif %}</td>
+      <td style="padding:var(--space-2) var(--space-3);text-align:center;">{% for ach in row.achievements %}<span title="{{ ach.achievement_name }}" style="font-size:1.1rem;cursor:help;">{{ ach.icon }}</span>{% endfor %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="10" style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><i class="bi bi-bar-chart" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>No performance data for this period.{% if user_role in ('owner','admin') %}<br><form method="POST" action="{{ url_for('advanced_reports.recalculate_scores') }}" style="display:inline;margin-top:var(--space-2);"><input type="hidden" name="period" value="{{ period }}"><button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Calculate Now</button></form>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+
+<!-- Charts -->
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-3);margin-bottom:var(--space-4);">
+  <div class="card" style="padding:var(--space-3);">
+    <div style="font-weight:700;margin-bottom:var(--space-2);">Score Distribution</div>
+    <div style="height:200px;"><canvas id="scoreDistChart"></canvas></div>
+  </div>
+  <div class="card" style="padding:var(--space-3);">
+    <div style="font-weight:700;margin-bottom:var(--space-2);">Score Trend &mdash; Top 5</div>
+    <div style="height:200px;"><canvas id="scoreTrendChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Bump Chart (Rank Changes) -->
+<div class="card" style="padding:var(--space-3);margin-bottom:var(--space-4);">
+  <div style="font-weight:700;margin-bottom:var(--space-2);">Rank Changes Over Time <small style="color:var(--color-text-muted);font-weight:400;">Lower = better</small></div>
+  <div style="height:250px;"><canvas id="bumpChart"></canvas></div>
+</div>
+
+<!-- Tech Detail Modal -->
+<div class="modal fade" id="techModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modal-tech-name">Technician Detail</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body" id="techModalBody"><div style="text-align:center;padding:var(--space-6);"><div class="spinner-border text-primary"></div><div style="margin-top:var(--space-2);">Loading...</div></div></div>
+</div></div></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+var allScores = {{ all_scores|tojson }};
+var top5Ids = {{ top5_ids|tojson }};
+var techNames = {{ tech_names|tojson }};
+var trendData = {{ trend_data|tojson }};
+
+// Score Distribution
+(function(){
+  var buckets=[{l:'0-50',c:0},{l:'50-60',c:0},{l:'60-70',c:0},{l:'70-80',c:0},{l:'80-90',c:0},{l:'90-100',c:0}];
+  allScores.forEach(function(s){if(s<50)buckets[0].c++;else if(s<60)buckets[1].c++;else if(s<70)buckets[2].c++;else if(s<80)buckets[3].c++;else if(s<90)buckets[4].c++;else buckets[5].c++;});
+  new Chart(document.getElementById('scoreDistChart'),{type:'bar',data:{labels:buckets.map(function(b){return b.l}),datasets:[{data:buckets.map(function(b){return b.c}),backgroundColor:['#fca5a5','#fcd34d','#fcd34d','#6ee7b7','#34d399','#10b981'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
+})();
+
+// Score Trend
+(function(){
+  var colors=['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+  var datasets=[];
+  top5Ids.forEach(function(tid,i){
+    var t=trendData[tid]||[];
+    datasets.push({label:techNames[tid]||'Tech',data:t.map(function(x){return x.overall_score}),borderColor:colors[i%5],tension:0.3,fill:false,pointRadius:3});
+  });
+  var first=trendData[top5Ids[0]]||[];
+  var labels=first.map(function(t){var d=new Date(t.period_start);return d.toLocaleDateString('en-US',{month:'short',year:'2-digit'})});
+  new Chart(document.getElementById('scoreTrendChart'),{type:'line',data:{labels:labels,datasets:datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{min:0,max:100}}}});
+})();
+
+// Bump Chart (Rank Changes)
+(function(){
+  var colors=['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
+  var datasets=[];
+  var entries=Object.entries(trendData);
+  var first=entries.length?entries[0][1]:[];
+  var labels=first.map(function(t){var d=new Date(t.period_start);return d.toLocaleDateString('en-US',{month:'short',year:'2-digit'})});
+  entries.forEach(function(e,i){
+    var tid=e[0],trend=e[1];
+    datasets.push({label:techNames[tid]||'Tech',data:trend.map(function(t){return t.rank}),borderColor:colors[i%8],tension:0.3,pointRadius:4,fill:false});
+  });
+  new Chart(document.getElementById('bumpChart'),{type:'line',data:{labels:labels,datasets:datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': Rank #'+ctx.parsed.y}}}},scales:{y:{reverse:true,min:1,ticks:{stepSize:1,callback:function(v){return '#'+v}},title:{display:true,text:'Rank'}}}}});
+})();
+
+// Tech Detail Modal
+function loadTechDetail(techId){
+  var modal=new bootstrap.Modal(document.getElementById('techModal'));
+  modal.show();
+  var body=document.getElementById('techModalBody');
+  body.innerHTML='<div style="text-align:center;padding:40px;"><div class="spinner-border text-primary"></div></div>';
+  fetch('/reports/tech-leaderboard/tech/'+techId+'?period={{ period }}&start={{ start.isoformat() }}&end={{ end.isoformat() }}')
+    .then(function(r){return r.json()})
+    .then(function(data){renderTechModal(data)})
+    .catch(function(){body.innerHTML='<div class="alert alert-danger">Error loading data.</div>';});
+}
+
+function renderTechModal(data){
+  var t=data.tech,s=data.score,tr=data.trend;
+  document.getElementById('modal-tech-name').textContent=t.name+(s.rank?' — Rank #'+s.rank:'');
+  var metrics=[
+    {l:'Customer Rating',k:'customer_rating_score',i:'&#9733;'},
+    {l:'Completion Rate',k:'completion_rate_score',i:'&#9989;'},
+    {l:'Callback Rate',k:'callback_rate_score',i:'&#128260;'},
+    {l:'Utilization',k:'utilization_score',i:'&#9201;'},
+    {l:'Revenue',k:'revenue_score',i:'&#128176;'},
+    {l:'Efficiency',k:'efficiency_score',i:'&#9889;'},
+    {l:'Profitability',k:'profitability_score',i:'&#128202;'},
+  ];
+  var bars=metrics.map(function(m){
+    var v=s[m.k]||0;
+    var color=v>=75?'var(--color-success)':v>=50?'var(--color-warning)':'var(--color-danger)';
+    return '<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:var(--font-size-sm);margin-bottom:2px;"><span>'+m.i+' '+m.l+'</span><span style="font-weight:700;">'+v.toFixed(1)+'</span></div><div style="height:8px;background:var(--color-surface-raised);border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+v+'%;background:'+color+';border-radius:4px;"></div></div></div>';
+  }).join('');
+
+  var fb=data.recent_feedback.length?data.recent_feedback.map(function(f){
+    return '<div style="padding:8px;background:var(--color-surface-raised);border-radius:6px;margin-bottom:6px;font-size:var(--font-size-sm);"><div style="display:flex;justify-content:space-between;"><span style="color:var(--color-warning);">'+'&#9733;'.repeat(f.rating)+'</span><span style="color:var(--color-text-muted);">'+f.date+'</span></div><div style="margin-top:4px;">'+((f.comment||'').substring(0,150))+'</div></div>';
+  }).join(''):'<div style="color:var(--color-text-muted);font-size:var(--font-size-sm);">No recent feedback.</div>';
+
+  var ach=data.all_achievements.length?data.all_achievements.map(function(a){
+    return '<span style="display:inline-block;padding:4px 10px;border-radius:12px;background:var(--color-surface-raised);margin:2px;font-size:var(--font-size-sm);" title="'+a.description+'">'+a.icon+' '+a.achievement_name+'</span>';
+  }).join(''):'<div style="color:var(--color-text-muted);font-size:var(--font-size-sm);">No achievements yet.</div>';
+
+  document.getElementById('techModalBody').innerHTML=
+    '<div style="display:grid;grid-template-columns:5fr 7fr;gap:var(--space-4);">'+
+      '<div><h6 style="color:var(--color-text-muted);margin-bottom:12px;">Performance Metrics</h6>'+bars+
+        '<h6 style="color:var(--color-text-muted);margin-top:16px;">Strengths</h6>'+
+        data.strengths.map(function(x){return '<div style="border-left:3px solid var(--color-success);padding-left:8px;margin-bottom:4px;font-size:var(--font-size-sm);"><strong>'+x.metric+'</strong>: '+x.score+'</div>';}).join('')+
+        '<h6 style="color:var(--color-text-muted);margin-top:12px;">Areas to Improve</h6>'+
+        data.improvements.map(function(x){return '<div style="border-left:3px solid var(--color-warning);padding-left:8px;margin-bottom:4px;font-size:var(--font-size-sm);"><strong>'+x.metric+'</strong>: '+x.score+'</div>';}).join('')+
+      '</div>'+
+      '<div>'+
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;text-align:center;">'+
+          '<div class="card" style="padding:8px;"><div style="font-weight:700;">'+data.all_time.total_jobs+'</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Jobs</div></div>'+
+          '<div class="card" style="padding:8px;"><div style="font-weight:700;">$'+data.all_time.total_revenue.toLocaleString('en-US',{maximumFractionDigits:0})+'</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Revenue</div></div>'+
+          '<div class="card" style="padding:8px;"><div style="font-weight:700;">'+data.all_time.total_hours.toFixed(0)+'h</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Hours</div></div>'+
+        '</div>'+
+        '<h6 style="color:var(--color-text-muted);">Achievements</h6><div style="margin-bottom:16px;">'+ach+'</div>'+
+        '<h6 style="color:var(--color-text-muted);">Recent Feedback</h6>'+fb+
+      '</div>'+
+    '</div>';
+}
+</script>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

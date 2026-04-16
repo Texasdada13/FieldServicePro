@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Fleet Report{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);"><div><h1 style="margin:0;">Fleet Report</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ date_label }}</p></div><button class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i></button></div>
+
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" id="reportFilterForm">
+        <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;margin-bottom:var(--space-2);">{% for val, label in [('this_month','This Month'),('this_quarter','This Quarter'),('this_year','This Year'),('last_month','Last Month')] %}<button type="button" class="btn {% if selected_preset == val %}btn-accent{% else %}btn-ghost{% endif %} preset-btn" style="font-size:var(--font-size-xs);padding:2px 8px;" data-preset="{{ val }}">{{ label }}</button>{% endfor %}</div>
+        <input type="hidden" name="preset" id="presetInput" value="{{ selected_preset }}">
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Apply</button>
+    </form>
+</div>
+
+{% if empty %}<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><h4>No fleet data for this period</h4></div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card summary-card border-primary" style="padding:var(--space-3);"><div class="metric-label">Total Miles</div><div class="metric-value" style="color:var(--color-accent);">{{ "{:,.0f}".format(total_miles) }}</div></div>
+    <div class="card summary-card border-danger" style="padding:var(--space-3);"><div class="metric-label">Fuel Cost</div><div class="metric-value" style="color:var(--color-danger);">${{ "{:,.0f}".format(total_fuel_cost) }}</div></div>
+    <div class="card summary-card border-success" style="padding:var(--space-3);"><div class="metric-label">Avg MPG</div><div class="metric-value" style="color:var(--color-success);">{{ avg_mpg }}</div></div>
+    <div class="card summary-card border-warning" style="padding:var(--space-3);"><div class="metric-label">Cost/Mile</div><div class="metric-value" style="color:var(--color-warning);">${{ "%.2f"|format(cost_per_mile) }}</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Miles by Vehicle</h3><div style="height:250px;"><canvas id="milesChart"></canvas></div></div>
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Monthly Fuel Cost</h3><div style="height:250px;"><canvas id="fuelChart"></canvas></div></div>
+</div>
+
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Fleet Summary</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);" data-sort>Vehicle</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Plate</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Miles</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Gallons</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Fuel Cost</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>MPG</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>$/Mile</th></tr></thead>
+        <tbody>{% for r in vehicle_rows %}<tr style="border-bottom:1px solid var(--color-border);"><td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ r.name }}</td><td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ r.plate }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ "{:,.0f}".format(r.miles) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ "%.1f"|format(r.gallons) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(r.fuel_cost) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r.mpg > 0 and r.mpg < 15 %}color:var(--color-danger);{% elif r.mpg >= 20 %}color:var(--color-success);{% endif %}">{{ r.mpg }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "%.2f"|format(r.cost_per_mile) }}</td></tr>{% endfor %}</tbody>
+        <tfoot><tr style="background:var(--color-surface-raised);font-weight:700;border-top:2px solid var(--color-border);"><td style="padding:var(--space-2) var(--space-3);" colspan="2">TOTAL</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ "{:,.0f}".format(total_miles) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ "%.1f"|format(vehicle_rows|sum(attribute='gallons')) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "{:,.2f}".format(total_fuel_cost) }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ avg_mpg }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">${{ "%.2f"|format(cost_per_mile) }}</td></tr></tfoot>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+{% block scripts %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script><script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% if not empty %}<script>
+new Chart(document.getElementById('milesChart'),{type:'bar',data:{labels:{{ vehicle_rows|map(attribute='name')|list|tojson }},datasets:[{label:'Miles',data:{{ vehicle_rows|map(attribute='miles')|list|tojson }},backgroundColor:'rgba(13,110,253,0.7)',borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false}});
+new Chart(document.getElementById('fuelChart'),{type:'bar',data:{labels:{{ month_labels|tojson }},datasets:[{label:'Fuel Cost',data:{{ monthly_fuel|tojson }},backgroundColor:'rgba(253,126,20,0.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{callback:function(v){return '$'+v.toLocaleString();}}}}}});
+</script>{% endif %}{% endblock %}

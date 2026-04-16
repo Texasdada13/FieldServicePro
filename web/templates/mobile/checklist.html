@@ -1,0 +1,196 @@
+{% extends "mobile/base.html" %}
+{% set show_back = true %}
+{% set back_url = url_for('mobile.job_detail', job_id=job.id) %}
+{% block title %}Checklist — FSP{% endblock %}
+{% block header_title %}{{ template.name }}{% endblock %}
+
+{% block content %}
+<div style="padding:0 12px;">
+
+  {# Progress Bar #}
+  <div style="padding:12px 0;">
+    <div class="m-progress-label">
+      <span id="progress-text">0 / {{ items|length }} complete</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="m-progress-wrap">
+      <div class="m-progress-bar" id="progress-bar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <form action="{{ url_for('mobile.checklist_submit', job_id=job.id, template_id=template.id) }}"
+        method="post" id="checklist-form">
+
+    {% for item in items %}
+    <div class="m-checklist-item" id="item-{{ item.id }}" data-required="{{ item.is_required|int }}">
+
+      <div class="m-flex-between" style="margin-bottom:4px;">
+        <span class="m-badge m-badge--muted" style="font-size:10px;">{{ loop.index }} of {{ items|length }}</span>
+        {% if item.is_required %}<span class="m-badge m-badge--danger" style="font-size:10px;">Required</span>{% endif %}
+      </div>
+
+      <div class="m-checklist-question">{{ item.question }}</div>
+      {% if item.help_text %}
+        <div class="m-checklist-help">{{ item.help_text }}</div>
+      {% endif %}
+
+      {# ── Yes/No ──────────────────────────────────── #}
+      {% if item.item_type == 'yes_no' %}
+        <div class="m-toggle-pair" role="group">
+          <button type="button" class="m-toggle-btn" id="btn-{{ item.id }}-yes"
+                  onclick="toggleAnswer('{{ item.id }}','yes',this)">YES</button>
+          <button type="button" class="m-toggle-btn" id="btn-{{ item.id }}-no"
+                  onclick="toggleAnswer('{{ item.id }}','no',this)">NO</button>
+        </div>
+        <input type="hidden" name="item_{{ item.id }}" id="val-{{ item.id }}"
+               value="{{ existing_responses[item.id].response if item.id in existing_responses else '' }}">
+
+      {# ── Pass/Fail ───────────────────────────────── #}
+      {% elif item.item_type == 'pass_fail' %}
+        <div class="m-toggle-pair" role="group">
+          <button type="button" class="m-toggle-btn" id="btn-{{ item.id }}-pass"
+                  onclick="toggleAnswer('{{ item.id }}','pass',this)">PASS</button>
+          <button type="button" class="m-toggle-btn" id="btn-{{ item.id }}-fail"
+                  onclick="toggleAnswer('{{ item.id }}','fail',this)">FAIL</button>
+        </div>
+        <input type="hidden" name="item_{{ item.id }}" id="val-{{ item.id }}"
+               value="{{ existing_responses[item.id].response if item.id in existing_responses else '' }}">
+
+      {# ── Text ────────────────────────────────────── #}
+      {% elif item.item_type == 'text' %}
+        <textarea name="item_{{ item.id }}" id="val-{{ item.id }}"
+                  class="m-input m-textarea" rows="3" placeholder="Enter response..."
+                  oninput="markAnswered('{{ item.id }}')">{{ existing_responses[item.id].response if item.id in existing_responses else '' }}</textarea>
+
+      {# ── Number ──────────────────────────────────── #}
+      {% elif item.item_type == 'number' %}
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button type="button" onclick="adjNum('val-{{ item.id }}',-1)"
+                  class="m-btn m-btn--secondary" style="width:52px;height:52px;font-size:24px;border-radius:50%;padding:0;">&minus;</button>
+          <input type="number" name="item_{{ item.id }}" id="val-{{ item.id }}"
+                 class="m-input m-input--lg" style="text-align:center;flex:1;"
+                 value="{{ existing_responses[item.id].response if item.id in existing_responses else '' }}"
+                 oninput="markAnswered('{{ item.id }}')">
+          <button type="button" onclick="adjNum('val-{{ item.id }}',1)"
+                  class="m-btn m-btn--secondary" style="width:52px;height:52px;font-size:24px;border-radius:50%;padding:0;">+</button>
+        </div>
+
+      {# ── Photo ───────────────────────────────────── #}
+      {% elif item.item_type == 'photo' %}
+        <input type="hidden" name="item_{{ item.id }}" id="val-{{ item.id }}">
+        <label class="m-camera-btn" style="cursor:pointer;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+          </svg>
+          <span>Tap to Take Photo</span>
+          <input type="file" accept="image/*" capture="environment" style="display:none;"
+                 onchange="handlePhoto(this,'{{ item.id }}')">
+        </label>
+        <img id="preview-{{ item.id }}" style="display:none;width:100%;border-radius:10px;margin-top:8px;" alt="Preview">
+      {% endif %}
+
+      {# Compliance indicator #}
+      <div class="m-compliance-indicator" id="indicator-{{ item.id }}" style="display:none;">
+        <span id="ind-icon-{{ item.id }}"></span>
+        <span id="ind-text-{{ item.id }}"></span>
+      </div>
+
+      {# Block banner #}
+      {% if item.failure_action == 'block_work' %}
+      <div class="m-block-work-banner" id="block-{{ item.id }}" style="display:none;">
+        &#128683; <strong>Work Blocked:</strong> This item must pass before continuing.
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="m-sticky-action">
+      <button type="submit" class="m-btn m-btn--primary m-btn--full m-btn--lg" id="submit-btn" disabled>
+        Submit Checklist
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var allItems = [{% for i in items %}{{ i.id }}{% if not loop.last %},{% endif %}{% endfor %}];
+var requiredItems = [{% for i in items %}{% if i.is_required %}{{ i.id }},{% endif %}{% endfor %}];
+var failActions = { {% for i in items %}"{{ i.id }}":"{{ i.failure_action }}"{% if not loop.last %},{% endif %}{% endfor %} };
+var answered = {};
+
+// Restore existing
+{% for item in items %}
+{% if item.id in existing_responses and existing_responses[item.id].response %}
+answered['{{ item.id }}'] = true;
+{% if item.item_type in ('yes_no','pass_fail') %}
+(function(){
+  var v = '{{ existing_responses[item.id].response }}';
+  var b = document.getElementById('btn-{{ item.id }}-' + v);
+  if (b) b.classList.add(v === 'yes' || v === 'pass' ? 'selected-yes' : 'selected-no');
+})();
+{% endif %}
+{% endif %}
+{% endfor %}
+updateProgress();
+
+function toggleAnswer(id, val, btn) {
+  var group = btn.closest('.m-toggle-pair');
+  group.querySelectorAll('.m-toggle-btn').forEach(function(b) { b.className = 'm-toggle-btn'; });
+  btn.classList.add(val === 'yes' || val === 'pass' ? 'selected-yes' : 'selected-no');
+  document.getElementById('val-' + id).value = val;
+  answered[id] = true;
+  var isFail = (val === 'no' || val === 'fail');
+  showIndicator(id, !isFail);
+  var blk = document.getElementById('block-' + id);
+  if (blk) blk.style.display = (isFail && failActions[id] === 'block_work') ? 'flex' : 'none';
+  updateProgress();
+}
+
+function showIndicator(id, ok) {
+  var ind = document.getElementById('indicator-' + id);
+  ind.style.display = 'flex';
+  ind.className = 'm-compliance-indicator ' + (ok ? 'm-compliance-ok' : 'm-compliance-fail');
+  document.getElementById('ind-icon-' + id).textContent = ok ? '\u2713' : '\u2717';
+  document.getElementById('ind-text-' + id).textContent = ok ? 'Compliant' : 'Non-compliant';
+}
+
+function markAnswered(id) {
+  var v = document.getElementById('val-' + id);
+  if (v && v.value.trim()) { answered[id] = true; showIndicator(id, true); updateProgress(); }
+}
+
+function adjNum(inputId, d) {
+  var inp = document.getElementById(inputId);
+  inp.value = (parseFloat(inp.value) || 0) + d;
+  markAnswered(inputId.replace('val-', ''));
+}
+
+function handlePhoto(input, id) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('preview-' + id).src = e.target.result;
+    document.getElementById('preview-' + id).style.display = 'block';
+    document.getElementById('val-' + id).value = e.target.result;
+    answered[id] = true;
+    showIndicator(id, true);
+    updateProgress();
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateProgress() {
+  var total = allItems.length;
+  var done = allItems.filter(function(id) { return answered[id]; }).length;
+  var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('progress-text').textContent = done + ' / ' + total + ' complete';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-bar').style.width = pct + '%';
+  var allReqDone = requiredItems.every(function(id) { return answered[id]; });
+  document.getElementById('submit-btn').disabled = !allReqDone;
+}
+</script>
+{% endblock %}

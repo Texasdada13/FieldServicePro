@@ -1,0 +1,160 @@
+{% extends "mobile/base.html" %}
+{% set show_back = true %}
+{% set back_url = url_for('mobile.job_list') %}
+
+{% block title %}#{{ job.job_number or job.id }} — FSP{% endblock %}
+{% block header_title %}#{{ job.job_number or job.id }}{% endblock %}
+
+{% block content %}
+{# ── Status + Action Bar ──────────────────────────────────── #}
+<div class="m-flex-between m-mb8">
+  <span class="m-badge m-status-{{ job.status or 'scheduled' }}">{{ (job.status or 'scheduled')|replace('_',' ')|title }}</span>
+  {% if job.priority and job.priority != 'normal' %}<span class="m-badge m-badge--{{ 'danger' if job.priority == 'urgent' else 'warning' }}">{{ job.priority|title }}</span>{% endif %}
+</div>
+
+{# ── Clock Actions ─────────────────────────────────────────── #}
+<div class="m-flex-gap8 m-mb16">
+  {% if active_entry %}
+  <form method="POST" action="{{ url_for('mobile.job_clock_out', job_id=job.id) }}" style="flex:1;">
+    <button type="submit" class="m-btn m-btn--danger m-btn--full">&#9209; Clock Out</button>
+  </form>
+  {% elif not any_active %}
+  <form method="POST" action="{{ url_for('mobile.job_clock_in', job_id=job.id) }}" style="flex:1;">
+    <button type="submit" class="m-btn m-btn--primary m-btn--full">&#9654;&#65039; Clock In</button>
+  </form>
+  {% else %}
+  <div class="m-card m-text-sm m-text-muted" style="text-align:center;padding:10px;flex:1;">Clocked in to another job</div>
+  {% endif %}
+  {% if client and (client.phone or client.mobile) %}
+  <a href="tel:{{ client.phone or client.mobile }}" class="m-btn m-btn--secondary" style="padding:14px;">&#128222;</a>
+  {% endif %}
+</div>
+
+{# ── Active Timer ──────────────────────────────────────────── #}
+{% if active_entry %}
+<div class="m-card" style="text-align:center;padding:20px;border:1px solid #22c55e30;background:rgba(34,197,94,0.08);">
+  <div class="m-text-sm m-fw-600" style="color:#22c55e;">&#9201; WORKING</div>
+  <div id="job-timer" style="font-size:40px;font-weight:800;color:#22c55e;font-variant-numeric:tabular-nums;">00:00:00</div>
+</div>
+{% endif %}
+
+{# ── Job Info Card ─────────────────────────────────────────── #}
+<div class="m-card">
+  <div class="m-card-title" style="font-size:18px;">{{ job.title or job.description or 'Untitled' }}</div>
+  {% if client %}
+  <div class="m-card-subtitle m-mt8">{{ client.display_name }}</div>
+  {% if client.phone or client.mobile %}
+  <div class="m-text-sm"><a href="tel:{{ client.phone or client.mobile }}" style="color:var(--color-accent);">{{ client.phone or client.mobile }}</a></div>
+  {% endif %}
+  {% endif %}
+  {% if job.scheduled_date %}
+  <div class="m-text-sm m-text-muted m-mt8">Scheduled: {{ job.scheduled_date.strftime('%b %d, %Y at %I:%M %p') }}</div>
+  {% endif %}
+  {% if job.job_type %}<div class="m-text-sm m-text-muted">Type: {{ job.job_type }}</div>{% endif %}
+  {% if job.portal_access_instructions %}
+  <div class="m-card m-mt8" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);">
+    <div class="m-text-sm m-fw-700" style="color:#f59e0b;">&#9888;&#65039; Access Instructions</div>
+    <div class="m-text-sm">{{ job.portal_access_instructions }}</div>
+  </div>
+  {% endif %}
+  {% if job.description and job.title %}
+  <hr class="m-divider">
+  <div class="m-text-sm m-text-muted">{{ job.description }}</div>
+  {% endif %}
+</div>
+
+{# ── Time Entries ──────────────────────────────────────────── #}
+<div class="m-section-header">Time ({{ total_hours }}h)</div>
+<div class="m-card m-p0">
+  {% if time_entries %}
+    {% for e in time_entries[:8] %}
+    <div class="m-flex-between" style="padding:12px 16px;{% if not loop.last %}border-bottom:0.5px solid var(--color-border,rgba(255,255,255,0.1));{% endif %}">
+      <div>
+        <div class="m-text-sm m-fw-600">{{ e.start_time.strftime('%I:%M %p') if e.start_time else '?' }}{% if e.end_time %} &rarr; {{ e.end_time.strftime('%I:%M %p') }}{% else %} &rarr; <em>Active</em>{% endif %}</div>
+        <div class="m-text-sm m-text-muted">{{ e.date.strftime('%b %d') if e.date else '' }}</div>
+      </div>
+      <div class="m-fw-700" style="color:var(--color-accent);">{{ e.duration_hours or '&mdash;' }}h</div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="m-text-sm m-text-muted" style="padding:16px;text-align:center;">No time entries</div>
+  {% endif %}
+</div>
+
+{# ── Materials ─────────────────────────────────────────────── #}
+<div class="m-section-header">Materials ({{ materials|length }})</div>
+<div class="m-card m-p0">
+  {% if materials %}
+    {% for m in materials %}
+    <div class="m-flex-between" style="padding:12px 16px;{% if not loop.last %}border-bottom:0.5px solid var(--color-border,rgba(255,255,255,0.1));{% endif %}">
+      <div class="m-text-sm m-fw-600">{{ m.custom_description or 'Item' }}</div>
+      <div class="m-text-sm m-text-muted">&times;{{ m.quantity|int }}</div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="m-text-sm m-text-muted" style="padding:16px;text-align:center;">No materials</div>
+  {% endif %}
+</div>
+<a href="{{ url_for('mobile.job_add_material', job_id=job.id) }}" class="m-btn m-btn--secondary m-btn--full m-btn--sm m-mt8">+ Add Material</a>
+
+{# ── Photos ────────────────────────────────────────────────── #}
+<div class="m-section-header">Photos ({{ photos|length }})</div>
+{% if photos %}
+<div class="m-photo-grid m-mb8">
+  {% for p in photos %}
+  <img src="{{ url_for('static', filename='uploads/job_photos/' + p.filename) }}" class="m-photo-thumb" alt="{{ p.display_name or 'Photo' }}" loading="lazy">
+  {% endfor %}
+</div>
+{% endif %}
+<form method="POST" action="{{ url_for('mobile.job_upload_photo', job_id=job.id) }}" enctype="multipart/form-data">
+  <input type="hidden" name="photo_category" value="during">
+  <label class="m-camera-btn" style="cursor:pointer;">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    Tap to take photo
+    <input type="file" name="photo" accept="image/*" capture="environment" style="display:none;" onchange="this.form.submit();">
+  </label>
+</form>
+
+{# ── Notes ─────────────────────────────────────────────────── #}
+<div class="m-section-header">Notes</div>
+<div class="m-card">
+  <form method="POST" action="{{ url_for('mobile.job_add_note', job_id=job.id) }}">
+    <textarea name="note" class="m-input m-textarea" placeholder="Add a field note..." rows="2" style="min-height:60px;"></textarea>
+    <button type="submit" class="m-btn m-btn--primary m-btn--full m-btn--sm m-mt8">Add Note</button>
+  </form>
+  {% if notes %}
+  <hr class="m-divider">
+  {% for n in notes %}
+  <div style="padding:8px 0;{% if not loop.last %}border-bottom:0.5px solid var(--color-border,rgba(255,255,255,0.1));{% endif %}">
+    <div class="m-text-sm m-text-muted">{{ n.communication_date.strftime('%b %d, %I:%M %p') if n.communication_date else '' }}</div>
+    <div class="m-text-sm">{{ n.description or n.subject or '' }}</div>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+
+{# ── Quick Actions ─────────────────────────────────────────── #}
+<div class="m-flex-gap8 m-mt16">
+  <a href="{{ url_for('mobile.log_expense', job_id=job.id) }}" class="m-btn m-btn--secondary m-btn--sm" style="flex:1;">&#128176; Expense</a>
+  <a href="{{ url_for('mobile.log_mileage', job_id=job.id) }}" class="m-btn m-btn--secondary m-btn--sm" style="flex:1;">&#128663; Mileage</a>
+</div>
+
+{# ── Complete Job ──────────────────────────────────────────── #}
+{% if job.status == 'in_progress' %}
+<div class="m-mt16">
+  <a href="{{ url_for('mobile.complete_job', job_id=job.id) }}" class="m-btn m-btn--success m-btn--full m-btn--lg">&#9989; Complete Job</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if active_entry and active_entry.start_time %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var d = '{{ active_entry.date or "" }}';
+  var t = '{{ active_entry.start_time or "" }}';
+  if (d && t) startElapsedTimer('job-timer', new Date(d + 'T' + t).getTime());
+});
+</script>
+{% endif %}
+{% endblock %}

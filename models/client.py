@@ -71,6 +71,7 @@ class Client(Base):
     recurring_schedules = relationship("RecurringSchedule", back_populates="client", lazy='select')
     warranties = relationship("Warranty", back_populates="client", lazy='select')
     callbacks = relationship("Callback", back_populates="client", lazy='select')
+    feedback_surveys = relationship("FeedbackSurvey", back_populates="client", lazy='select')
 
     @property
     def payment_terms_days(self):

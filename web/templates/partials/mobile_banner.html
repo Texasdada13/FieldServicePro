@@ -1,0 +1,30 @@
+{% if g.show_mobile_banner is defined and g.show_mobile_banner %}
+<div id="mobile-banner" style="
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #0d9488;
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+">
+  <span><i class="bi bi-phone"></i> Better on mobile?</span>
+  <div style="display:flex;gap:8px;">
+    <a href="{{ url_for('set_mobile_pref', pref='mobile', next=request.path) }}"
+       style="background:white;color:#0d9488;padding:6px 14px;border-radius:8px;font-weight:700;text-decoration:none;font-size:13px;">
+      Switch
+    </a>
+    <a href="{{ url_for('set_mobile_pref', pref='dismiss', next=request.path) }}"
+       style="color:rgba(255,255,255,0.8);padding:6px 10px;text-decoration:none;font-size:13px;">
+      &times;
+    </a>
+  </div>
+</div>
+{% endif %}

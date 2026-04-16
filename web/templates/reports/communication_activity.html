@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Communication Activity{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);"><div><h1 style="margin:0;">Communication Activity</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ date_label }}</p></div><button class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i></button></div>
+
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" id="reportFilterForm">
+        <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;margin-bottom:var(--space-2);">{% for val, label in [('this_month','This Month'),('this_quarter','This Quarter'),('this_year','This Year'),('last_month','Last Month')] %}<button type="button" class="btn {% if selected_preset == val %}btn-accent{% else %}btn-ghost{% endif %} preset-btn" style="font-size:var(--font-size-xs);padding:2px 8px;" data-preset="{{ val }}">{{ label }}</button>{% endfor %}</div>
+        <input type="hidden" name="preset" id="presetInput" value="{{ selected_preset }}">
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Apply</button>
+    </form>
+</div>
+
+{% if empty %}<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><h4>No communications for this period</h4></div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card summary-card border-primary" style="padding:var(--space-3);"><div class="metric-label">Total</div><div class="metric-value" style="color:var(--color-accent);">{{ total }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ client_comm_rows|length }} clients</div></div>
+    <div class="card summary-card border-info" style="padding:var(--space-3);"><div class="metric-label">Inbound</div><div class="metric-value" style="color:var(--color-info);">{{ inbound }}</div></div>
+    <div class="card summary-card border-success" style="padding:var(--space-3);"><div class="metric-label">Outbound</div><div class="metric-value" style="color:var(--color-success);">{{ outbound }}</div></div>
+    <div class="card summary-card border-{% if followup_pct >= 90 %}success{% elif followup_pct >= 70 %}warning{% else %}danger{% endif %}" style="padding:var(--space-3);"><div class="metric-label">Follow-up Rate</div><div class="metric-value">{{ followup_pct }}%</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">By Type</h3><div style="height:250px;"><canvas id="typeChart"></canvas></div></div>
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Monthly Trend</h3><div style="height:250px;"><canvas id="trendChart"></canvas></div></div>
+</div>
+
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">By Client</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);" data-sort>Client</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Total</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Inbound</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Outbound</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Last Contact</th></tr></thead>
+        <tbody>{% for r in client_comm_rows %}<tr style="border-bottom:1px solid var(--color-border);"><td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ r.client }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.total }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.inbound }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.outbound }}</td><td style="padding:var(--space-2) var(--space-3);{% if r.last_contact and (today - r.last_contact).days > 60 %}color:var(--color-danger);{% elif r.last_contact and (today - r.last_contact).days > 30 %}color:var(--color-warning);{% endif %}">{{ r.last_contact.strftime('%m/%d/%Y') if r.last_contact else '--' }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+{% block scripts %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script><script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% if not empty %}<script>
+new Chart(document.getElementById('typeChart'),{type:'bar',data:{labels:{{ type_rows|map(attribute='type')|list|tojson }},datasets:[{label:'Inbound',data:{{ type_rows|map(attribute='inbound')|list|tojson }},backgroundColor:'rgba(13,202,240,0.7)',stack:'s'},{label:'Outbound',data:{{ type_rows|map(attribute='outbound')|list|tojson }},backgroundColor:'rgba(25,135,84,0.7)',stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true}}}});
+new Chart(document.getElementById('trendChart'),{type:'line',data:{labels:{{ month_labels|tojson }},datasets:[{label:'Inbound',data:{{ monthly_inbound|tojson }},borderColor:'#0dcaf0',backgroundColor:'rgba(13,202,240,0.1)',fill:true,tension:0.3},{label:'Outbound',data:{{ monthly_outbound|tojson }},borderColor:'#198754',backgroundColor:'rgba(25,135,84,0.1)',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false}});
+</script>{% endif %}{% endblock %}

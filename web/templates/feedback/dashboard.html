@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Customer Satisfaction{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <div><h1 style="margin:0;"><i class="bi bi-star" style="color:var(--color-accent);"></i> Customer Satisfaction</h1></div>
+  <div style="display:flex;gap:var(--space-2);">
+    <a href="{{ url_for('feedback.list_feedback') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-list-ul"></i> All Reviews</a>
+    <a href="{{ url_for('feedback.pending') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-clock"></i> Pending{% if stats.pending_count %} <span style="background:var(--color-warning);color:#000;padding:1px 6px;border-radius:10px;font-size:11px;">{{ stats.pending_count }}</span>{% endif %}</a>
+    <a href="{{ url_for('feedback.follow_ups') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-flag"></i> Follow-ups{% if stats.follow_up_needed %} <span style="background:var(--color-danger);color:#fff;padding:1px 6px;border-radius:10px;font-size:11px;">{{ stats.follow_up_needed }}</span>{% endif %}</a>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:2rem;font-weight:700;color:var(--color-warning);">{{ "%.1f"|format(stats.avg_overall) if stats.avg_overall else '&mdash;' }}</div>
+    <div style="color:var(--color-warning);">{% if stats.avg_overall %}{% for i in range(1,6) %}{{ '&#9733;' if i <= (stats.avg_overall|round) else '&#9734;' }}{% endfor %}{% endif %}</div>
+    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Average Rating</div>
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:2rem;font-weight:700;{% if stats.nps_score is not none %}{% if stats.nps_score >= 50 %}color:var(--color-success);{% elif stats.nps_score >= 0 %}color:var(--color-warning);{% else %}color:var(--color-danger);{% endif %}{% endif %}">
+      {{ stats.nps_score if stats.nps_score is not none else '&mdash;' }}
+    </div>
+    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">NPS Score</div>
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:2rem;font-weight:700;color:var(--color-accent);">{{ stats.total_reviews }}</div>
+    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Reviews &middot; {{ stats.response_rate }}% rate</div>
+  </div>
+  <div class="card" style="padding:var(--space-3);text-align:center;">
+    <div style="font-size:2rem;font-weight:700;{% if stats.would_recommend_pct and stats.would_recommend_pct >= 80 %}color:var(--color-success);{% else %}color:var(--color-warning);{% endif %}">
+      {{ stats.would_recommend_pct if stats.would_recommend_pct is not none else '&mdash;' }}%
+    </div>
+    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Would Recommend</div>
+    {% if stats.negative_30d > 0 %}<div style="font-size:var(--font-size-xs);color:var(--color-danger);margin-top:4px;"><i class="bi bi-exclamation-triangle"></i> {{ stats.negative_30d }} negative in 30d</div>{% endif %}
+  </div>
+</div>
+
+<!-- Rating Distribution -->
+<div class="card" style="padding:var(--space-3);margin-bottom:var(--space-4);">
+  <div style="font-weight:700;margin-bottom:var(--space-2);">Rating Distribution</div>
+  {% for stars in range(5,0,-1) %}
+  {% set count = dist_dict.get(stars, 0) %}
+  {% set pct = (count / stats.total_reviews * 100)|round if stats.total_reviews else 0 %}
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+    <span style="width:24px;font-size:var(--font-size-sm);color:var(--color-text-muted);">{{ stars }}&#9733;</span>
+    <div style="flex:1;height:14px;background:var(--color-surface-raised);border-radius:7px;overflow:hidden;">
+      <div style="width:{{ pct }}%;height:100%;border-radius:7px;background:{% if stars >= 4 %}var(--color-success){% elif stars == 3 %}var(--color-warning){% else %}var(--color-danger){% endif %};"></div>
+    </div>
+    <span style="width:30px;font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ count }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Recent Feedback -->
+<div class="card" style="padding:0;">
+  <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;font-weight:700;">
+    <span>Recent Feedback</span>
+    <a href="{{ url_for('feedback.list_feedback') }}" style="font-size:var(--font-size-sm);color:var(--color-accent);text-decoration:none;">View all</a>
+  </div>
+  <div style="overflow-x:auto;">
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Date</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Client</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Rating</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">NPS</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Comment</th>
+      <th style="padding:var(--space-2) var(--space-3);"></th>
+    </tr></thead>
+    <tbody>{% for s in recent %}<tr style="border-bottom:1px solid var(--color-border);{% if s.overall_rating and s.overall_rating <= 2 %}background:rgba(239,68,68,0.05);{% endif %}">
+      <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ s.completed_at.strftime('%b %d') if s.completed_at else '' }}</td>
+      <td style="padding:var(--space-2) var(--space-3);">{{ s.client.display_name if s.client else '&mdash;' }}</td>
+      <td style="padding:var(--space-2) var(--space-3);color:var(--color-warning);">{% for i in range(s.overall_rating or 0) %}&#9733;{% endfor %}</td>
+      <td style="padding:var(--space-2) var(--space-3);">{% if s.nps_score is not none %}<span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:10px;color:#fff;background:{% if s.nps_category == 'promoter' %}var(--color-success){% elif s.nps_category == 'passive' %}var(--color-warning){% else %}var(--color-danger){% endif %};">{{ s.nps_score }}</span>{% endif %}</td>
+      <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);color:var(--color-text-muted);max-width:200px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">{{ (s.comments or '')[:80] }}</td>
+      <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('feedback.detail', survey_id=s.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-xs);">View</a></td>
+    </tr>{% else %}<tr><td colspan="6" style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">No feedback yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}

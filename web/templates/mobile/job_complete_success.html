@@ -1,0 +1,21 @@
+{% extends "mobile/base.html" %}
+{% block title %}Job Complete! — FSP{% endblock %}
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<div class="m-success-screen">
+  <div class="m-success-icon">&#127881;</div>
+  <h2 style="font-size:32px;font-weight:800;margin:16px 0 8px;">Job Complete!</h2>
+  <p class="m-text-muted" style="max-width:260px;margin-bottom:8px;">
+    {{ job.title or 'Job' }} has been marked complete.
+  </p>
+  <span class="m-badge m-badge--success" style="font-size:14px;padding:8px 20px;">COMPLETED</span>
+  <a href="{{ url_for('mobile.dashboard') }}" class="m-btn m-btn--primary m-btn--lg" style="margin-top:40px;min-width:200px;">
+    Back to Schedule
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>document.addEventListener('DOMContentLoaded', function() { mConfetti(); });</script>
+{% endblock %}

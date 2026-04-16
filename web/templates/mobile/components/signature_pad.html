@@ -1,0 +1,75 @@
+{# Reusable signature pad component.
+   Usage:
+     {% from 'mobile/components/signature_pad.html' import signature_pad %}
+     {{ signature_pad('customer_signature', canvas_id='cust-sig', height=180) }}
+#}
+{% macro signature_pad(name, canvas_id='sig-pad', height=160) %}
+<div class="m-form-group">
+  <input type="hidden" name="{{ name }}" id="{{ canvas_id }}-data">
+  <div class="m-sig-wrap">
+    <canvas id="{{ canvas_id }}" class="m-sig-canvas"
+            style="height:{{ height }}px;"
+            data-sig-target="{{ canvas_id }}-data"
+            data-sig-placeholder="{{ canvas_id }}-placeholder">
+    </canvas>
+    <div class="m-sig-placeholder" id="{{ canvas_id }}-placeholder">Sign here</div>
+    <div class="m-sig-actions">
+      <button type="button" class="m-btn m-btn--ghost m-btn--sm"
+              onclick="clearSigPad('{{ canvas_id }}')">Clear</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var canvas = document.getElementById('{{ canvas_id }}');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  var drawing = false;
+
+  function scaledPos(e) {
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = canvas.width / rect.width;
+    var scaleY = canvas.height / rect.height;
+    var src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - rect.left) * scaleX, y: (src.clientY - rect.top) * scaleY };
+  }
+
+  function onStart(e) {
+    drawing = true;
+    var p = scaledPos(e);
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    document.getElementById('{{ canvas_id }}-placeholder').style.display = 'none';
+    e.preventDefault();
+  }
+  function onMove(e) {
+    if (!drawing) return;
+    var p = scaledPos(e);
+    ctx.lineTo(p.x, p.y); ctx.stroke();
+    document.getElementById('{{ canvas_id }}-data').value = canvas.toDataURL('image/png');
+    e.preventDefault();
+  }
+  function onEnd() { drawing = false; }
+
+  canvas.addEventListener('touchstart', onStart, { passive: false });
+  canvas.addEventListener('touchmove', onMove, { passive: false });
+  canvas.addEventListener('touchend', onEnd, { passive: true });
+  canvas.addEventListener('mousedown', onStart);
+  canvas.addEventListener('mousemove', onMove);
+  canvas.addEventListener('mouseup', onEnd);
+  canvas.addEventListener('mouseleave', onEnd);
+})();
+
+function clearSigPad(canvasId) {
+  var canvas = document.getElementById(canvasId);
+  var ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById(canvasId + '-data').value = '';
+  document.getElementById(canvasId + '-placeholder').style.display = 'block';
+}
+</script>
+{% endmacro %}

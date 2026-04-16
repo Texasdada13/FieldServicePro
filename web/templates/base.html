@@ -225,5 +225,6 @@
 {% if user and user.is_authenticated %}
 <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
 {% endif %}
+{% include 'partials/mobile_banner.html' %}
 </body>
 </html>

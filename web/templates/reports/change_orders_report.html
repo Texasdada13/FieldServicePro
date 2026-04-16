@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Change Order Report{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);"><div><h1 style="margin:0;">Change Order Report</h1><p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ date_label }}</p></div><div style="display:flex;gap:var(--space-2);"><button class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i></button></div></div>
+
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" id="reportFilterForm">
+        <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;margin-bottom:var(--space-2);">
+            {% for val, label in [('this_month','This Month'),('this_quarter','This Quarter'),('this_year','This Year'),('last_month','Last Month')] %}
+            <button type="button" class="btn {% if selected_preset == val %}btn-accent{% else %}btn-ghost{% endif %} preset-btn" style="font-size:var(--font-size-xs);padding:2px 8px;" data-preset="{{ val }}">{{ label }}</button>
+            {% endfor %}
+        </div>
+        <input type="hidden" name="preset" id="presetInput" value="{{ selected_preset }}">
+        <div style="display:flex;gap:var(--space-2);">
+            <select name="status" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">All Statuses</option>{% for s in ['draft','submitted','pending_approval','approved','rejected','voided'] %}<option value="{{ s }}" {% if selected_status == s %}selected{% endif %}>{{ s.replace('_',' ')|title }}</option>{% endfor %}</select>
+            <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Apply</button>
+        </div>
+    </form>
+</div>
+
+{% if empty %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><h4>No change orders for this period</h4></div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card summary-card border-primary" style="padding:var(--space-3);"><div class="metric-label">Total COs</div><div class="metric-value" style="color:var(--color-accent);">{{ total_cos }}</div></div>
+    <div class="card summary-card border-success" style="padding:var(--space-3);"><div class="metric-label">Approved</div><div class="metric-value" style="color:var(--color-success);">{{ approved_count }}</div></div>
+    <div class="card summary-card border-warning" style="padding:var(--space-3);"><div class="metric-label">Pending</div><div class="metric-value" style="color:var(--color-warning);">{{ pending_count }}</div></div>
+    <div class="card summary-card border-success" style="padding:var(--space-3);"><div class="metric-label">Approved Value</div><div class="metric-value" style="color:var(--color-success);">${{ "{:,.0f}".format(total_value) }}</div></div>
+    <div class="card summary-card border-{% if approval_rate >= 80 %}success{% elif approval_rate >= 60 %}warning{% else %}danger{% endif %}" style="padding:var(--space-3);"><div class="metric-label">Approval Rate</div><div class="metric-value">{{ approval_rate }}%</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">By Reason</h3><div style="height:250px;"><canvas id="reasonChart"></canvas></div></div>
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Monthly COs</h3><div style="height:250px;"><canvas id="monthlyChart"></canvas></div></div>
+</div>
+
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">All Change Orders</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);">
+            <th style="padding:var(--space-2) var(--space-3);" data-sort>CO #</th>
+            <th style="padding:var(--space-2) var(--space-3);" data-sort>Job</th>
+            <th style="padding:var(--space-2) var(--space-3);" data-sort>Client</th>
+            <th style="padding:var(--space-2) var(--space-3);" data-sort>Reason</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Value</th>
+            <th style="padding:var(--space-2) var(--space-3);" data-sort>Status</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Days to Approve</th>
+            <th style="padding:var(--space-2) var(--space-3);">Date</th>
+        </tr></thead>
+        <tbody>{% for r in co_rows %}<tr style="border-bottom:1px solid var(--color-border);">
+            <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ r.number }}</td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ r.job }}</td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ r.client }}</td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ r.reason }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;color:{% if r.amount > 0 %}var(--color-success){% elif r.amount < 0 %}var(--color-danger){% endif %};">${{ "{:,.0f}".format(r.amount) }}</td>
+            <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:{% if r.status == 'approved' %}var(--color-success){% elif r.status in ('submitted','pending_approval') %}var(--color-warning){% elif r.status == 'rejected' %}var(--color-danger){% else %}var(--color-surface-raised){% endif %};color:{% if r.status in ('approved','rejected','submitted','pending_approval') %}#fff{% else %}inherit{% endif %};">{{ r.status.replace('_',' ')|title }}</span></td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r.days_to_approve and r.days_to_approve > 14 %}color:var(--color-danger);{% endif %}">{{ r.days_to_approve if r.days_to_approve is not none else '--' }}</td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ r.created_at.strftime('%m/%d/%y') if r.created_at else '' }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% if not empty %}
+<script>
+new Chart(document.getElementById('reasonChart'), { type: 'bar', data: { labels: {{ reason_rows|map(attribute='reason')|list|tojson }}, datasets: [{ label: 'Count', data: {{ reason_rows|map(attribute='count')|list|tojson }}, backgroundColor: 'rgba(13,110,253,0.7)', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false } });
+new Chart(document.getElementById('monthlyChart'), { type: 'bar', data: { labels: {{ month_labels|tojson }}, datasets: [{ label: 'COs', data: {{ monthly_count|tojson }}, backgroundColor: 'rgba(255,193,7,0.7)', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false } });
+</script>
+{% endif %}
+{% endblock %}

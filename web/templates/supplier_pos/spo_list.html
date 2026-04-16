@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Supplier Purchase Orders{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <div><h1 style="margin:0;"><i class="bi bi-cart3" style="color:var(--color-accent);"></i> Supplier Purchase Orders</h1>
+    <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ pos|length }} POs &middot; ${{ "{:,.2f}".format(total_open) }} open</p></div>
+    {% if user.role in ('admin','owner','dispatcher') %}<a href="{{ url_for('supplier_pos.spo_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New PO</a>{% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--color-warning);">${{ "{:,.0f}".format(total_open) }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Open Balance</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--color-accent);">{{ pending_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Pending Delivery</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--color-info);">{{ receiving_count }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Partially Received</div></div>
+</div>
+
+<form method="get" class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:flex;gap:var(--space-2);align-items:end;">
+        <select name="status" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">All Statuses</option>{% for val, label in spo_statuses %}<option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <select name="vendor_id" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">All Vendors</option>{% for v in vendors %}<option value="{{ v.id }}" {% if filters.vendor_id == v.id %}selected{% endif %}>{{ v.company_name }}</option>{% endfor %}</select>
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Filter</button>
+        <a href="{{ url_for('supplier_pos.spo_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+    </div>
+</form>
+
+<div class="card" style="padding:0;">
+{% if pos %}
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">PO #</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Vendor</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Total</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Balance</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Payment</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Receipt</th>
+    </tr></thead>
+    <tbody>{% for po in pos %}<tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('supplier_pos.spo_detail', po_id=po.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:700;">{{ po.po_number }}</a></td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ po.vendor.company_name if po.vendor else '--' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ po.order_date.strftime('%m/%d/%y') if po.order_date else '' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ po.status_color }});color:#fff;">{{ po.status.replace('_',' ')|title }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;">${{ "{:,.2f}".format(po.total or 0) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if po.balance_due > 0 %}color:var(--color-warning);font-weight:700;{% endif %}">${{ "{:,.2f}".format(po.balance_due) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 6px;border-radius:var(--radius-sm);background:{% if po.payment_status == 'paid' %}var(--color-success){% elif po.payment_status == 'partially_paid' %}var(--color-warning){% else %}var(--color-surface-raised){% endif %};color:{% if po.payment_status in ('paid','partially_paid') %}#fff{% else %}inherit{% endif %};">{{ po.payment_status.replace('_',' ')|title }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ po.receipt_progress }}%</td>
+    </tr>{% endfor %}</tbody>
+</table></div>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><i class="bi bi-cart3" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i><h4>No supplier POs</h4></div>
+{% endif %}
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

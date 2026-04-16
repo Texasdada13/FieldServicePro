@@ -1,0 +1,20 @@
+/* FieldServicePro Reports Module */
+.report-icon-circle { width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.report-category-card { transition: box-shadow 0.2s, transform 0.2s; }
+.report-category-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.12) !important; transform: translateY(-2px); }
+.summary-card { border-left:4px solid; transition:box-shadow 0.15s; }
+.summary-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.1) !important; }
+.summary-card .metric-value { font-size:1.75rem;font-weight:700;line-height:1.1; }
+.summary-card .metric-label { font-size:0.78rem;color:#6c757d;text-transform:uppercase;letter-spacing:0.05em; }
+.chart-card { border:none;box-shadow:0 1px 6px rgba(0,0,0,0.07); }
+.chart-container { position:relative; }
+.chart-container canvas { max-height:320px; }
+.report-table { font-size:0.875rem; }
+.report-table th { background:#f8f9fa;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;color:#495057;white-space:nowrap;cursor:pointer;user-select:none; }
+.report-table th:hover { background:#e9ecef; }
+.report-table td { vertical-align:middle; }
+.row-unprofitable { background-color:#fff3cd !important; }
+#aiInsightsPanel { border:2px solid #0d6efd !important; }
+.ai-insight-item { padding:.75rem 1rem;border-left:3px solid #0d6efd;background:#f0f4ff;border-radius:0 8px 8px 0;margin-bottom:.75rem; }
+.preset-btn { transition:all 0.15s; }
+@media print { .no-print,.btn,nav.breadcrumb,#aiInsightsPanel { display:none !important; } .card { box-shadow:none !important; } @page { margin:1.5cm;size:landscape; } }

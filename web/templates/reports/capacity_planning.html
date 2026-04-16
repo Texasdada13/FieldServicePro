@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Capacity Planning{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<h1 style="margin:0 0 var(--space-1);">Capacity Planning</h1>
+<p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:0 0 var(--space-3);">{{ date_label }}</p>
+
+<div class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <form method="GET" style="display:flex;gap:var(--space-2);align-items:end;">
+        <select name="weeks_ahead" class="form-select" style="font-size:var(--font-size-sm);width:auto;">{% for w in [2,4,6,8,12] %}<option value="{{ w }}" {% if weeks_ahead == w %}selected{% endif %}>{{ w }} Weeks</option>{% endfor %}</select>
+        <select name="division_id" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">All Divisions</option>{% for d in all_divisions %}<option value="{{ d.id }}" {% if selected_division == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Apply</button>
+    </form>
+</div>
+
+{% if empty %}<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><h4>No technicians found</h4></div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card summary-card border-primary" style="padding:var(--space-3);"><div class="metric-label">Technicians</div><div class="metric-value" style="color:var(--color-accent);">{{ tech_rows|length }}</div></div>
+    <div class="card summary-card border-info" style="padding:var(--space-3);"><div class="metric-label">Capacity/Week</div><div class="metric-value" style="color:var(--color-info);">{{ total_capacity }}h</div></div>
+    <div class="card summary-card border-danger" style="padding:var(--space-3);"><div class="metric-label">Over-booked</div><div class="metric-value" style="color:var(--color-danger);">{{ tech_rows|selectattr('over_booked')|list|length }}</div></div>
+    <div class="card summary-card border-warning" style="padding:var(--space-3);"><div class="metric-label">Under-utilized</div><div class="metric-value" style="color:var(--color-warning);">{{ tech_rows|selectattr('under_utilized')|list|length }}</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Weekly Forecast</h3><div style="height:250px;"><canvas id="weekChart"></canvas></div></div>
+    <div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Tech Utilization</h3><div style="height:250px;"><canvas id="utilChart"></canvas></div></div>
+</div>
+
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Technician Capacity (This Week)</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);" data-sort>Technician</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Capacity</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Scheduled</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Available</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Utilization</th><th style="padding:var(--space-2) var(--space-3);">Status</th></tr></thead>
+        <tbody>{% for r in tech_rows %}<tr style="border-bottom:1px solid var(--color-border);{% if r.over_booked %}background:rgba(220,53,69,0.05);{% elif r.under_utilized %}background:rgba(255,193,7,0.05);{% endif %}"><td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ r.name }}</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.capacity }}h</td><td style="padding:var(--space-2) var(--space-3);text-align:right;">{{ r.scheduled }}h</td><td style="padding:var(--space-2) var(--space-3);text-align:right;{% if r.available == 0 %}color:var(--color-danger);{% endif %}">{{ r.available }}h</td><td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;color:{% if r.over_booked %}var(--color-danger){% elif r.utilization >= 80 %}var(--color-success){% elif r.utilization >= 50 %}var(--color-warning){% else %}var(--color-text-muted){% endif %};">{{ r.utilization }}%</td><td style="padding:var(--space-2) var(--space-3);">{% if r.over_booked %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-danger);color:#fff;">Over</span>{% elif r.under_utilized %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-warning);color:#000;">Under</span>{% else %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-success);color:#fff;">OK</span>{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+{% block scripts %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script><script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% if not empty %}<script>
+new Chart(document.getElementById('weekChart'),{type:'bar',data:{labels:{{ week_rows|map(attribute='week')|list|tojson }},datasets:[{label:'Scheduled',data:{{ week_rows|map(attribute='scheduled')|list|tojson }},backgroundColor:'rgba(13,110,253,0.8)'},{label:'Available',data:{{ week_rows|map(attribute='available')|list|tojson }},backgroundColor:'rgba(25,135,84,0.5)'}]},options:{responsive:true,maintainAspectRatio:false}});
+new Chart(document.getElementById('utilChart'),{type:'bar',data:{labels:{{ tech_rows|map(attribute='name')|list|tojson }},datasets:[{label:'%',data:{{ tech_rows|map(attribute='utilization')|list|tojson }},backgroundColor:{{ tech_rows|map(attribute='over_booked')|list|tojson }}.map(function(ob,i){return ob?'rgba(220,53,69,0.8)':{{ tech_rows|map(attribute='under_utilized')|list|tojson }}[i]?'rgba(255,193,7,0.7)':'rgba(25,135,84,0.7)';})}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{max:120}}}});
+</script>{% endif %}{% endblock %}

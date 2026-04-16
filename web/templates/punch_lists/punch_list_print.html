@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>{{ pl.punch_list_number }} - {{ pl.title }}</title>
+<style>
+@media print { .no-print { display: none; } }
+body { font-family: Arial, sans-serif; font-size: 11pt; margin: 20px; }
+h1 { font-size: 16pt; margin-bottom: 4px; }
+.meta { color: #555; font-size: 9pt; margin-bottom: 12px; }
+table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+th { background: #f0f0f0; border: 1px solid #ccc; padding: 6px 8px; font-size: 9pt; text-align: left; }
+td { border: 1px solid #ddd; padding: 6px 8px; font-size: 10pt; vertical-align: top; }
+.badge-open { color: #c00; font-weight: bold; }
+.badge-verified { color: #090; font-weight: bold; }
+.severity-critical { color: #c00; font-weight: bold; }
+.progress { border: 1px solid #999; background: #eee; height: 12px; border-radius: 4px; overflow: hidden; display: inline-block; width: 150px; }
+.progress-bar { background: #090; height: 100%; }
+</style>
+</head>
+<body>
+<div class="no-print" style="margin-bottom:16px"><button onclick="window.print()">Print</button> <a href="javascript:history.back()">Back</a></div>
+
+<h1>{{ pl.title }}</h1>
+<div class="meta">
+    {{ pl.punch_list_number }} | Project: {{ pl.project.title if pl.project else '' }} | Inspected: {{ pl.inspection_date.strftime('%B %d, %Y') if pl.inspection_date else '' }}{% if pl.inspected_by %} by {{ pl.inspected_by }}{% endif %}<br>
+    Status: {{ pl.status.replace('_',' ')|title }} | Progress: {{ pl.completed_items }}/{{ pl.total_items }} verified ({{ pl.percent_complete }}%){% if pl.due_date %} | Due: {{ pl.due_date.strftime('%B %d, %Y') }}{% endif %}
+</div>
+<div class="progress"><div class="progress-bar" style="width:{{ pl.percent_complete }}%"></div></div>
+
+<table>
+<thead><tr><th style="width:40px">#</th><th style="width:120px">Location</th><th>Description</th><th style="width:80px">Category</th><th style="width:70px">Severity</th><th style="width:80px">Trade</th><th style="width:110px">Assigned</th><th style="width:80px">Status</th><th style="width:70px">Resolved</th></tr></thead>
+<tbody>
+{% for item in items %}
+<tr>
+    <td>{{ item.item_number }}</td>
+    <td style="font-size:9pt;color:#555;">{{ item.location or '' }}</td>
+    <td>{{ item.description }}{% if item.notes %}<br><em style="font-size:9pt;color:#666;">{{ item.notes }}</em>{% endif %}</td>
+    <td>{{ item.category.replace('_',' ')|title }}</td>
+    <td class="{% if item.severity == 'critical' %}severity-critical{% endif %}">{{ item.severity|title }}</td>
+    <td>{{ item.trade|title }}</td>
+    <td>{{ item.assigned_to.full_name if item.assigned_to else '' }}</td>
+    <td class="{% if item.status == 'verified' %}badge-verified{% elif item.status == 'open' %}badge-open{% endif %}">{{ item.status.replace('_',' ')|title }}</td>
+    <td>{{ item.verified_date.strftime('%m/%d') if item.verified_date else '' }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% if pl.accepted_by %}<div style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Accepted by:</strong> {{ pl.accepted_by }}{% if pl.accepted_date %} on {{ pl.accepted_date.strftime('%B %d, %Y') }}{% endif %}</div>{% endif %}
+<div style="margin-top:32px;font-size:9pt;color:#999;">Printed {{ today.strftime('%B %d, %Y') }}</div>
+</body>
+</html>

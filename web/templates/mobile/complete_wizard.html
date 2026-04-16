@@ -1,0 +1,170 @@
+{% extends "mobile/base.html" %}
+{% set show_back = true %}
+{% set back_url = url_for('mobile.job_detail', job_id=job.id) %}
+{% block title %}Complete Job — FSP{% endblock %}
+{% block header_title %}Complete Job{% endblock %}
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<div style="padding:0 12px;">
+
+{# Step indicator #}
+<div class="m-wizard-steps" id="step-dots">
+  <div class="m-wizard-dot active" id="dot-1"></div>
+  <div class="m-wizard-dot" id="dot-2"></div>
+  <div class="m-wizard-dot" id="dot-3"></div>
+  <div class="m-wizard-dot" id="dot-4"></div>
+  <div class="m-wizard-dot" id="dot-5"></div>
+</div>
+
+{# ═══ STEP 1: Work Summary ═══ #}
+<div class="wizard-step" id="step-1">
+  <div class="m-section-header" style="margin-top:0;">Step 1 — Work Summary</div>
+  <div class="m-card">
+    <h3 style="margin:0 0 12px;font-size:16px;">Describe what was done</h3>
+    <textarea id="work-summary" class="m-input m-textarea" rows="4"
+              placeholder="Briefly describe the work completed..."></textarea>
+  </div>
+  <button class="m-btn m-btn--primary m-btn--full m-btn--lg" onclick="nextStep(1)">Continue &rarr;</button>
+</div>
+
+{# ═══ STEP 2: Time Confirmation ═══ #}
+<div class="wizard-step" id="step-2" style="display:none;">
+  <div class="m-section-header" style="margin-top:0;">Step 2 — Time Confirmation</div>
+  {% if active_entry %}
+  <div class="m-card m-card--warn-left">
+    <div class="m-fw-700" style="color:#f59e0b;">&#9888; Still clocked in</div>
+    <div class="m-text-muted m-text-sm">Clock-out will happen automatically when you complete.</div>
+  </div>
+  {% endif %}
+  <div class="m-card">
+    {% if time_entries %}
+      {% for e in time_entries %}
+      <div class="m-flex-between m-text-sm" style="padding:8px 0;border-bottom:0.5px solid var(--color-border,rgba(255,255,255,0.1));">
+        <span>{{ e.start_time.strftime('%I:%M %p') if e.start_time else '?' }} &rarr; {{ e.end_time.strftime('%I:%M %p') if e.end_time else 'Active' }}</span>
+        <span class="m-fw-600">{{ e.duration_hours or '&mdash;' }}h</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="m-text-muted m-text-sm">No time entries today.</div>
+    {% endif %}
+  </div>
+  <button class="m-btn m-btn--primary m-btn--full m-btn--lg" onclick="nextStep(2)">Looks Good &rarr;</button>
+</div>
+
+{# ═══ STEP 3: Materials ═══ #}
+<div class="wizard-step" id="step-3" style="display:none;">
+  <div class="m-section-header" style="margin-top:0;">Step 3 — Materials</div>
+  <div class="m-card">
+    {% if materials %}
+      {% for m in materials %}
+      <div class="m-flex-between m-text-sm" style="padding:8px 0;border-bottom:0.5px solid var(--color-border,rgba(255,255,255,0.1));">
+        <span>{{ m.custom_description or 'Item' }}</span>
+        <span class="m-fw-600">&times; {{ m.quantity|int }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="m-text-muted m-text-sm">No materials logged.</div>
+    {% endif %}
+  </div>
+  <a href="{{ url_for('mobile.job_add_material', job_id=job.id) }}" class="m-btn m-btn--secondary m-btn--full m-mb8">+ Add More</a>
+  <button class="m-btn m-btn--primary m-btn--full m-btn--lg" onclick="nextStep(3)">Continue &rarr;</button>
+</div>
+
+{# ═══ STEP 4: Completion Photo ═══ #}
+<div class="wizard-step" id="step-4" style="display:none;">
+  <div class="m-section-header" style="margin-top:0;">Step 4 — Completion Photo</div>
+  <div class="m-card">
+    <p class="m-text-muted m-text-sm">Take an "after" photo to document completed work.</p>
+    <input type="file" id="comp-photo-input" accept="image/*" capture="environment" style="display:none"
+           onchange="handleCompPhoto(this)">
+    <div class="m-camera-btn" id="comp-camera-btn" onclick="document.getElementById('comp-photo-input').click()">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+      </svg>
+      <span>Take Completion Photo</span>
+    </div>
+    <img id="comp-preview" style="display:none;width:100%;border-radius:10px;margin-top:10px;" alt="">
+  </div>
+  <button class="m-btn m-btn--primary m-btn--full m-btn--lg" onclick="nextStep(4)">Continue &rarr;</button>
+  <button class="m-btn m-btn--ghost m-btn--full" onclick="nextStep(4)" style="margin-top:8px;">Skip Photo</button>
+</div>
+
+{# ═══ STEP 5: Confirm & Submit ═══ #}
+<div class="wizard-step" id="step-5" style="display:none;">
+  <div class="m-section-header" style="margin-top:0;">Step 5 — Confirm &amp; Submit</div>
+  <div class="m-card">
+    <h3 style="margin:0 0 16px;font-size:16px;">Summary</h3>
+    <div class="m-flex-between m-text-sm" style="padding:8px 0;border-bottom:0.5px solid var(--color-border,rgba(255,255,255,0.1));">
+      <span>Time Entries</span><span class="m-fw-600">{{ time_entries|length }}</span>
+    </div>
+    <div class="m-flex-between m-text-sm" style="padding:8px 0;border-bottom:0.5px solid var(--color-border,rgba(255,255,255,0.1));">
+      <span>Materials</span><span class="m-fw-600">{{ materials|length }} items</span>
+    </div>
+    <div class="m-flex-between m-text-sm" style="padding:8px 0;border-bottom:0.5px solid var(--color-border,rgba(255,255,255,0.1));">
+      <span>Photos</span><span class="m-fw-600">{{ photos|length }}</span>
+    </div>
+    <div class="m-flex-between m-text-sm" style="padding:8px 0;">
+      <span>Checklists</span><span class="m-fw-600">{{ checklists|length }} done</span>
+    </div>
+  </div>
+
+  <form action="{{ url_for('mobile.complete_job', job_id=job.id) }}" method="post"
+        enctype="multipart/form-data" id="completion-form">
+    <input type="hidden" name="work_summary" id="form-summary">
+    <div id="form-photo-container"></div>
+    <button type="submit" class="m-btn m-btn--success m-btn--full m-btn--lg"
+            style="font-size:20px;padding:22px;margin-top:16px;"
+            onclick="prepareSubmit()">
+      &#9989; COMPLETE JOB
+    </button>
+  </form>
+</div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var currentStep = 1;
+var totalSteps = 5;
+var compPhotoFile = null;
+
+function nextStep(from) {
+  document.getElementById('step-' + from).style.display = 'none';
+  var next = from + 1;
+  if (next <= totalSteps) {
+    document.getElementById('step-' + next).style.display = 'block';
+    currentStep = next;
+    for (var i = 1; i <= totalSteps; i++) {
+      var dot = document.getElementById('dot-' + i);
+      dot.className = 'm-wizard-dot' + (i === currentStep ? ' active' : (i < currentStep ? ' done' : ''));
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+function handleCompPhoto(input) {
+  compPhotoFile = input.files[0];
+  if (!compPhotoFile) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('comp-preview').src = e.target.result;
+    document.getElementById('comp-preview').style.display = 'block';
+    document.getElementById('comp-camera-btn').style.display = 'none';
+  };
+  reader.readAsDataURL(compPhotoFile);
+}
+
+function prepareSubmit() {
+  document.getElementById('form-summary').value = document.getElementById('work-summary').value;
+  if (compPhotoFile) {
+    var dt = new DataTransfer();
+    dt.items.add(compPhotoFile);
+    var fi = document.createElement('input');
+    fi.type = 'file'; fi.name = 'completion_photo'; fi.files = dt.files; fi.style.display = 'none';
+    document.getElementById('form-photo-container').appendChild(fi);
+  }
+}
+</script>
+{% endblock %}

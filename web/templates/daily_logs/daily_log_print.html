@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Daily Log - {{ log.log_date.strftime('%B %d, %Y') if log.log_date else '' }}</title>
+<style>
+@media print { .no-print { display: none; } }
+body { font-family: Arial, sans-serif; font-size: 10.5pt; margin: 24px; color: #222; }
+h1 { font-size: 15pt; margin-bottom: 2px; }
+.meta { color: #555; font-size: 9pt; border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 16px; }
+.section { margin-bottom: 16px; }
+.section-title { font-size: 9pt; font-weight: bold; text-transform: uppercase; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 6px; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #f0f0f0; border: 1px solid #ccc; padding: 4px 8px; font-size: 9pt; text-align: left; }
+td { border: 1px solid #ddd; padding: 4px 8px; font-size: 10pt; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.safety-alert { color: #c00; font-weight: bold; }
+.milestone { border-left: 3px solid #090; padding-left: 8px; }
+</style>
+</head>
+<body>
+<div class="no-print" style="margin-bottom:12px"><button onclick="window.print()">Print</button> <a href="javascript:history.back()">Back</a></div>
+
+<h1>Daily Site Report</h1>
+<div class="meta"><strong>{{ log.project.title if log.project else '' }}</strong> | {{ log.log_date.strftime('%A, %B %d, %Y') if log.log_date else '' }} | {{ log.log_number }} | Reported by: {{ log.reported_by.full_name if log.reported_by else '' }} | Status: {{ log.status|title }}</div>
+
+<div class="two-col">
+    <div class="section"><div class="section-title">Weather</div><div>{{ log.weather or '--' }}{% if log.temperature_high %} ({{ log.temperature_high }}F{% if log.temperature_low %}/{{ log.temperature_low }}F{% endif %}){% endif %}{% if log.weather_impact != 'none' %} - <strong>{{ log.weather_impact.replace('_',' ')|title }}</strong>{% endif %}</div>{% if log.site_conditions %}<div style="margin-top:4px;color:#555;">{{ log.site_conditions }}</div>{% endif %}</div>
+    <div class="section"><div class="section-title">Workforce</div><div><strong>{{ log.total_workers or 0 }} workers</strong>, {{ log.hours_worked or 0 }} hours</div>{% if log.crew_list %}<table style="margin-top:4px;"><tr><th>Trade</th><th>Count</th><th>Names</th></tr>{% for c in log.crew_list %}<tr><td style="text-transform:capitalize;">{{ c.trade }}</td><td>{{ c.count }}</td><td style="font-size:9pt;">{{ c.names or '' }}</td></tr>{% endfor %}</table>{% endif %}</div>
+</div>
+
+<div class="section"><div class="section-title">Work Performed</div><div>{{ log.work_description }}</div>{% if log.areas_worked %}<div style="margin-top:6px;font-size:9pt;color:#555;"><strong>Areas:</strong> {{ log.areas_worked }}</div>{% endif %}{% if log.milestones_reached %}<div class="milestone" style="margin-top:8px;"><strong>Milestone:</strong> {{ log.milestones_reached }}</div>{% endif %}</div>
+
+{% if log.delays or log.safety_incidents or log.issues_or_concerns %}
+<div class="two-col">
+    {% if log.delays %}<div class="section"><div class="section-title">Delays</div><div>{{ log.delays }}</div></div>{% endif %}
+    {% if log.safety_incidents %}<div class="section"><div class="section-title">Safety</div><div class="safety-alert">{{ log.safety_incidents }}</div></div>{% endif %}
+    {% if log.issues_or_concerns %}<div class="section"><div class="section-title">Issues</div><div>{{ log.issues_or_concerns }}</div></div>{% endif %}
+</div>
+{% endif %}
+
+<div style="margin-top:32px;display:grid;grid-template-columns:1fr 1fr;gap:48px;">
+    <div style="border-top:1px solid #999;padding-top:4px;font-size:9pt;color:#555;">Reported by: {{ log.reported_by.full_name if log.reported_by else '' }}</div>
+    {% if log.reviewed_by %}<div style="border-top:1px solid #999;padding-top:4px;font-size:9pt;color:#555;">Reviewed by: {{ log.reviewed_by.full_name }} - {{ log.reviewed_at.strftime('%m/%d/%Y') if log.reviewed_at else '' }}</div>{% endif %}
+</div>
+<div style="margin-top:24px;font-size:8pt;color:#aaa;">Printed {{ today.strftime('%B %d, %Y') }}</div>
+</body>
+</html>

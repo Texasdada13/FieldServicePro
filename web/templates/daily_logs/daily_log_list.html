@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Daily Logs{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <h1 style="margin:0;"><i class="bi bi-journal-text" style="color:var(--color-accent);"></i> Daily Logs</h1>
+    <a href="{{ url_for('daily_logs.daily_log_new', project_id=filters.project_id) }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Daily Log</a>
+</div>
+
+<form method="get" class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto auto;gap:var(--space-2);align-items:end;">
+        <select name="project_id" class="form-select" style="font-size:var(--font-size-sm);"><option value="">All Projects</option>{% for p in projects %}<option value="{{ p.id }}" {% if filters.project_id == p.id %}selected{% endif %}>{{ p.title }}</option>{% endfor %}</select>
+        <select name="status" class="form-select" style="font-size:var(--font-size-sm);"><option value="">All Statuses</option>{% for val, label in statuses %}<option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <input type="date" name="date_from" class="form-control" style="font-size:var(--font-size-sm);" value="{{ filters.date_from.strftime('%Y-%m-%d') if filters.date_from else '' }}">
+        <input type="date" name="date_to" class="form-control" style="font-size:var(--font-size-sm);" value="{{ filters.date_to.strftime('%Y-%m-%d') if filters.date_to else '' }}">
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Filter</button>
+        <a href="{{ url_for('daily_logs.daily_log_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+    </div>
+</form>
+
+<div class="card" style="padding:0;">
+{% if logs %}
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Log #</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Date</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Project</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Weather</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:center;">Workers</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Reported By</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+    </tr></thead>
+    <tbody>
+    {% for log in logs %}
+    <tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('daily_logs.daily_log_detail', log_id=log.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:700;">{{ log.log_number }}</a></td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ log.log_date.strftime('%a, %b %d, %Y') if log.log_date else '' }}{% if log.is_late_entry %} <span style="font-size:var(--font-size-xs);padding:1px 4px;border-radius:var(--radius-sm);background:var(--color-warning);color:#000;">Late</span>{% endif %}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ log.project.title[:30] if log.project else '--' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ log.weather or '--' }}{% if log.weather_impact != 'none' %} <span style="font-size:var(--font-size-xs);padding:1px 4px;border-radius:var(--radius-sm);background:var(--color-warning);color:#000;">{{ log.weather_impact.replace('_',' ')|title }}</span>{% endif %}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;">{{ log.total_workers or 0 }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ log.reported_by.full_name if log.reported_by else '--' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ log.status_color }});color:#fff;">{{ log.status|title }}</span></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table></div>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><i class="bi bi-journal-text" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i><h4>No daily logs found</h4></div>
+{% endif %}
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

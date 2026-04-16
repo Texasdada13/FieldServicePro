@@ -1,0 +1,95 @@
+{% extends "mobile/base.html" %}
+{% set show_back = true %}
+{% set back_url = url_for('mobile.truck_stock') %}
+{% block title %}Request Restock — FSP{% endblock %}
+{% block header_title %}Request Restock{% endblock %}
+
+{% block content %}
+<div style="padding:0 12px;">
+  <p class="m-text-muted m-text-sm" style="margin-bottom:16px;">
+    Select parts and enter quantities. A request will be sent to the warehouse.
+  </p>
+
+  <form action="{{ url_for('mobile.restock_request') }}" method="post" id="restock-form">
+    <div id="selected-parts" style="margin-bottom:16px;"></div>
+
+    {% for item in items %}
+    <div class="m-check-item" data-part-id="{{ item.part_id }}" data-part-name="{{ item.name|e }}"
+         onclick="toggleRestockItem(this)">
+      <input type="checkbox" name="part_id" value="{{ item.part_id }}"
+             {{ 'checked' if item.preselected }}
+             onclick="event.stopPropagation()">
+      <div style="flex:1;">
+        <div class="m-fw-600">{{ item.name }}</div>
+        <div class="m-text-muted m-text-sm">On hand: {{ item.qty }} {% if item.part_number %}&middot; #{{ item.part_number }}{% endif %}</div>
+      </div>
+      {% if item.qty <= 2 %}
+        <span class="m-badge m-badge--warning">Low</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div id="qty-inputs" style="margin-top:16px;"></div>
+
+    <div class="m-form-group" style="margin-top:16px;">
+      <label class="m-label">Notes to Warehouse</label>
+      <textarea name="notes" class="m-input m-textarea" placeholder="Priority, specific brands, etc."></textarea>
+    </div>
+
+    <div class="m-sticky-action">
+      <button type="submit" class="m-btn m-btn--primary m-btn--full m-btn--lg" id="submit-restock" disabled>
+        Submit Restock Request
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var selectedParts = new Set(
+  [].slice.call(document.querySelectorAll('input[name=part_id]:checked')).map(function(i) { return i.value; })
+);
+updateUI();
+
+function toggleRestockItem(card) {
+  var cb = card.querySelector('input[type=checkbox]');
+  cb.checked = !cb.checked;
+  if (cb.checked) selectedParts.add(cb.value);
+  else selectedParts.delete(cb.value);
+  updateUI();
+}
+
+function updateUI() {
+  var qtyContainer = document.getElementById('qty-inputs');
+  var submitBtn = document.getElementById('submit-restock');
+  submitBtn.disabled = selectedParts.size === 0;
+
+  var existing = {};
+  qtyContainer.querySelectorAll('input[name=quantity]').forEach(function(i) {
+    existing[i.dataset.partId] = i.value;
+  });
+
+  qtyContainer.innerHTML = '';
+  document.querySelectorAll('.m-check-item').forEach(function(card) {
+    var partId = card.dataset.partId;
+    if (!selectedParts.has(partId)) return;
+    var partName = card.dataset.partName;
+    var div = document.createElement('div');
+    div.className = 'm-form-group';
+    div.innerHTML =
+      '<label class="m-label">' + partName + ' — Qty to Request</label>' +
+      '<input type="number" name="quantity" data-part-id="' + partId + '" class="m-input" step="1" min="1" value="' + (existing[partId] || '5') + '" required>';
+    qtyContainer.appendChild(div);
+  });
+}
+
+document.querySelectorAll('input[name=part_id]').forEach(function(cb) {
+  cb.addEventListener('change', function() {
+    if (cb.checked) selectedParts.add(cb.value);
+    else selectedParts.delete(cb.value);
+    updateUI();
+  });
+});
+</script>
+{% endblock %}

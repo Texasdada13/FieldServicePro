@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ log.log_number }} - {{ log.log_date.strftime('%B %d, %Y') }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('daily_logs.daily_log_list') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Daily Logs</a></div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <h1 style="margin:0;">Daily Log - {{ log.log_date.strftime('%A, %B %d, %Y') }}
+            <span style="font-size:var(--font-size-sm);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ log.status_color }});color:#fff;">{{ log.status|title }}</span>
+            {% if log.is_late_entry %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-warning);color:#000;">Late</span>{% endif %}
+        </h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ log.log_number }} &middot; {{ log.project.title if log.project else '' }} &middot; {{ log.reported_by.full_name if log.reported_by else '' }}</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        {% if log.status != 'reviewed' %}<a href="{{ url_for('daily_logs.daily_log_edit', log_id=log.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-pencil"></i> Edit</a>{% endif %}
+        <a href="{{ url_for('daily_logs.daily_log_print', log_id=log.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);" target="_blank"><i class="bi bi-printer"></i> Print</a>
+        {% if log.status == 'submitted' %}<form method="POST" action="{{ url_for('daily_logs.daily_log_review', log_id=log.id) }}" style="display:inline;"><button type="submit" class="btn btn-accent" style="background:var(--color-success);font-size:var(--font-size-sm);"><i class="bi bi-check-circle"></i> Mark Reviewed</button></form>{% endif %}
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);align-items:start;">
+    <div>
+        <!-- Weather -->
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;color:var(--color-info);"><i class="bi bi-cloud-sun"></i> Conditions</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-2);">
+                <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Weather</span><div style="font-weight:600;">{{ log.weather or '--' }}</div></div>
+                {% if log.temperature_high %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Temperature</span><div>{{ log.temperature_high }}F{% if log.temperature_low %} / {{ log.temperature_low }}F{% endif %}</div></div>{% endif %}
+                {% if log.weather_impact != 'none' %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Impact</span><div><span style="font-size:var(--font-size-xs);padding:2px 6px;border-radius:var(--radius-sm);background:var(--color-warning);color:#000;">{{ log.weather_impact.replace('_',' ')|title }}</span></div></div>{% endif %}
+            </div>
+            {% if log.site_conditions %}<div style="margin-top:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Site Conditions</span><div style="font-size:var(--font-size-sm);">{{ log.site_conditions }}</div></div>{% endif %}
+        </div>
+
+        <!-- Workforce -->
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;color:var(--color-accent);"><i class="bi bi-people"></i> Workforce</h3>
+            <div style="display:flex;gap:var(--space-3);margin-bottom:var(--space-3);">
+                <div style="text-align:center;padding:var(--space-2) var(--space-4);background:var(--color-surface-raised);border-radius:var(--radius-sm);"><div style="font-size:1.5rem;font-weight:700;color:var(--color-accent);">{{ log.total_workers or 0 }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Workers</div></div>
+                <div style="text-align:center;padding:var(--space-2) var(--space-4);background:var(--color-surface-raised);border-radius:var(--radius-sm);"><div style="font-size:1.5rem;font-weight:700;color:var(--color-success);">{{ log.hours_worked or 0 }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Hours</div></div>
+            </div>
+            {% if log.crew_list %}
+            <table style="width:100%;border-collapse:collapse;font-size:var(--font-size-sm);"><thead><tr style="border-bottom:1px solid var(--color-border);"><th style="padding:var(--space-1) var(--space-2);">Trade</th><th style="padding:var(--space-1) var(--space-2);">Count</th><th style="padding:var(--space-1) var(--space-2);">Names</th></tr></thead><tbody>{% for c in log.crew_list %}<tr style="border-bottom:1px solid var(--color-border);"><td style="padding:var(--space-1) var(--space-2);text-transform:capitalize;">{{ c.trade }}</td><td style="padding:var(--space-1) var(--space-2);">{{ c.count }}</td><td style="padding:var(--space-1) var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ c.names or '--' }}</td></tr>{% endfor %}</tbody></table>
+            {% endif %}
+        </div>
+
+        <!-- Work -->
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;color:var(--color-success);"><i class="bi bi-tools"></i> Work Performed</h3>
+            <p style="line-height:1.6;">{{ log.work_description }}</p>
+            {% if log.areas_worked %}<div style="margin-top:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);font-weight:700;">AREAS</span><div style="font-size:var(--font-size-sm);">{{ log.areas_worked }}</div></div>{% endif %}
+            {% if log.milestones_reached %}<div style="border-left:3px solid var(--color-success);padding-left:var(--space-3);margin-top:var(--space-2);"><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);font-weight:700;">MILESTONES</span><div style="font-size:var(--font-size-sm);">{{ log.milestones_reached }}</div></div>{% endif %}
+        </div>
+
+        <!-- Issues -->
+        {% if log.delays or log.safety_incidents or log.visitor_log or log.issues_or_concerns %}
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;color:var(--color-warning);"><i class="bi bi-exclamation-triangle"></i> Issues & Observations</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                {% if log.delays %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);font-weight:700;">DELAYS</span><div style="font-size:var(--font-size-sm);">{{ log.delays }}</div></div>{% endif %}
+                {% if log.safety_incidents %}<div><span style="font-size:var(--font-size-xs);color:var(--color-danger);font-weight:700;">SAFETY</span><div style="font-size:var(--font-size-sm);">{{ log.safety_incidents }}</div></div>{% endif %}
+                {% if log.visitor_log %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);font-weight:700;">VISITORS</span><div style="font-size:var(--font-size-sm);">{{ log.visitor_log }}</div></div>{% endif %}
+                {% if log.issues_or_concerns %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);font-weight:700;">ISSUES</span><div style="font-size:var(--font-size-sm);">{{ log.issues_or_concerns }}</div></div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar -->
+    <div>
+        <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Log Details</h3>
+            <table style="width:100%;font-size:var(--font-size-sm);">
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);width:40%;">Number</td><td>{{ log.log_number }}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Date</td><td>{{ log.log_date.strftime('%m/%d/%Y') if log.log_date else '' }}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Project</td><td><a href="{{ url_for('projects_bp.project_detail', project_id=log.project_id) }}" style="color:var(--color-accent);">{{ log.project.title if log.project else '' }}</a></td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Reported By</td><td>{{ log.reported_by.full_name if log.reported_by else '--' }}</td></tr>
+                {% if log.reviewed_by %}<tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Reviewed By</td><td>{{ log.reviewed_by.full_name }}</td></tr><tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Reviewed</td><td>{{ log.reviewed_at.strftime('%m/%d/%Y') if log.reviewed_at else '' }}</td></tr>{% endif %}
+            </table>
+        </div>
+        {% if log.notes %}<div class="card" style="padding:var(--space-3);"><h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Notes</h3><p style="font-size:var(--font-size-sm);margin:0;">{{ log.notes }}</p></div>{% endif %}
+    </div>
+</div>
+{% endblock %}

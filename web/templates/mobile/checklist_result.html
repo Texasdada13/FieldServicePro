@@ -1,0 +1,41 @@
+{% extends "mobile/base.html" %}
+{% block title %}Checklist Result — FSP{% endblock %}
+{% block header_title %}Checklist Done{% endblock %}
+{% block bottom_nav %}{% endblock %}
+
+{% block content %}
+<div class="m-success-screen">
+  {% if all_pass %}
+    <div class="m-success-icon">&#9989;</div>
+    <h2 style="font-size:28px;font-weight:800;margin:16px 0 8px;">All Passed!</h2>
+    <div class="m-badge m-badge--success" style="font-size:14px;">PASSED</div>
+  {% elif has_fail and not any_blocking %}
+    <div class="m-success-icon">&#9888;&#65039;</div>
+    <h2 style="font-size:28px;font-weight:800;margin:16px 0 8px;">Passed with Exceptions</h2>
+    <div class="m-badge m-badge--warning" style="font-size:14px;">PASSED WITH EXCEPTIONS</div>
+  {% else %}
+    <div class="m-success-icon">&#10060;</div>
+    <h2 style="font-size:28px;font-weight:800;margin:16px 0 8px;">Failed</h2>
+    <div class="m-badge m-badge--danger" style="font-size:14px;">FAILED</div>
+    {% if any_blocking %}
+    <div class="m-block-work-banner" style="margin-top:16px;">
+      &#128683; Work is blocked until failing items are addressed.
+    </div>
+    {% endif %}
+  {% endif %}
+
+  <p class="m-text-muted" style="margin-top:16px;max-width:280px;">
+    Checklist submitted for {{ job.title or 'Job' }}.
+  </p>
+  <a href="{{ url_for('mobile.job_detail', job_id=job.id) }}"
+     class="m-btn m-btn--primary m-btn--lg" style="margin-top:32px;">
+    Back to Job
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if all_pass %}
+<script>document.addEventListener('DOMContentLoaded', function() { mConfetti(); });</script>
+{% endif %}
+{% endblock %}

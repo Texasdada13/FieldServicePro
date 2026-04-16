@@ -70,6 +70,17 @@ from .vehicle_mileage_log import VehicleMileageLog, MILEAGE_PURPOSES
 from .vehicle_fuel_log import VehicleFuelLog, FUEL_PAYMENT_METHODS
 from .payroll_period import PayrollPeriod, PAYROLL_STATUSES, PAY_FREQUENCIES
 from .payroll_line_item import PayrollLineItem
+from .rfi import RFI, RFI_STATUSES, RFI_PRIORITIES
+from .submittal import Submittal, SUBMITTAL_TYPES, SUBMITTAL_STATUSES
+from .punch_list import PunchList, PunchListItem, PUNCH_LIST_STATUSES, ITEM_CATEGORIES, ITEM_SEVERITIES, ITEM_TRADES
+from .daily_log import DailyLog, DAILY_LOG_STATUSES, WEATHER_IMPACTS
+from .vendor import Vendor, VENDOR_TYPES, VENDOR_STATUSES
+from .vendor_price import VendorPrice
+from .supplier_po import SupplierPurchaseOrder, SupplierPOLineItem, SPO_STATUSES
+from .vendor_payment import VendorPayment
+from .restock_request import RestockRequest
+from .feedback_survey import FeedbackSurvey, SurveyTemplate
+from .tech_performance import TechPerformanceScore, TechAchievement, ACHIEVEMENT_DEFINITIONS
 
 __all__ = [
     'Base', 'get_session', 'init_db', 'engine',
@@ -126,4 +137,9 @@ __all__ = [
     'VehicleFuelLog', 'FUEL_PAYMENT_METHODS',
     'PayrollPeriod', 'PAYROLL_STATUSES', 'PAY_FREQUENCIES',
     'PayrollLineItem',
+    'RFI', 'RFI_STATUSES', 'RFI_PRIORITIES',
+    'Submittal', 'SUBMITTAL_TYPES', 'SUBMITTAL_STATUSES',
+    'PunchList', 'PunchListItem', 'PUNCH_LIST_STATUSES',
+    'ITEM_CATEGORIES', 'ITEM_SEVERITIES', 'ITEM_TRADES',
+    'DailyLog', 'DAILY_LOG_STATUSES', 'WEATHER_IMPACTS',
 ]

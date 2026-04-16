@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ rfi.rfi_number }} - {{ rfi.subject }}{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div style="margin-bottom:var(--space-2);">
+    <a href="{{ url_for('rfis.rfi_list') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> RFIs</a>
+    {% if rfi.project %}<span style="color:var(--color-text-muted);font-size:var(--font-size-sm);"> / <a href="{{ url_for('projects_bp.project_detail', project_id=rfi.project_id) }}" style="color:var(--color-text-muted);text-decoration:none;">{{ rfi.project.title }}</a></span>{% endif %}
+</div>
+
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <h1 style="margin:0;">
+            {{ rfi.rfi_number }}
+            <span style="font-size:var(--font-size-sm);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ rfi.status_color }});color:#fff;margin-left:var(--space-1);">{{ rfi.status.replace('_',' ')|title }}</span>
+            <span style="font-size:var(--font-size-sm);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ rfi.priority_color }});color:#fff;margin-left:var(--space-1);">{{ rfi.priority|title }}</span>
+            {% if rfi.is_overdue %}<span style="font-size:var(--font-size-sm);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-danger);color:#fff;margin-left:var(--space-1);">OVERDUE</span>{% endif %}
+        </h1>
+        <p style="color:var(--color-text-muted);font-size:1.1rem;margin:var(--space-1) 0 0;">{{ rfi.subject }}</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        {% if rfi.status not in ('answered','closed','void') %}
+        <a href="{{ url_for('rfis.rfi_respond', rfi_id=rfi.id) }}" class="btn btn-accent" style="background:var(--color-success);"><i class="bi bi-reply"></i> Respond</a>
+        {% endif %}
+        {% if rfi.status not in ('closed','void') %}
+        <a href="{{ url_for('rfis.rfi_edit', rfi_id=rfi.id) }}" class="btn btn-ghost"><i class="bi bi-pencil"></i> Edit</a>
+        {% endif %}
+        {% if rfi.status not in ('closed','void') %}
+        <form method="POST" action="{{ url_for('rfis.rfi_close', rfi_id=rfi.id) }}" style="display:inline;"><button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-check-circle"></i> Close</button></form>
+        {% endif %}
+        {% if rfi.status != 'void' %}
+        <form method="POST" action="{{ url_for('rfis.rfi_void', rfi_id=rfi.id) }}" style="display:inline;" onsubmit="return confirm('Void this RFI?');"><button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-sm);color:var(--color-danger);"><i class="bi bi-x-circle"></i> Void</button></form>
+        {% endif %}
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);align-items:start;">
+    <!-- Left Column -->
+    <div>
+        <!-- Question -->
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;color:var(--color-accent);"><i class="bi bi-question-circle"></i> Question</h3>
+            <p style="line-height:1.6;">{{ rfi.question }}</p>
+            {% if rfi.context %}
+            <div style="border-left:3px solid var(--color-info);padding-left:var(--space-3);margin-top:var(--space-3);">
+                <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);font-weight:700;margin-bottom:var(--space-1);">CONTEXT</div>
+                <p style="font-size:var(--font-size-sm);margin:0;">{{ rfi.context }}</p>
+            </div>
+            {% endif %}
+            {% if rfi.reference %}
+            <div style="margin-top:var(--space-2);font-size:var(--font-size-sm);color:var(--color-text-muted);"><i class="bi bi-file-earmark"></i> Reference: <strong>{{ rfi.reference }}</strong></div>
+            {% endif %}
+        </div>
+
+        <!-- Response -->
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;color:var(--color-success);"><i class="bi bi-chat-text"></i> Response</h3>
+            {% if rfi.response %}
+            <p style="line-height:1.6;">{{ rfi.response }}</p>
+            <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin-top:var(--space-2);">
+                <i class="bi bi-person"></i> {% if rfi.responded_by %}{{ rfi.responded_by.full_name }}{% elif rfi.responded_by_external %}{{ rfi.responded_by_external }} (external){% endif %}
+                {% if rfi.response_date %}&middot; <i class="bi bi-calendar"></i> {{ rfi.response_date.strftime('%B %d, %Y') }} &middot; <span style="padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-surface-raised);">{{ rfi.days_open }}d to respond</span>{% endif %}
+            </div>
+            {% else %}
+            <div style="text-align:center;padding:var(--space-4);color:var(--color-text-muted);">
+                <i class="bi bi-hourglass-split" style="font-size:1.5rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>
+                <p>Awaiting Response</p>
+                {% if rfi.date_required %}<p style="font-size:var(--font-size-sm);">Required by <strong style="{% if rfi.is_overdue %}color:var(--color-danger);{% endif %}">{{ rfi.date_required.strftime('%B %d, %Y') }}</strong></p>{% endif %}
+                {% if rfi.status != 'void' %}<a href="{{ url_for('rfis.rfi_respond', rfi_id=rfi.id) }}" class="btn btn-accent" style="background:var(--color-success);margin-top:var(--space-2);"><i class="bi bi-reply"></i> Record Response</a>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Impact -->
+        {% if rfi.cost_impact != 'none' or rfi.schedule_impact != 'none' %}
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;color:var(--color-warning);"><i class="bi bi-exclamation-triangle"></i> Impact Assessment</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+                <div style="padding:var(--space-2);border-radius:var(--radius-sm);background:{% if rfi.cost_impact == 'confirmed' %}rgba(220,53,69,0.1){% elif rfi.cost_impact == 'potential' %}rgba(255,193,7,0.1){% else %}var(--color-surface-raised){% endif %};">
+                    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-bottom:var(--space-1);">COST IMPACT</div>
+                    <div style="font-weight:600;">{{ rfi.cost_impact|title }}{% if rfi.cost_impact_amount %} - ${{ "{:,.2f}".format(rfi.cost_impact_amount) }}{% endif %}</div>
+                </div>
+                <div style="padding:var(--space-2);border-radius:var(--radius-sm);background:{% if rfi.schedule_impact == 'confirmed' %}rgba(220,53,69,0.1){% elif rfi.schedule_impact == 'potential' %}rgba(255,193,7,0.1){% else %}var(--color-surface-raised){% endif %};">
+                    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-bottom:var(--space-1);">SCHEDULE IMPACT</div>
+                    <div style="font-weight:600;">{{ rfi.schedule_impact|title }}{% if rfi.schedule_impact_days %} - {{ rfi.schedule_impact_days }} day(s){% endif %}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column -->
+    <div>
+        <!-- Routing -->
+        <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;"><i class="bi bi-arrow-left-right"></i> Routing</h3>
+            <table style="width:100%;font-size:var(--font-size-sm);">
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);width:40%;">Submitted By</td><td>{{ rfi.submitted_by.full_name if rfi.submitted_by else '--' }}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Assigned To</td><td>{{ rfi.assigned_to.full_name if rfi.assigned_to else '--' }}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Directed To</td><td>{{ rfi.directed_to or '--' }}{% if rfi.directed_to_email %}<br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ rfi.directed_to_email }}</span>{% endif %}</td></tr>
+            </table>
+        </div>
+
+        <!-- Dates -->
+        <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;"><i class="bi bi-calendar3"></i> Dates</h3>
+            <table style="width:100%;font-size:var(--font-size-sm);">
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);width:40%;">Submitted</td><td>{{ rfi.date_submitted.strftime('%m/%d/%Y') if rfi.date_submitted else '--' }}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Required By</td><td style="{% if rfi.is_overdue %}color:var(--color-danger);font-weight:700;{% endif %}">{{ rfi.date_required.strftime('%m/%d/%Y') if rfi.date_required else '--' }}{% if rfi.is_overdue %} <span style="font-size:var(--font-size-xs);padding:1px 4px;border-radius:var(--radius-sm);background:var(--color-danger);color:#fff;">Overdue</span>{% endif %}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Days Open</td><td>{{ rfi.days_open }} days</td></tr>
+                {% if rfi.response_date %}<tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Answered</td><td>{{ rfi.response_date.strftime('%m/%d/%Y') }}</td></tr>{% endif %}
+            </table>
+        </div>
+
+        <!-- Context -->
+        <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;"><i class="bi bi-diagram-3"></i> Project Context</h3>
+            <div style="font-size:var(--font-size-sm);">
+                <div>Project: <a href="{{ url_for('projects_bp.project_detail', project_id=rfi.project_id) }}" style="color:var(--color-accent);">{{ rfi.project.title }}</a></div>
+                {% if rfi.job %}<div style="margin-top:var(--space-1);">Job: <a href="{{ url_for('job_detail', job_id=rfi.job_id) }}" style="color:var(--color-accent);">{{ rfi.job.title }}</a></div>{% endif %}
+                {% if rfi.phase %}<div style="margin-top:var(--space-1);">Phase: {{ rfi.phase.name }}</div>{% endif %}
+            </div>
+        </div>
+
+        {% if rfi.notes %}
+        <div class="card" style="padding:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;"><i class="bi bi-sticky"></i> Internal Notes</h3>
+            <p style="font-size:var(--font-size-sm);margin:0;">{{ rfi.notes }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

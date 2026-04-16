@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if tmpl else 'New' }} Survey Template{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('feedback.templates') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Templates</a></div>
+<h1 style="margin-bottom:var(--space-4);">{{ 'Edit' if tmpl else 'New' }} Survey Template</h1>
+
+<form method="POST" style="max-width:700px;">
+  <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-3);">
+    <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Template Name *</label><input type="text" name="name" class="form-control" value="{{ tmpl.name if tmpl else '' }}" required></div>
+    <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2">{{ tmpl.description if tmpl else '' }}</textarea></div>
+    <div style="margin-bottom:var(--space-3);"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" name="is_default" {{ 'checked' if tmpl and tmpl.is_default }}> Set as default template</label></div>
+  </div>
+
+  <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-3);">
+    <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Included Sections</h3>
+    {% set checks = [
+      ('include_quality', 'Quality of Work rating'),
+      ('include_punctuality', 'Punctuality rating'),
+      ('include_communication', 'Communication rating'),
+      ('include_professionalism', 'Professionalism rating'),
+      ('include_value', 'Value for Money rating'),
+      ('include_nps', 'NPS Score (0-10)'),
+      ('include_recommend', 'Would Recommend (yes/no)'),
+      ('include_comments', 'Additional Comments'),
+      ('include_what_went_well', 'What Went Well'),
+      ('include_what_could_improve', 'What Could Improve'),
+    ] %}
+    {% for name, label in checks %}
+    <div style="margin-bottom:8px;"><label style="display:flex;align-items:center;gap:8px;font-size:var(--font-size-sm);"><input type="checkbox" name="{{ name }}" {{ 'checked' if not tmpl or getattr(tmpl, name, True) }}> {{ label }}</label></div>
+    {% endfor %}
+  </div>
+
+  <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+    <a href="{{ url_for('feedback.templates') }}" class="btn btn-ghost">Cancel</a>
+    <button type="submit" class="btn btn-accent"><i class="bi bi-check-lg"></i> Save Template</button>
+  </div>
+</form>
+{% endblock %}

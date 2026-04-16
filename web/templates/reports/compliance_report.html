@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Compliance Status{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('reports.index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Reports</a></div>
+<h1 style="margin:0 0 var(--space-1);">Compliance Status</h1>
+<p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:0 0 var(--space-3);">{{ date_label }}</p>
+
+{% if empty %}<div style="padding:var(--space-6);text-align:center;color:var(--color-success);"><i class="bi bi-check-circle" style="font-size:2rem;display:block;margin-bottom:var(--space-2);"></i><h4>All items current!</h4></div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card summary-card border-danger" style="padding:var(--space-3);"><div class="metric-label">Critical (< 7 days)</div><div class="metric-value" style="color:var(--color-danger);">{{ critical }}</div></div>
+    <div class="card summary-card border-warning" style="padding:var(--space-3);"><div class="metric-label">Warning (< 30 days)</div><div class="metric-value" style="color:var(--color-warning);">{{ warning }}</div></div>
+    <div class="card summary-card border-info" style="padding:var(--space-3);"><div class="metric-label">Expiring (90 days)</div><div class="metric-value" style="color:var(--color-info);">{{ total_expiring }}</div></div>
+</div>
+
+<div class="card" style="padding:0;">
+    <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">Expiring Items</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;" class="report-table">
+        <thead><tr style="border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-2) var(--space-3);" data-sort>Type</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Name</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Entity</th><th style="padding:var(--space-2) var(--space-3);" data-sort>Expiry Date</th><th style="padding:var(--space-2) var(--space-3);text-align:right;" data-sort>Days Until</th><th style="padding:var(--space-2) var(--space-3);">Urgency</th></tr></thead>
+        <tbody>{% for e in expiring %}<tr style="border-bottom:1px solid var(--color-border);{% if e.status == 'Critical' %}background:rgba(220,53,69,0.05);{% elif e.status == 'Warning' %}background:rgba(255,193,7,0.05);{% endif %}">
+            <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-surface-raised);">{{ e.type }}</span></td>
+            <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ e.name }}</td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ e.entity }}</td>
+            <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ e.expiry.strftime('%m/%d/%Y') if e.expiry else '--' }}</td>
+            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;color:{% if e.days_until <= 7 %}var(--color-danger){% elif e.days_until <= 30 %}var(--color-warning){% else %}var(--color-info){% endif %};">{{ e.days_until }}d</td>
+            <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:{% if e.status == 'Critical' %}var(--color-danger){% elif e.status == 'Warning' %}var(--color-warning){% else %}var(--color-info){% endif %};color:{% if e.status == 'Warning' %}#000{% else %}#fff{% endif %};">{{ e.status }}</span></td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+<script id="reportSummaryData" type="application/json">{{ summary_json|tojson|safe if summary_json else '{}' }}</script>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/reports.js') }}"></script>{% endblock %}

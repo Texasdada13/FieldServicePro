@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d9488">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FSP">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+  <title>{% block title %}FieldServicePro{% endblock %}</title>
+
+  {# App CSS for variable definitions #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+  {# Mobile-specific overrides #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+
+  {% block head %}{% endblock %}
+</head>
+<body class="m-body" data-current-user-id="{{ current_user.id }}">
+
+  {# ── Top Header ────────────────────────────────────────────── #}
+  <header class="m-header" id="m-header">
+    <div class="m-header-left">
+      {% if show_back is defined and show_back %}
+        <a href="{{ back_url | default('javascript:history.back()') }}" class="m-header-back" aria-label="Back">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+        </a>
+      {% else %}
+        <div class="m-logo-mark">FSP</div>
+      {% endif %}
+    </div>
+    <div class="m-header-title">{% block header_title %}FieldServicePro{% endblock %}</div>
+    <div class="m-header-right">
+      {% block header_actions %}
+        <a href="{{ url_for('mobile.notifications') }}" class="m-header-icon" aria-label="Notifications">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          {% if notification_count and notification_count > 0 %}
+            <span class="m-badge-dot">{{ notification_count }}</span>
+          {% endif %}
+        </a>
+      {% endblock %}
+    </div>
+  </header>
+
+  {# ── Flash Messages ────────────────────────────────────────── #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="m-toast m-toast-{{ category }}" id="flash-toast">
+        {{ message }}
+        <button onclick="this.parentElement.remove()" class="m-toast-close">&times;</button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {# ── Offline Banner ────────────────────────────────────────── #}
+  <div class="m-offline-banner" id="offline-banner" style="display:none">
+    &#9889; Offline &mdash; showing cached data
+  </div>
+
+  {# ── Main Content ──────────────────────────────────────────── #}
+  <main class="m-main {% block main_class %}{% endblock %}" id="m-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  {# ── Bottom Navigation ─────────────────────────────────────── #}
+  {% block bottom_nav %}
+  <nav class="m-bottom-nav" role="navigation" aria-label="Main navigation">
+    <a href="{{ url_for('mobile.dashboard') }}"
+       class="m-nav-item {% if active_nav == 'today' %}active{% endif %}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      <span>Today</span>
+    </a>
+    <a href="{{ url_for('mobile.job_list') }}"
+       class="m-nav-item {% if active_nav == 'jobs' %}active{% endif %}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      <span>Jobs</span>
+    </a>
+    <a href="{{ url_for('mobile.timeclock') }}"
+       class="m-nav-item m-nav-clock {% if active_nav == 'clock' %}active{% endif %}">
+      <div class="m-nav-clock-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </div>
+      <span>Clock</span>
+    </a>
+    <a href="{{ url_for('mobile.truck_stock') }}"
+       class="m-nav-item {% if active_nav == 'truck' %}active{% endif %}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+        <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+      </svg>
+      <span>Truck</span>
+    </a>
+    <a href="{{ url_for('mobile.menu') }}"
+       class="m-nav-item {% if active_nav == 'menu' %}active{% endif %}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+      <span>More</span>
+    </a>
+  </nav>
+  {% endblock %}
+
+  <script src="{{ url_for('static', filename='js/mobile.js') }}"></script>
+  {% block scripts %}{% endblock %}
+
+  <script>
+    // Offline detection
+    window.addEventListener('offline', function() {
+      document.getElementById('offline-banner').style.display = 'block';
+    });
+    window.addEventListener('online', function() {
+      document.getElementById('offline-banner').style.display = 'none';
+    });
+  </script>
+</body>
+</html>

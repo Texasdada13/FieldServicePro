@@ -1,7 +1,7 @@
 """Service Request model — intake for new work before it becomes a job."""
 import builtins
 from datetime import datetime, date
-from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Boolean, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -34,6 +34,25 @@ class ServiceRequest(Base):
     notes             = Column(Text, nullable=True)
     converted_job_id  = Column(Integer, ForeignKey('jobs.id'), nullable=True)
 
+    # Online booking additions
+    preferred_dates       = Column(Text, nullable=True)       # JSON: ["2026-07-15", "2026-07-16"]
+    preferred_time_slot   = Column(String(20), nullable=True)  # morning | afternoon | anytime
+    referral_source       = Column(String(50), nullable=True)
+    access_instructions   = Column(Text, nullable=True)
+    customer_address      = Column(Text, nullable=True)
+    street_address        = Column(String(200), nullable=True)
+    unit_apt              = Column(String(50), nullable=True)
+    city                  = Column(String(100), nullable=True)
+    state_province        = Column(String(100), nullable=True)
+    postal_code           = Column(String(20), nullable=True)
+    is_existing_customer  = Column(Boolean, default=False)
+    existing_customer_ref = Column(String(200), nullable=True)
+    confirmation_sent     = Column(Boolean, default=False)
+    confirmation_sent_at  = Column(DateTime, nullable=True)
+    booking_token         = Column(String(64), unique=True, nullable=True)
+    honeypot_check        = Column(Boolean, default=False)
+    submitter_ip          = Column(String(45), nullable=True)
+
     # Tracking
     created_by        = Column(Integer, ForeignKey('users.id'), nullable=True)
     created_at        = Column(DateTime, default=datetime.utcnow)
@@ -48,7 +67,8 @@ class ServiceRequest(Base):
 
     SOURCE_CHOICES = [
         ('phone', 'Phone'), ('email', 'Email'), ('walk_in', 'Walk-In'),
-        ('portal', 'Portal'), ('referral', 'Referral'), ('other', 'Other'),
+        ('portal', 'Portal'), ('online_booking', 'Online Booking'),
+        ('referral', 'Referral'), ('other', 'Other'),
     ]
 
     TYPE_CHOICES = [

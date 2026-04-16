@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Customer Feedback{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <h1 style="margin:0;"><i class="bi bi-chat-square-quote" style="color:var(--color-accent);"></i> Customer Feedback</h1>
+  <a href="{{ url_for('feedback.dashboard') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-graph-up"></i> Dashboard</a>
+</div>
+
+<!-- Filters -->
+<form method="GET" class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+  <div style="display:flex;gap:var(--space-2);align-items:end;flex-wrap:wrap;">
+    <select name="rating_min" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">Min Rating</option>{% for i in range(1,6) %}<option value="{{ i }}" {{ 'selected' if filters.get('rating_min') == i|string }}>{{ i }}&#9733;+</option>{% endfor %}</select>
+    <select name="tech_id" class="form-select" style="font-size:var(--font-size-sm);width:auto;"><option value="">All Techs</option>{% for t in technicians %}<option value="{{ t.id }}" {{ 'selected' if filters.get('tech_id') == t.id|string }}>{{ t.full_name }}</option>{% endfor %}</select>
+    <label style="display:flex;align-items:center;gap:4px;font-size:var(--font-size-sm);"><input type="checkbox" name="follow_up" value="1" {{ 'checked' if filters.get('follow_up') == '1' }}> Follow-up only</label>
+    <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Filter</button>
+    <a href="{{ url_for('feedback.list_feedback') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+  </div>
+</form>
+
+<div class="card" style="padding:0;">
+  <div style="overflow-x:auto;">
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Date</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Client</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Tech</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Rating</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">NPS</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Recommend</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Comment</th>
+      <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Flag</th>
+      <th style="padding:var(--space-2) var(--space-3);"></th>
+    </tr></thead>
+    <tbody>{% for s in surveys %}<tr style="border-bottom:1px solid var(--color-border);{% if s.overall_rating and s.overall_rating <= 2 %}border-left:4px solid var(--color-danger);{% elif s.follow_up_required and not s.follow_up_completed %}border-left:4px solid var(--color-warning);{% endif %}">
+      <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ s.completed_at.strftime('%b %d, %Y') if s.completed_at else '' }}</td>
+      <td style="padding:var(--space-2) var(--space-3);">{{ s.client.display_name if s.client else '&mdash;' }}</td>
+      <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ s.technician.full_name if s.technician else '&mdash;' }}</td>
+      <td style="padding:var(--space-2) var(--space-3);color:var(--color-warning);font-weight:600;">{% for i in range(s.overall_rating or 0) %}&#9733;{% endfor %} {{ s.overall_rating or '' }}</td>
+      <td style="padding:var(--space-2) var(--space-3);">{% if s.nps_score is not none %}<span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:10px;color:#fff;background:{% if s.nps_category == 'promoter' %}var(--color-success){% elif s.nps_category == 'passive' %}var(--color-warning){% else %}var(--color-danger){% endif %};">{{ s.nps_score }}</span>{% endif %}</td>
+      <td style="padding:var(--space-2) var(--space-3);">{% if s.would_recommend is not none %}{{ '&#128077;' if s.would_recommend else '&#128078;' }}{% endif %}</td>
+      <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);color:var(--color-text-muted);max-width:180px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">{{ (s.comments or '')[:60] }}</td>
+      <td style="padding:var(--space-2) var(--space-3);">{% if s.follow_up_required and not s.follow_up_completed %}<span style="font-size:var(--font-size-xs);padding:2px 6px;border-radius:var(--radius-sm);background:var(--color-warning);color:#000;">Follow-up</span>{% endif %}</td>
+      <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('feedback.detail', survey_id=s.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-xs);">View</a></td>
+    </tr>{% else %}<tr><td colspan="9" style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">No feedback found.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);border-top:1px solid var(--color-border);">{{ surveys|length }} result(s)</div>
+</div>
+{% endblock %}

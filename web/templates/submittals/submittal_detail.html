@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ sub.submittal_number }} - {{ sub.title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('submittals.submittal_list') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Submittals</a></div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <h1 style="margin:0;">{{ sub.submittal_number }}
+            <span style="font-size:var(--font-size-sm);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ sub.status_color }});color:#fff;">{{ sub.status.replace('_',' ')|title }}</span>
+            {% if sub.revision_number > 1 %}<span style="font-size:var(--font-size-xs);padding:2px 6px;border-radius:var(--radius-sm);background:var(--color-surface-raised);margin-left:var(--space-1);">Rev {{ sub.revision_number }}</span>{% endif %}
+        </h1>
+        <p style="color:var(--color-text-muted);margin:var(--space-1) 0 0;">{{ sub.title }}</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        {% if sub.status in ('submitted','under_review') %}<a href="{{ url_for('submittals.submittal_review', sub_id=sub.id) }}" class="btn btn-accent"><i class="bi bi-check2-circle"></i> Record Review</a>{% endif %}
+        {% if sub.status == 'revise_and_resubmit' %}<form method="POST" action="{{ url_for('submittals.submittal_revise', sub_id=sub.id) }}" style="display:inline;"><button type="submit" class="btn btn-ghost" style="color:var(--color-warning);"><i class="bi bi-arrow-clockwise"></i> Create Revision</button></form>{% endif %}
+        {% if sub.status not in ('approved','void') %}<a href="{{ url_for('submittals.submittal_edit', sub_id=sub.id) }}" class="btn btn-ghost"><i class="bi bi-pencil"></i> Edit</a>{% endif %}
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4);align-items:start;">
+    <div>
+        <!-- Product Info -->
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;color:var(--color-accent);"><i class="bi bi-box-seam"></i> Product Information</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);">
+                <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Manufacturer</span><div style="font-weight:600;">{{ sub.manufacturer or '--' }}</div></div>
+                <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Model</span><div style="font-weight:600;">{{ sub.model_number or '--' }}</div></div>
+                <div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Type</span><div>{{ dict(submittal_types).get(sub.submittal_type, sub.submittal_type) }}</div></div>
+                {% if sub.spec_section %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Spec Section</span><div>{{ sub.spec_section }}</div></div>{% endif %}
+                {% if sub.quantity %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Qty</span><div>{{ sub.quantity }}</div></div>{% endif %}
+                {% if sub.total_cost %}<div><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Cost</span><div style="font-weight:700;">${{ "{:,.2f}".format(sub.total_cost) }}</div></div>{% endif %}
+            </div>
+            {% if sub.description %}<div style="margin-top:var(--space-2);font-size:var(--font-size-sm);">{{ sub.description }}</div>{% endif %}
+        </div>
+
+        <!-- Review -->
+        {% if sub.review_comments or sub.date_reviewed %}
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;color:var(--color-success);"><i class="bi bi-chat-square-text"></i> Review</h3>
+            {% if sub.review_comments %}<div style="border-left:3px solid {% if sub.status == 'revise_and_resubmit' %}var(--color-warning){% elif sub.status in ('approved','approved_as_noted') %}var(--color-success){% else %}var(--color-danger){% endif %};padding-left:var(--space-3);margin-bottom:var(--space-2);">{{ sub.review_comments }}</div>{% endif %}
+            <div style="font-size:var(--font-size-sm);color:var(--color-text-muted);">{% if sub.reviewer_name %}<i class="bi bi-person"></i> {{ sub.reviewer_name }}{% endif %}{% if sub.date_reviewed %} &middot; <i class="bi bi-calendar"></i> {{ sub.date_reviewed.strftime('%B %d, %Y') }} &middot; {{ sub.days_in_review }}d in review{% endif %}</div>
+        </div>
+        {% endif %}
+
+        <!-- Revisions -->
+        {% if revisions %}
+        <div class="card" style="padding:0;margin-bottom:var(--space-4);">
+            <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;font-size:var(--font-size-sm);"><i class="bi bi-clock-history"></i> Revision History</div>
+            {% for r in revisions %}
+            <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-size:var(--font-size-sm);display:flex;justify-content:space-between;">
+                <a href="{{ url_for('submittals.submittal_detail', sub_id=r.id) }}" style="color:var(--color-accent);text-decoration:none;">{{ r.submittal_number }} (Rev {{ r.revision_number }})</a>
+                <span style="font-size:var(--font-size-xs);padding:2px 6px;border-radius:var(--radius-sm);background:var(--color-{{ r.status_color }});color:#fff;">{{ r.status.replace('_',' ')|title }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Routing</h3>
+            <table style="width:100%;font-size:var(--font-size-sm);"><tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);width:40%;">Submitted By</td><td>{{ sub.submitted_by.full_name if sub.submitted_by else '--' }}</td></tr><tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Submitted To</td><td>{{ sub.submitted_to or '--' }}{% if sub.submitted_to_email %}<br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ sub.submitted_to_email }}</span>{% endif %}</td></tr></table>
+        </div>
+        <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">Dates & Lead Time</h3>
+            <table style="width:100%;font-size:var(--font-size-sm);">
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);width:40%;">Submitted</td><td>{{ sub.date_submitted.strftime('%m/%d/%Y') if sub.date_submitted else '--' }}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Required By</td><td style="{% if sub.is_overdue %}color:var(--color-danger);font-weight:700;{% endif %}">{{ sub.date_required.strftime('%m/%d/%Y') if sub.date_required else '--' }}</td></tr>
+                <tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Days in Review</td><td>{{ sub.days_in_review }}d</td></tr>
+                {% if sub.lead_time_days %}<tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Lead Time</td><td>{{ sub.lead_time_days }} days</td></tr>{% endif %}
+                {% if sub.delivery_date %}<tr><td style="padding:var(--space-1) 0;color:var(--color-text-muted);">Est. Delivery</td><td>{{ sub.delivery_date.strftime('%m/%d/%Y') }}</td></tr>{% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

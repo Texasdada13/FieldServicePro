@@ -218,6 +218,21 @@ def project_detail(project_id):
         from web.utils.project_utils import get_project_material_summary
         material_summary = get_project_material_summary(db, project_id)
 
+        # Project management tools
+        from models.rfi import RFI
+        from models.submittal import Submittal
+        from models.punch_list import PunchList
+        from models.daily_log import DailyLog
+        from web.utils.rfi_utils import get_rfi_stats
+        from web.utils.submittal_utils import get_submittal_stats
+
+        rfi_stats = get_rfi_stats(db, project_id=project.id)
+        submittal_stats = get_submittal_stats(db, project_id=project.id)
+        recent_rfis = db.query(RFI).filter_by(project_id=project.id).order_by(RFI.date_submitted.desc()).limit(10).all()
+        recent_submittals = db.query(Submittal).filter_by(project_id=project.id).order_by(Submittal.date_submitted.desc()).limit(10).all()
+        punch_lists = db.query(PunchList).filter_by(project_id=project.id).order_by(PunchList.created_at.desc()).all()
+        daily_logs = db.query(DailyLog).filter_by(project_id=project.id).order_by(DailyLog.log_date.desc()).limit(10).all()
+
         return render_template('projects/project_detail.html',
             **_tpl_vars(
                 project=project, jobs=jobs, invoices=invoices,
@@ -232,6 +247,9 @@ def project_detail(project_id):
                 budget=budget, budget_variance=budget_variance,
                 active_tab=active_tab,
                 material_summary=material_summary,
+                rfi_stats=rfi_stats, submittal_stats=submittal_stats,
+                recent_rfis=recent_rfis, recent_submittals=recent_submittals,
+                punch_lists=punch_lists, daily_logs=daily_logs,
             ))
     finally:
         db.close()

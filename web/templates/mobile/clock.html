@@ -1,0 +1,114 @@
+{% extends "mobile/base.html" %}
+{% block title %}Clock — FSP{% endblock %}
+{% block header_title %}Time Clock{% endblock %}
+
+{% block content %}
+{% if active_entry %}
+{# ── Clocked In ────────────────────────────────────────────── #}
+<div class="m-clock-status m-clocked-in">
+  <div class="m-text-sm m-fw-600" style="color:#22c55e;">&#9201; CLOCKED IN</div>
+  <div class="m-clock-time" id="clock-timer">00:00:00</div>
+  {% if active_job %}
+  <div class="m-fw-600 m-mt8">#{{ active_job.job_number or active_job.id }} — {{ active_job.title or 'Job' }}</div>
+  {% endif %}
+</div>
+
+<form method="POST" action="{{ url_for('mobile.clock_out') }}">
+  <div class="m-form-group">
+    <textarea name="description" class="m-input m-textarea" placeholder="Work description (optional)..." rows="2" style="min-height:60px;"></textarea>
+  </div>
+  <button type="submit" class="m-btn m-btn--danger m-btn--full m-btn--lg">&#9209; CLOCK OUT</button>
+</form>
+
+{% if todays_jobs %}
+<div class="m-section-header m-mt16">Switch Job</div>
+{% for job in todays_jobs %}
+{% if not active_job or job.id != active_job.id %}
+<form method="POST" action="{{ url_for('mobile.clock_switch') }}" style="margin-bottom:8px;">
+  <input type="hidden" name="job_id" value="{{ job.id }}">
+  <button type="submit" class="m-card m-card--clickable" style="width:100%;text-align:left;border:none;cursor:pointer;">
+    <div class="m-fw-600">#{{ job.job_number or job.id }} — {{ job.title or 'Job' }}</div>
+    <div class="m-text-sm m-text-muted">{{ job.scheduled_date.strftime('%I:%M %p') if job.scheduled_date else '' }}</div>
+  </button>
+</form>
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% else %}
+{# ── Not Clocked In ───────────────────────────────────────── #}
+<div class="m-clock-status">
+  <div class="m-text-muted m-fw-600">Not Clocked In</div>
+  <div class="m-clock-time m-text-muted" id="live-clock"></div>
+</div>
+
+{% if todays_jobs %}
+<div class="m-section-header">Select a job</div>
+{% for job in todays_jobs %}
+<form method="POST" action="{{ url_for('mobile.clock_in') }}" style="margin-bottom:8px;">
+  <input type="hidden" name="job_id" value="{{ job.id }}">
+  <div class="m-card m-card--clickable" onclick="this.closest('form').submit();">
+    <div class="m-flex-between">
+      <div>
+        <div class="m-fw-600">#{{ job.job_number or job.id }}</div>
+        <div class="m-text-sm">{{ job.title or 'Job' }}</div>
+        <div class="m-text-sm m-text-muted">{{ job.scheduled_date.strftime('%I:%M %p') if job.scheduled_date else 'Unscheduled' }}</div>
+      </div>
+      <button type="submit" class="m-btn m-btn--primary m-btn--sm">&#9654; In</button>
+    </div>
+  </div>
+</form>
+{% endfor %}
+{% else %}
+<div class="m-empty">
+  <div class="m-empty-icon">&#128203;</div>
+  <div class="m-empty-text">No jobs scheduled today</div>
+</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('mobile.clock_in') }}" class="m-mt16">
+  <button type="submit" class="m-btn m-btn--primary m-btn--full m-btn--lg">&#9654;&#65039; CLOCK IN (General)</button>
+</form>
+{% endif %}
+
+{# ── Today's Summary ───────────────────────────────────────── #}
+<div class="m-section-header m-mt16">Today's Summary</div>
+<div class="m-card">
+  <div class="m-flex-between m-mb8">
+    <span class="m-text-sm m-text-muted">Total Hours</span>
+    <span class="m-big-number--sm" style="color:var(--color-accent);">{{ total_hours }}h</span>
+  </div>
+  <div class="m-progress-wrap">
+    <div class="m-progress-bar" style="width:{{ [total_hours / 8 * 100, 100]|min }}%;"></div>
+  </div>
+  <div class="m-text-sm m-text-muted" style="text-align:right;margin-top:4px;">of 8h target</div>
+</div>
+
+{% if today_entries %}
+<div class="m-card m-p0">
+  {% for e in today_entries %}
+  <div class="m-flex-between" style="padding:12px 16px;{% if not loop.last %}border-bottom:0.5px solid var(--color-border,rgba(255,255,255,0.1));{% endif %}">
+    <div>
+      <div class="m-text-sm m-fw-600">{{ e.start_time.strftime('%I:%M %p') if e.start_time else '?' }} &rarr; {{ e.end_time.strftime('%I:%M %p') if e.end_time else '?' }}</div>
+      <div class="m-text-sm m-text-muted">{% if e.job_id %}Job #{{ e.job_id }}{% else %}General{% endif %}</div>
+    </div>
+    <div class="m-fw-700" style="color:var(--color-accent);">{{ e.duration_hours or 0 }}h</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if active_entry and active_entry.start_time %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var d = '{{ active_entry.date or "" }}';
+  var t = '{{ active_entry.start_time or "" }}';
+  if (d && t) startElapsedTimer('clock-timer', new Date(d + 'T' + t).getTime());
+});
+</script>
+{% else %}
+<script>document.addEventListener('DOMContentLoaded', function() { startLiveClock('live-clock'); });</script>
+{% endif %}
+{% endblock %}

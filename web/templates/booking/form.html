@@ -1,0 +1,202 @@
+{% extends "booking/base.html" %}
+{% block title %}Request Service{% endblock %}
+
+{% block content %}
+<div class="container py-2">
+  <div class="booking-card">
+
+    {% if org.phone %}
+    <div class="alert alert-light d-md-none text-center mb-3" style="border-color:var(--book-border);">
+      <i class="bi bi-telephone-fill text-primary"></i>
+      <strong>Need immediate help?</strong>
+      <a href="tel:{{ org.phone }}" class="fw-bold">{{ org.phone }}</a>
+    </div>
+    {% endif %}
+
+    <div class="booking-step-label" id="step-label">Step 1 of 6 — Choose a Service</div>
+    <div class="booking-progress"><div class="booking-progress-fill" id="progress-bar" style="width:16.6%"></div></div>
+
+    <form id="booking-form" method="POST" action="{{ url_for('booking.submit') }}" enctype="multipart/form-data" novalidate>
+
+      <!-- Honeypot -->
+      <div style="display:none !important;position:absolute;left:-9999px;">
+        <input type="text" name="website" id="website" tabindex="-1" autocomplete="off">
+      </div>
+
+      <!-- ═══ STEP 1 — Service Type ═══ -->
+      <div class="booking-step" id="step-1">
+        <h4 class="fw-bold mb-1">What service do you need?</h4>
+        <p class="text-muted small mb-3">Select the category that best matches your situation.</p>
+        <div class="service-type-grid">
+          {% set services = [
+            ("plumbing","🔧","Plumbing","Leaks, drains, water heaters"),
+            ("hvac","❄️","HVAC","Heating, cooling, ventilation"),
+            ("electrical","⚡","Electrical","Wiring, panels, outlets"),
+            ("general","🏠","General","Repairs, carpentry, and more"),
+          ] %}
+          {% for val, icon, label, desc in services %}
+          <button type="button" class="service-type-btn" data-service="{{ val }}" onclick="selectService(this)">
+            <span class="svc-icon">{{ icon }}</span>
+            <span class="svc-name">{{ label }}</span>
+            <span class="svc-desc">{{ desc }}</span>
+          </button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="service_type" id="service_type_input">
+        <div class="step-nav">
+          <span></span>
+          <button type="button" class="btn-book-next" id="step1-next" onclick="goToStep(2)" disabled>Next <i class="bi bi-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- ═══ STEP 2 — Problem Description ═══ -->
+      <div class="booking-step d-none" id="step-2">
+        <h4 class="fw-bold mb-1">Tell us about the issue</h4>
+        <p class="text-muted small mb-2">Select a common issue or describe it below.</p>
+        <div class="quick-tags mb-3" id="quick-tags-container"></div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+          <textarea name="description" id="description" class="booking-form-control" rows="4" placeholder="Please describe the issue..." required></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">How urgent is this?</label>
+          <div class="urgency-grid">
+            <div class="urgency-btn" data-value="emergency" onclick="selectUrgency(this)"><span class="urgency-emoji">🚨</span>Emergency<br><small class="text-muted">Today</small></div>
+            <div class="urgency-btn" data-value="urgent" onclick="selectUrgency(this)"><span class="urgency-emoji">⚡</span>Urgent<br><small class="text-muted">1–2 days</small></div>
+            <div class="urgency-btn selected" data-value="routine" onclick="selectUrgency(this)"><span class="urgency-emoji">📅</span>Routine<br><small class="text-muted">This week</small></div>
+            <div class="urgency-btn" data-value="flexible" onclick="selectUrgency(this)"><span class="urgency-emoji">🌿</span>Flexible<br><small class="text-muted">Anytime</small></div>
+          </div>
+          <input type="hidden" name="urgency" id="urgency_input" value="routine">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Photos <span class="text-muted small fw-normal">(optional)</span></label>
+          <div class="photo-upload-zone" id="photo-upload-zone" onclick="document.getElementById('photo-input').click()">
+            <i class="bi bi-camera display-6 text-muted"></i>
+            <p class="mb-0 mt-1 text-muted">Click to add photos</p>
+          </div>
+          <input type="file" name="photos" id="photo-input" multiple accept="image/*" class="d-none" onchange="handlePhotoUpload(this)">
+          <div class="photo-preview-grid" id="photo-previews"></div>
+        </div>
+        <div class="step-nav">
+          <button type="button" class="btn-book-back" onclick="goToStep(1)"><i class="bi bi-arrow-left"></i> Back</button>
+          <button type="button" class="btn-book-next" onclick="validateStep2()">Next <i class="bi bi-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- ═══ STEP 3 — Location ═══ -->
+      <div class="booking-step d-none" id="step-3">
+        <h4 class="fw-bold mb-1">Service location</h4>
+        <p class="text-muted small mb-3">Where would you like us to come?</p>
+        <div class="row g-3 mb-3">
+          <div class="col-12"><label class="form-label fw-semibold">Street Address <span class="text-danger">*</span></label><input type="text" name="street_address" id="street_address" class="booking-form-control" placeholder="123 Main Street" required></div>
+          <div class="col-md-4"><label class="form-label fw-semibold">Unit / Apt</label><input type="text" name="unit_apt" class="booking-form-control" placeholder="Apt 4B"></div>
+          <div class="col-md-8"><label class="form-label fw-semibold">City <span class="text-danger">*</span></label><input type="text" name="city" id="city" class="booking-form-control" required></div>
+          <div class="col-md-7"><label class="form-label fw-semibold">Province / State <span class="text-danger">*</span></label><input type="text" name="state_province" id="state_province" class="booking-form-control" required></div>
+          <div class="col-md-5"><label class="form-label fw-semibold">Postal Code <span class="text-danger">*</span></label><input type="text" name="postal_code" id="postal_code" class="booking-form-control" required></div>
+          <div class="col-12"><label class="form-label fw-semibold">Access Instructions</label><textarea name="access_instructions" class="booking-form-control" rows="2" placeholder="Gate code, parking, entry info..."></textarea></div>
+        </div>
+        <div class="step-nav">
+          <button type="button" class="btn-book-back" onclick="goToStep(2)"><i class="bi bi-arrow-left"></i> Back</button>
+          <button type="button" class="btn-book-next" onclick="validateStep3()">Next <i class="bi bi-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- ═══ STEP 4 — Scheduling ═══ -->
+      <div class="booking-step d-none" id="step-4">
+        <h4 class="fw-bold mb-1">When works best?</h4>
+        <p class="text-muted small mb-3">Select preferred dates. We'll do our best to match.</p>
+        <div class="booking-calendar mb-3" id="booking-calendar"></div>
+        <input type="hidden" name="preferred_dates" id="preferred_dates_input">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Preferred time of day</label>
+          <div class="time-slot-grid">
+            <div class="time-slot-btn" data-value="morning" onclick="selectTimeSlot(this)">🌅 Morning<br><small class="text-muted">8am–12pm</small></div>
+            <div class="time-slot-btn" data-value="afternoon" onclick="selectTimeSlot(this)">☀️ Afternoon<br><small class="text-muted">12pm–5pm</small></div>
+            <div class="time-slot-btn selected" data-value="anytime" onclick="selectTimeSlot(this)">🕐 Anytime<br><small class="text-muted">No preference</small></div>
+          </div>
+          <input type="hidden" name="preferred_time_slot" id="time_slot_input" value="anytime">
+        </div>
+        <div class="step-nav">
+          <button type="button" class="btn-book-back" onclick="goToStep(3)"><i class="bi bi-arrow-left"></i> Back</button>
+          <button type="button" class="btn-book-next" onclick="goToStep(5)">Next <i class="bi bi-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- ═══ STEP 5 — Contact Info ═══ -->
+      <div class="booking-step d-none" id="step-5">
+        <h4 class="fw-bold mb-1">Your contact information</h4>
+        <p class="text-muted small mb-3">How can we reach you to confirm?</p>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6"><label class="form-label fw-semibold">First Name <span class="text-danger">*</span></label><input type="text" name="first_name" id="first_name" class="booking-form-control" autocomplete="given-name" required></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label><input type="text" name="last_name" id="last_name" class="booking-form-control" autocomplete="family-name" required></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Phone <span class="text-danger">*</span></label><input type="tel" name="phone" id="phone" class="booking-form-control" autocomplete="tel" required placeholder="(555) 555-5555"></div>
+          <div class="col-md-6"><label class="form-label fw-semibold">Email <span class="text-danger">*</span></label><input type="email" name="email" id="email" class="booking-form-control" autocomplete="email" required placeholder="you@example.com"></div>
+        </div>
+        <div class="mb-3">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="is_existing" name="is_existing_customer" onchange="toggleExistingCustomer(this)">
+            <label class="form-check-label" for="is_existing">I'm an existing customer</label>
+          </div>
+          <div id="existing-customer-field" class="mt-2 d-none">
+            <input type="text" name="existing_customer_ref" class="booking-form-control" placeholder="Phone or email on file">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">How did you hear about us?</label>
+          <select name="referral_source" class="booking-form-control">
+            <option value="">-- Select --</option>
+            <option value="google">Google Search</option>
+            <option value="referral">Friend / Family</option>
+            <option value="social_media">Social Media</option>
+            <option value="yard_sign">Yard Sign</option>
+            <option value="repeat_customer">Repeat Customer</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="step-nav">
+          <button type="button" class="btn-book-back" onclick="goToStep(4)"><i class="bi bi-arrow-left"></i> Back</button>
+          <button type="button" class="btn-book-next" onclick="validateStep5()">Review <i class="bi bi-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- ═══ STEP 6 — Review & Submit ═══ -->
+      <div class="booking-step d-none" id="step-6">
+        <h4 class="fw-bold mb-1">Review your request</h4>
+        <p class="text-muted small mb-3">Confirm your details before submitting.</p>
+        <div class="review-section"><div class="review-label">Service</div><div class="review-value" id="review-service">—</div></div>
+        <div class="review-section"><div class="review-label">Issue</div><div class="review-value" id="review-description">—</div></div>
+        <div class="review-section"><div class="review-label">Urgency</div><div class="review-value" id="review-urgency">—</div></div>
+        <div class="review-section"><div class="review-label">Location</div><div class="review-value" id="review-location">—</div></div>
+        <div class="review-section"><div class="review-label">Dates</div><div class="review-value" id="review-dates">—</div></div>
+        <div class="review-section"><div class="review-label">Time</div><div class="review-value" id="review-timeslot">—</div></div>
+        <div class="review-section"><div class="review-label">Contact</div><div class="review-value" id="review-contact">—</div></div>
+        <div class="mb-3 mt-3">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="terms_check" required>
+            <label class="form-check-label small" for="terms_check">I agree to the Terms of Service</label>
+          </div>
+        </div>
+        <button type="submit" class="btn-book-submit" id="submit-btn"><i class="bi bi-send-check-fill"></i> Submit Service Request</button>
+        <div id="submit-spinner" class="text-center mt-2 d-none">
+          <div class="spinner-border spinner-border-sm text-primary"></div>
+          <span class="ms-2 text-muted small">Submitting...</span>
+        </div>
+        <div class="step-nav">
+          <button type="button" class="btn-book-back" onclick="goToStep(5)"><i class="bi bi-arrow-left"></i> Back</button>
+          <span></span>
+        </div>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  var BOOKING_CONFIG = {
+    maxPhotos: {{ booking_settings.booking_max_photos if booking_settings else 5 }},
+    availableDays: {{ booking_settings.booking_available_days if booking_settings else 14 }},
+  };
+</script>
+{% endblock %}

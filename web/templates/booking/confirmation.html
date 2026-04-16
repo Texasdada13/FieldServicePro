@@ -1,0 +1,71 @@
+{% extends "booking/base.html" %}
+{% block title %}Request Submitted{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="booking-card text-center">
+
+    <div class="confirmation-icon mb-3">&#9989;</div>
+    <h2 class="fw-bold mb-2">Request Submitted!</h2>
+    <p class="text-muted mb-4">We've received your service request and will be in touch shortly.</p>
+
+    <div class="mb-4">
+      <div class="review-label">Reference Number</div>
+      <div class="ref-number">{{ sr.request_number }}</div>
+    </div>
+
+    <div class="text-start">
+      <div class="review-section">
+        <div class="review-label">Service</div>
+        <div class="review-value">{{ sr.request_type|title if sr.request_type else '—' }}</div>
+      </div>
+      <div class="review-section">
+        <div class="review-label">Description</div>
+        <div class="review-value">{{ sr.description|truncate(200) if sr.description else '—' }}</div>
+      </div>
+      <div class="review-section">
+        <div class="review-label">Contact</div>
+        <div class="review-value">{{ sr.contact_name }} &middot; {{ sr.contact_phone }} &middot; {{ sr.contact_email }}</div>
+      </div>
+      {% if sr.customer_address %}
+      <div class="review-section">
+        <div class="review-label">Location</div>
+        <div class="review-value">{{ sr.customer_address }}</div>
+      </div>
+      {% endif %}
+      {% if dates_display %}
+      <div class="review-section">
+        <div class="review-label">Preferred Dates</div>
+        <div class="review-value">{{ dates_display|join(', ') }}</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <hr class="my-4">
+
+    <h5 class="fw-bold mb-3">What happens next?</h5>
+    <ul class="next-steps text-start list-unstyled">
+      <li><i class="bi bi-check-circle text-success me-2"></i> We'll review your request within {{ booking_settings.booking_confirmation_hours if booking_settings else 4 }} hours</li>
+      <li><i class="bi bi-telephone text-primary me-2"></i> A team member will call or email to confirm scheduling</li>
+      <li><i class="bi bi-calendar-check text-primary me-2"></i> You'll receive a confirmation with your appointment details</li>
+      <li><i class="bi bi-tools text-primary me-2"></i> Our technician will arrive at the scheduled time</li>
+    </ul>
+
+    {% if org.phone %}
+    <div class="mt-4 p-3 rounded" style="background:#f1f5f9;">
+      <p class="mb-1 small text-muted">Questions? Call us anytime:</p>
+      <a href="tel:{{ org.phone }}" class="fw-bold fs-5 text-decoration-none" style="color:var(--book-primary);">
+        <i class="bi bi-telephone-fill"></i> {{ org.phone }}
+      </a>
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+      <a href="{{ url_for('booking.status', token=sr.booking_token) }}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-search"></i> Check Request Status
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

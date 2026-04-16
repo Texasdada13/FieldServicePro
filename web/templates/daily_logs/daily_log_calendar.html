@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Daily Log Calendar - {{ project.title }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <h1 style="margin:0;"><i class="bi bi-calendar3" style="color:var(--color-accent);"></i> Daily Log Calendar - {{ project.title }}</h1>
+    <div style="display:flex;gap:var(--space-2);"><a href="{{ url_for('daily_logs.daily_log_list', project_id=project.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">List View</a><a href="{{ url_for('daily_logs.daily_log_new', project_id=project.id) }}" class="btn btn-accent" style="font-size:var(--font-size-sm);"><i class="bi bi-plus"></i> New Log</a></div>
+</div>
+
+{% set prev_month = month - 1 if month > 1 else 12 %}
+{% set prev_year = year if month > 1 else year - 1 %}
+{% set next_month = month + 1 if month < 12 else 1 %}
+{% set next_year = year if month < 12 else year + 1 %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+    <a href="{{ url_for('daily_logs.daily_log_calendar', project_id=project.id, year=prev_year, month=prev_month) }}" class="btn btn-ghost"><i class="bi bi-chevron-left"></i></a>
+    <h2 style="margin:0;" id="calMonthTitle">Loading...</h2>
+    <a href="{{ url_for('daily_logs.daily_log_calendar', project_id=project.id, year=next_year, month=next_month) }}" class="btn btn-ghost"><i class="bi bi-chevron-right"></i></a>
+</div>
+
+<div class="card" style="padding:var(--space-3);"><div id="calendarGrid"></div></div>
+
+<div style="display:flex;gap:var(--space-3);margin-top:var(--space-2);font-size:var(--font-size-xs);color:var(--color-text-muted);">
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--color-success);margin-right:4px;"></span>Reviewed</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--color-accent);margin-right:4px;"></span>Submitted</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--color-secondary);margin-right:4px;"></span>Draft</span>
+</div>
+
+<script>
+var projectId = {{ project.id }};
+var currentYear = {{ year }};
+var currentMonth = {{ month }};
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function renderCalendar(year, month, logData) {
+    document.getElementById('calMonthTitle').textContent = MONTHS[month-1] + ' ' + year;
+    var firstDay = new Date(year, month-1, 1).getDay();
+    var daysInMonth = new Date(year, month, 0).getDate();
+    var logMap = {};
+    logData.forEach(function(l) { logMap[l.date] = l; });
+
+    var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">';
+    DAYS.forEach(function(d) { html += '<div style="text-align:center;font-weight:600;font-size:var(--font-size-xs);color:var(--color-text-muted);padding:4px;">' + d + '</div>'; });
+    for (var i = 0; i < firstDay; i++) html += '<div style="min-height:80px;"></div>';
+
+    var today = new Date();
+    for (var day = 1; day <= daysInMonth; day++) {
+        var dateStr = year + '-' + String(month).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+        var log = logMap[dateStr];
+        var isToday = today.getFullYear() === year && today.getMonth()+1 === month && today.getDate() === day;
+        var colors = {reviewed:'var(--color-success)', submitted:'var(--color-accent)', draft:'var(--color-secondary)'};
+
+        html += '<div style="min-height:80px;border:1px solid ' + (isToday ? 'var(--color-accent)' : 'var(--color-border)') + ';border-radius:var(--radius-sm);padding:6px;background:' + (isToday ? 'var(--color-surface-raised)' : 'var(--color-surface)') + ';">';
+        html += '<div style="font-size:var(--font-size-sm);font-weight:' + (isToday ? '700' : '400') + ';color:' + (isToday ? 'var(--color-accent)' : 'var(--color-text)') + ';">' + day + '</div>';
+        if (log) {
+            html += '<a href="/daily-logs/' + log.id + '" style="display:block;margin-top:4px;font-size:var(--font-size-xs);text-decoration:none;background:' + (colors[log.status]||'var(--color-secondary)') + ';color:#fff;border-radius:var(--radius-sm);padding:2px 5px;">' + log.number + '</a>';
+        }
+        html += '</div>';
+    }
+    html += '</div>';
+    document.getElementById('calendarGrid').innerHTML = html;
+}
+
+fetch('/daily-logs/api/calendar/' + projectId + '?year=' + currentYear + '&month=' + currentMonth)
+    .then(function(r) { return r.json(); })
+    .then(function(data) { renderCalendar(currentYear, currentMonth, data); });
+</script>
+{% endblock %}

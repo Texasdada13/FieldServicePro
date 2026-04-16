@@ -1,0 +1,77 @@
+{% extends "mobile/base.html" %}
+{% block title %}Menu — FSP{% endblock %}
+{% block header_title %}More{% endblock %}
+
+{% block content %}
+<div style="padding:0 12px;">
+
+  {# User info #}
+  <div class="m-card" style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+    <div style="width:52px;height:52px;background:var(--color-accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:white;flex-shrink:0;">
+      {{ (current_user.first_name or current_user.username or '?')[0]|upper }}{{ (current_user.last_name or '')[0]|upper }}
+    </div>
+    <div>
+      <div class="m-fw-700" style="font-size:17px;">{{ current_user.first_name or '' }} {{ current_user.last_name or current_user.username or '' }}</div>
+      <div class="m-text-muted m-text-sm">{{ (current_user.role or '')|title }}</div>
+    </div>
+  </div>
+
+  {# Main grid #}
+  <div class="m-menu-grid">
+    <a href="{{ url_for('mobile.dashboard') }}" class="m-menu-item">
+      <div class="m-menu-item-icon">&#128197;</div>
+      <span>My Schedule</span>
+    </a>
+    <a href="{{ url_for('mobile.timeclock') }}" class="m-menu-item">
+      <div class="m-menu-item-icon">&#9201;</div>
+      <span>Time Clock</span>
+    </a>
+    <a href="{{ url_for('mobile.truck_stock') }}" class="m-menu-item">
+      <div class="m-menu-item-icon">&#128666;</div>
+      <span>Truck Stock</span>
+    </a>
+    <a href="{{ url_for('mobile.log_expense') }}" class="m-menu-item">
+      <div class="m-menu-item-icon">&#128179;</div>
+      <span>Log Expense</span>
+    </a>
+    <a href="{{ url_for('mobile.log_mileage') }}" class="m-menu-item">
+      <div class="m-menu-item-icon">&#128663;</div>
+      <span>Mileage</span>
+    </a>
+    <a href="{{ url_for('mobile.notifications') }}" class="m-menu-item" style="position:relative;">
+      <div class="m-menu-item-icon">&#128276;</div>
+      <span>Notifications</span>
+      {% if unread_count %}
+      <span class="m-badge m-badge--danger" style="position:absolute;top:8px;right:8px;">{{ unread_count }}</span>
+      {% endif %}
+    </a>
+    <a href="/set-mobile-pref?pref=desktop" class="m-menu-item">
+      <div class="m-menu-item-icon">&#128421;&#65039;</div>
+      <span>Desktop View</span>
+    </a>
+    <a href="{{ url_for('dashboard') }}" class="m-menu-item">
+      <div class="m-menu-item-icon">&#127968;</div>
+      <span>Dashboard</span>
+    </a>
+    <a href="{{ url_for('auth.logout') }}" class="m-menu-item m-menu-item--danger">
+      <div class="m-menu-item-icon">&#128682;</div>
+      <span>Log Out</span>
+    </a>
+  </div>
+
+  {% if expiring_certs > 0 %}
+  <div class="m-card m-card--warn-left m-mt16">
+    <div class="m-flex-between">
+      <div>
+        <div class="m-fw-600">Certifications</div>
+        <div class="m-text-sm" style="color:#f59e0b;">{{ expiring_certs }} expiring in 30 days</div>
+      </div>
+      <span class="m-badge m-badge--warning">&#9888;&#65039;</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <hr class="m-divider m-mt16">
+  <div class="m-text-sm m-text-muted" style="text-align:center;">FieldServicePro Mobile v1.0</div>
+</div>
+{% endblock %}

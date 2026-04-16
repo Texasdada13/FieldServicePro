@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Pending Surveys{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <h1 style="margin:0;"><i class="bi bi-clock" style="color:var(--color-accent);"></i> Pending Surveys</h1>
+  <a href="{{ url_for('feedback.dashboard') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Dashboard</a>
+</div>
+<div class="card" style="padding:0;">
+{% if surveys %}
+<table style="width:100%;border-collapse:collapse;">
+  <thead><tr style="border-bottom:2px solid var(--color-border);">
+    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Survey #</th>
+    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Client</th>
+    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Job</th>
+    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Sent</th>
+    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Status</th>
+    <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Reminder</th>
+    <th style="padding:var(--space-2) var(--space-3);"></th>
+  </tr></thead>
+  <tbody>{% for s in surveys %}<tr style="border-bottom:1px solid var(--color-border);">
+    <td style="padding:var(--space-2) var(--space-3);font-weight:600;">{{ s.survey_number }}</td>
+    <td style="padding:var(--space-2) var(--space-3);">{{ s.client.display_name if s.client else '&mdash;' }}</td>
+    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ s.job.job_number if s.job else '&mdash;' }}</td>
+    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ s.sent_at.strftime('%b %d, %H:%M') if s.sent_at else '' }}</td>
+    <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:{% if s.status == 'opened' %}var(--color-accent){% else %}var(--color-surface-raised){% endif %};color:{% if s.status == 'opened' %}#fff{% else %}inherit{% endif %};">{{ s.status|title }}</span></td>
+    <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{% if s.reminder_sent %}<span style="color:var(--color-success);"><i class="bi bi-check"></i> Sent</span>{% else %}<span style="color:var(--color-text-muted);">Not sent</span>{% endif %}</td>
+    <td style="padding:var(--space-2) var(--space-3);display:flex;gap:4px;">
+      {% if not s.reminder_sent %}
+      <form method="POST" action="{{ url_for('feedback.send_reminder', survey_id=s.id) }}" style="display:inline;"><button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-xs);"><i class="bi bi-envelope"></i> Remind</button></form>
+      {% endif %}
+      <form method="POST" action="{{ url_for('feedback.cancel_survey', survey_id=s.id) }}" style="display:inline;" onsubmit="return confirm('Cancel this survey?')"><button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-xs);color:var(--color-danger);"><i class="bi bi-x"></i></button></form>
+    </td>
+  </tr>{% endfor %}</tbody>
+</table>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><i class="bi bi-check-circle" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>No pending surveys.</div>
+{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{# Reusable job card partial.
+   Expects: job, client (optional) #}
+<div class="mobile-card mobile-card--priority mobile-card--priority-{{ job.priority or 'normal' }}"
+     data-searchable="{{ job.job_number or '' }} {{ job.title or '' }} {{ job.description or '' }} {{ client.display_name if client else '' }}"
+     data-filter-group="{{ (job.status or 'scheduled')|lower|replace(' ', '_') }}">
+    <div class="mobile-card__body">
+        <div class="mobile-card__header">
+            <div>
+                {% if job.scheduled_date %}
+                <div class="mobile-card__time">{{ job.scheduled_date.strftime('%I:%M %p') }}</div>
+                {% endif %}
+                <div class="mobile-card__job-number">#{{ job.job_number or job.id }}</div>
+            </div>
+            <span class="mobile-badge mobile-badge--{{ (job.status or 'scheduled')|replace(' ', '-')|replace('_', '-') }}">
+                {{ (job.status or 'Scheduled')|replace('_', ' ')|title }}
+            </span>
+        </div>
+        <div class="mobile-card__title">{{ job.title or job.description or 'Untitled Job' }}</div>
+        {% if client %}
+        <div class="mobile-card__subtitle">{{ client.display_name }}</div>
+        {% endif %}
+    </div>
+    <div class="mobile-card__actions">
+        <a href="{{ url_for('mobile.job_detail', job_id=job.id) }}"
+           class="mobile-btn mobile-btn--primary mobile-btn--sm" style="flex:1;">
+            {% if job.status == 'in_progress' %}<i class="bi bi-eye"></i> View
+            {% elif job.status == 'completed' %}<i class="bi bi-check-circle"></i> Done
+            {% else %}<i class="bi bi-play-fill"></i> Start{% endif %}
+        </a>
+    </div>
+</div>

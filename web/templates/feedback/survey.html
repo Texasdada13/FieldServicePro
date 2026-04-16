@@ -1,0 +1,132 @@
+{% extends "booking/base.html" %}
+{% block title %}Share Your Feedback{% endblock %}
+{% block body_class %}feedback-body{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="booking-card">
+    <div class="text-center mb-4">
+      <h2 class="fw-bold mb-1">How did we do?</h2>
+      {% if job %}
+      <p class="text-muted">
+        Your recent <strong>{{ job.job_type or 'service' }}</strong>
+        {{ 'on ' + job.scheduled_date.strftime('%B %d, %Y') if job.scheduled_date else '' }}
+        {% if tech %} &middot; <strong>{{ tech.full_name }}</strong>{% endif %}
+      </p>
+      {% endif %}
+      <p class="text-muted small">Takes less than 2 minutes. Your feedback helps us improve.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('feedback.survey_submit', token=token) }}" novalidate>
+
+      <!-- Overall Rating -->
+      <div class="mb-4 text-center">
+        <label class="form-label fw-bold d-block mb-2">Overall, how would you rate our service? <span class="text-danger">*</span></label>
+        <div class="star-rating-large" id="overall-stars">
+          {% for i in range(1,6) %}
+          <button type="button" class="star-btn" data-value="{{ i }}" onclick="setRating('overall_rating',{{ i }},'overall-stars')">&#9733;</button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="overall_rating" id="overall_rating" required>
+        <div class="text-muted small mt-1" id="overall-label"></div>
+      </div>
+
+      <!-- Category Ratings -->
+      {% macro star_row(label, field_name, container_id) %}
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+          <label class="form-label mb-0">{{ label }}</label>
+          <div class="star-rating-sm" id="{{ container_id }}">
+            {% for i in range(1,6) %}
+            <button type="button" class="star-btn-sm" data-value="{{ i }}" onclick="setRating('{{ field_name }}',{{ i }},'{{ container_id }}')">&#9733;</button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="{{ field_name }}" id="{{ field_name }}">
+        </div>
+      </div>
+      {% endmacro %}
+
+      {% if not tmpl or tmpl.include_quality %}{{ star_row('Quality of Work', 'quality_rating', 'quality-stars') }}{% endif %}
+      {% if not tmpl or tmpl.include_punctuality %}{{ star_row('Punctuality', 'punctuality_rating', 'punctuality-stars') }}{% endif %}
+      {% if not tmpl or tmpl.include_communication %}{{ star_row('Communication', 'communication_rating', 'communication-stars') }}{% endif %}
+      {% if not tmpl or tmpl.include_professionalism %}{{ star_row('Professionalism', 'professionalism_rating', 'professionalism-stars') }}{% endif %}
+      {% if not tmpl or tmpl.include_value %}{{ star_row('Value for Money', 'value_rating', 'value-stars') }}{% endif %}
+
+      <!-- NPS -->
+      {% if not tmpl or tmpl.include_nps %}
+      <div class="mb-4">
+        <label class="form-label fw-semibold">How likely are you to recommend us? (0–10)</label>
+        <div class="nps-scale">
+          {% for i in range(0,11) %}
+          <button type="button" class="nps-btn" data-value="{{ i }}" onclick="selectNPS({{ i }})">{{ i }}</button>
+          {% endfor %}
+        </div>
+        <div class="d-flex justify-content-between mt-1"><small class="text-muted">Not likely</small><small class="text-muted">Very likely</small></div>
+        <input type="hidden" name="nps_score" id="nps_score">
+      </div>
+      {% endif %}
+
+      <!-- Would Recommend -->
+      {% if not tmpl or tmpl.include_recommend %}
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Would you recommend us?</label>
+        <div class="d-flex gap-3">
+          <button type="button" class="recommend-btn" id="rec-yes" onclick="setRecommend(true)">&#128077; Yes!</button>
+          <button type="button" class="recommend-btn" id="rec-no" onclick="setRecommend(false)">&#128078; Not now</button>
+        </div>
+        <input type="hidden" name="would_recommend" id="would_recommend">
+      </div>
+      {% endif %}
+
+      <!-- Text Fields -->
+      {% if not tmpl or tmpl.include_what_went_well %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">What went well?</label>
+        <textarea name="what_went_well" class="booking-form-control" rows="2" placeholder="Anything you'd like to highlight..."></textarea>
+      </div>
+      {% endif %}
+
+      {% if not tmpl or tmpl.include_what_could_improve %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">What could we improve?</label>
+        <textarea name="what_could_improve" class="booking-form-control" rows="2" placeholder="Any suggestions..."></textarea>
+      </div>
+      {% endif %}
+
+      {% if not tmpl or tmpl.include_comments %}
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Additional comments?</label>
+        <textarea name="comments" class="booking-form-control" rows="3" placeholder="Tell us about your experience..."></textarea>
+      </div>
+      {% endif %}
+
+      <button type="submit" class="btn-book-submit" onclick="return validateSurvey()">
+        <i class="bi bi-send-check-fill"></i> Submit Feedback
+      </button>
+    </form>
+  </div>
+</div>
+
+<style>
+.star-rating-large .star-btn{font-size:2.5rem;background:none;border:none;cursor:pointer;color:#d1d5db;transition:color .1s;line-height:1;padding:0 2px;}
+.star-rating-large .star-btn.active{color:#f59e0b;}
+.star-rating-sm .star-btn-sm{font-size:1.4rem;background:none;border:none;cursor:pointer;color:#d1d5db;transition:color .1s;padding:0 2px;}
+.star-btn-sm.active{color:#f59e0b;}
+.nps-scale{display:flex;gap:4px;flex-wrap:wrap;margin-top:.5rem;}
+.nps-btn{width:38px;height:38px;border:1.5px solid #d1d5db;background:#fff;border-radius:6px;font-size:.85rem;cursor:pointer;transition:all .15s;font-weight:600;}
+.nps-btn.active{background:#1a56db;color:#fff;border-color:#1a56db;}
+.recommend-btn{padding:.65rem 1.25rem;border:2px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:.95rem;transition:all .15s;}
+.recommend-btn.active{border-color:#1a56db;background:#eff6ff;}
+#rec-no.active{border-color:#ef4444;background:#fef2f2;}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var STAR_LABELS=['','Poor','Below Average','Average','Good','Excellent'];
+function setRating(f,v,c){document.getElementById(f).value=v;document.getElementById(c).querySelectorAll('[data-value]').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.value)<=v);});if(f==='overall_rating')document.getElementById('overall-label').textContent=STAR_LABELS[v]||'';}
+function selectNPS(v){document.getElementById('nps_score').value=v;document.querySelectorAll('.nps-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.value)===v);});}
+function setRecommend(y){document.getElementById('would_recommend').value=y?'yes':'no';document.getElementById('rec-yes').classList.toggle('active',y);document.getElementById('rec-no').classList.toggle('active',!y);}
+function validateSurvey(){if(!document.getElementById('overall_rating').value){alert('Please provide an overall rating.');return false;}return true;}
+</script>
+{% endblock %}

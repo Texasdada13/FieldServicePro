@@ -28,6 +28,9 @@ class Technician(Base):
 
     division = relationship("Division", back_populates="technicians")
     jobs = relationship("Job", back_populates="technician")
+    feedback_surveys = relationship("FeedbackSurvey", back_populates="technician", lazy='select')
+    performance_scores = relationship("TechPerformanceScore", back_populates="technician", lazy='dynamic')
+    achievements = relationship("TechAchievement", back_populates="technician", lazy='dynamic')
 
     @property
     def full_name(self):

@@ -1,0 +1,102 @@
+{% extends "mobile/base.html" %}
+
+{% block title %}Today — FSP{% endblock %}
+{% block header_title %}Today{% endblock %}
+
+{% block content %}
+{# ── Greeting ──────────────────────────────────────────────── #}
+<div style="margin-bottom:16px;">
+  <h1 style="font-size:24px;font-weight:700;margin:0;">{{ greeting }}, {{ tech.first_name or 'Tech' }}</h1>
+  <p class="m-text-muted m-text-sm" style="margin:4px 0 0;">{{ today_date.strftime('%A, %B %d, %Y') }}</p>
+</div>
+
+{# ── Clock Status Banner ──────────────────────────────────── #}
+{% if active_entry %}
+<div class="m-card m-card--accent-left" style="display:flex;align-items:center;justify-content:space-between;">
+  <div>
+    <div class="m-text-sm m-fw-600" style="color:#22c55e;">&#9201; CLOCKED IN</div>
+    <div class="m-fw-600">{{ active_job.title or active_job.job_number or 'General' if active_job else 'General' }}</div>
+  </div>
+  <div style="text-align:right;">
+    <div id="live-timer" class="m-big-number--sm" style="color:#22c55e;font-variant-numeric:tabular-nums;">00:00:00</div>
+  </div>
+</div>
+{% else %}
+<div class="m-card" style="display:flex;align-items:center;justify-content:space-between;">
+  <div class="m-text-muted m-fw-600">Not clocked in</div>
+  <a href="{{ url_for('mobile.timeclock') }}" class="m-btn m-btn--primary m-btn--sm">Clock In</a>
+</div>
+{% endif %}
+
+{# ── Quick Stats ───────────────────────────────────────────── #}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+  <div class="m-card" style="text-align:center;padding:12px;">
+    <div class="m-big-number--sm" style="color:var(--color-accent);">{{ jobs_count }}</div>
+    <div class="m-text-sm m-text-muted">Jobs</div>
+  </div>
+  <div class="m-card" style="text-align:center;padding:12px;">
+    <div class="m-big-number--sm" style="color:#22c55e;">{{ completed_count }}</div>
+    <div class="m-text-sm m-text-muted">Done</div>
+  </div>
+  <div class="m-card" style="text-align:center;padding:12px;">
+    <div class="m-big-number--sm" style="color:var(--color-accent);">{{ total_hours }}h</div>
+    <div class="m-text-sm m-text-muted">Hours</div>
+  </div>
+</div>
+
+{# ── Today's Schedule ─────────────────────────────────────── #}
+<div class="m-section-header">Today's Schedule</div>
+
+{% if todays_jobs %}
+  {% for job in todays_jobs %}
+  {% set client = clients.get(job.client_id) %}
+  <a href="{{ url_for('mobile.job_detail', job_id=job.id) }}" style="text-decoration:none;color:inherit;">
+    <div class="m-card m-card--clickable {% if job.priority == 'urgent' %}m-card--danger-left{% elif job.priority == 'high' %}m-card--warn-left{% else %}m-card--accent-left{% endif %}">
+      <div class="m-flex-between">
+        <div>
+          <div class="m-card-title">{{ job.title or job.description or 'Untitled Job' }}</div>
+          <div class="m-card-subtitle">#{{ job.job_number or job.id }}{% if client %} &middot; {{ client.display_name }}{% endif %}</div>
+        </div>
+        <span class="m-badge m-status-{{ job.status or 'scheduled' }}">{{ (job.status or 'scheduled')|replace('_',' ')|title }}</span>
+      </div>
+      <div class="m-card-meta">
+        <span class="m-text-sm m-text-muted">{{ job.scheduled_date.strftime('%I:%M %p') if job.scheduled_date else 'TBD' }}</span>
+        {% if job.job_type %}<span class="m-text-sm m-text-muted">&middot; {{ job.job_type }}</span>{% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+{% else %}
+  <div class="m-empty">
+    <div class="m-empty-icon">&#9728;&#65039;</div>
+    <div class="m-empty-title">No jobs today</div>
+    <div class="m-empty-text">Enjoy the downtime or check upcoming jobs.</div>
+  </div>
+{% endif %}
+
+{# ── Notifications ─────────────────────────────────────────── #}
+{% if notifications %}
+<div class="m-section-header m-mt16">Notifications</div>
+{% for n in notifications %}
+<div class="m-notif-item">
+  <div class="m-notif-content unread">
+    <div class="m-text-sm m-fw-600">{{ n.title or 'Notification' }}</div>
+    <div class="m-text-sm m-text-muted" style="margin-top:2px;">{{ n.message or '' }}</div>
+    <div class="m-text-sm m-text-muted" style="margin-top:4px;">{{ n.created_at.strftime('%I:%M %p') if n.created_at else '' }}</div>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if active_entry and active_entry.start_time %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var d = '{{ active_entry.date or "" }}';
+  var t = '{{ active_entry.start_time or "" }}';
+  if (d && t) startElapsedTimer('live-timer', new Date(d + 'T' + t).getTime());
+});
+</script>
+{% endif %}
+{% endblock %}

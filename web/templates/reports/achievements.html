@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Technician Achievements{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+  <h1 style="margin:0;"><i class="bi bi-award-fill" style="color:var(--color-warning);"></i> Achievements</h1>
+  <a href="{{ url_for('advanced_reports.tech_leaderboard') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Leaderboard</a>
+</div>
+{% for tech_name, achs in by_tech.items() %}
+<div class="card" style="padding:0;margin-bottom:var(--space-3);">
+  <div style="padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--color-border);font-weight:700;">{{ tech_name }} <span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:10px;background:var(--color-surface-raised);">{{ achs|length }}</span></div>
+  <div style="padding:var(--space-3);display:flex;flex-wrap:wrap;gap:8px;">
+    {% for a in achs %}
+    <div style="padding:8px 14px;border-radius:10px;background:var(--color-surface-raised);text-align:center;min-width:100px;" title="{{ a.description }}">
+      <div style="font-size:1.5rem;">{{ a.icon }}</div>
+      <div style="font-size:var(--font-size-sm);font-weight:600;">{{ a.achievement_name }}</div>
+      <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ a.period_start.strftime('%b %Y') if a.period_start else '' }}</div>
+      {% if not a.notified %}<span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:4px;background:var(--color-warning);color:#000;">Pending</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="card" style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><i class="bi bi-award" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i>No achievements yet. Run score calculation to generate achievements.</div>
+{% endfor %}
+{% endblock %}

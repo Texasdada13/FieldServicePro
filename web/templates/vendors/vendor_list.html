@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Vendors{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <div><h1 style="margin:0;"><i class="bi bi-building" style="color:var(--color-accent);"></i> Vendors & Suppliers</h1>
+    <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ stats.total }} vendors &middot; {{ stats.active }} active &middot; {{ stats.preferred }} preferred</p></div>
+    {% if user.role in ('admin','owner') %}<a href="{{ url_for('vendors.vendor_new') }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Vendor</a>{% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--color-accent);">{{ stats.total }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Total Vendors</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--color-success);">{{ stats.active }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Active</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--color-info);">{{ stats.preferred }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Preferred</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--color-warning);">{{ stats.pending_delivery }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Pending Delivery</div></div>
+</div>
+
+<form method="get" class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto auto;gap:var(--space-2);align-items:end;">
+        <input type="text" name="search" value="{{ filters.search }}" placeholder="Search name or number..." class="form-control" style="font-size:var(--font-size-sm);">
+        <select name="status" class="form-select" style="font-size:var(--font-size-sm);"><option value="">All Statuses</option>{% for val, label in vendor_statuses %}<option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <select name="vendor_type" class="form-select" style="font-size:var(--font-size-sm);"><option value="">All Types</option>{% for val, label in vendor_types %}<option value="{{ val }}" {% if filters.vendor_type == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Filter</button>
+        <a href="{{ url_for('vendors.vendor_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+    </div>
+</form>
+
+<div class="card" style="padding:0;">
+{% if vendors %}
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Vendor #</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Company</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Type</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Contact</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Terms</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Rating</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;text-align:right;">Balance</th>
+    </tr></thead>
+    <tbody>{% for v in vendors %}<tr style="border-bottom:1px solid var(--color-border);">
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ v.vendor_number }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('vendors.vendor_detail', vendor_id=v.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:700;">{{ v.company_name }}</a>{% if v.doing_business_as %}<br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">DBA: {{ v.doing_business_as }}</span>{% endif %}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ dict(vendor_types).get(v.vendor_type, v.vendor_type) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ v.status_color }});color:#fff;">{{ v.status|title }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ v.contact_name or '--' }}{% if v.contact_phone %}<br><span style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ v.contact_phone }}</span>{% endif %}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ v.payment_terms.replace('_',' ')|title }}</td>
+        <td style="padding:var(--space-2) var(--space-3);">{% if v.overall_rating %}<span style="font-weight:700;color:{% if v.overall_rating >= 4 %}var(--color-success){% elif v.overall_rating >= 3 %}var(--color-warning){% else %}var(--color-danger){% endif %};">{{ v.overall_rating }}/5</span>{% else %}<span style="color:var(--color-text-muted);">--</span>{% endif %}</td>
+        <td style="padding:var(--space-2) var(--space-3);text-align:right;{% if v.current_balance > 0 %}font-weight:700;color:var(--color-warning);{% endif %}">${{ "{:,.2f}".format(v.current_balance or 0) }}</td>
+    </tr>{% endfor %}</tbody>
+</table></div>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><i class="bi bi-building" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i><h4>No vendors found</h4>{% if user.role in ('admin','owner') %}<a href="{{ url_for('vendors.vendor_new') }}" class="btn btn-accent" style="margin-top:var(--space-2);"><i class="bi bi-plus-lg"></i> Add First Vendor</a>{% endif %}</div>
+{% endif %}
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}

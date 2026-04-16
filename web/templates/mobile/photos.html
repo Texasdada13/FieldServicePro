@@ -1,0 +1,152 @@
+{% extends "mobile/base.html" %}
+{% set show_back = true %}
+{% set back_url = url_for('mobile.job_detail', job_id=job.id) %}
+{% block title %}Photos — FSP{% endblock %}
+{% block header_title %}Photos{% endblock %}
+
+{% block content %}
+<div style="padding:0 12px;">
+
+  {# ── Take Photo ──────────────────────────────────── #}
+  <div class="m-card" id="upload-section">
+    <form action="{{ url_for('mobile.api_upload_photo', job_id=job.id) }}" method="post" enctype="multipart/form-data" id="photo-form">
+      <input type="file" id="camera-input" name="photo" accept="image/*" capture="environment" style="display:none" onchange="handleCapture(this)">
+
+      <div class="m-camera-btn" id="camera-trigger" onclick="document.getElementById('camera-input').click()">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span style="font-size:16px;font-weight:700;">Take Photo</span>
+        <span class="m-text-muted m-text-sm">or upload from library</span>
+      </div>
+
+      <div id="preview-section" style="display:none;margin-top:16px;">
+        <div style="position:relative;">
+          <img id="photo-preview" style="width:100%;border-radius:12px;max-height:300px;object-fit:cover;" alt="Preview">
+          <button type="button" onclick="retake()" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;">Retake</button>
+        </div>
+
+        <div class="m-form-group m-mt8">
+          <label class="m-label">Tag</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            {% for tag in photo_tags %}
+            <label style="cursor:pointer;">
+              <input type="radio" name="tag" value="{{ tag }}" {{ 'checked' if tag == 'during' }} style="display:none;">
+              <span class="m-badge m-badge--muted tag-opt {{ 'selected-tag' if tag == 'during' }}" style="font-size:13px;padding:6px 14px;cursor:pointer;">{{ tag|title }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="m-form-group">
+          <label class="m-label">Caption (optional)</label>
+          <input type="text" name="caption" class="m-input" placeholder="Brief description...">
+        </div>
+
+        <div class="m-flex-gap10">
+          <button type="button" onclick="retake()" class="m-btn m-btn--secondary" style="flex:1;">Retake</button>
+          <button type="submit" class="m-btn m-btn--primary" style="flex:1;">&#128190; Save Photo</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {# ── Gallery ─────────────────────────────────────── #}
+  <div class="m-section-header">Gallery ({{ photos|length }})</div>
+
+  <div class="m-tab-bar m-mb8">
+    <a href="?tag=all" class="m-tab {{ 'active' if tag_filter == 'all' }}">All</a>
+    {% for tag in photo_tags %}
+    <a href="?tag={{ tag }}" class="m-tab {{ 'active' if tag_filter == tag }}">{{ tag|title }}</a>
+    {% endfor %}
+  </div>
+
+  {% if photos %}
+  <div class="m-photo-grid" id="photo-gallery">
+    {% for photo in photos %}
+    <div style="position:relative;cursor:pointer;" onclick="openLB({{ loop.index0 }})">
+      <img src="{{ url_for('static', filename='uploads/job_photos/' + photo.filename) }}"
+           class="m-photo-thumb" alt="{{ photo.display_name or photo.category or 'Photo' }}" loading="lazy">
+      {% if photo.category %}
+      <span style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,0.6);color:white;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;text-transform:uppercase;">{{ photo.category }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Lightbox #}
+  <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:800;flex-direction:column;align-items:center;justify-content:center;padding:16px;" onclick="closeLB()">
+    <button style="position:absolute;top:env(safe-area-inset-top,20px);right:20px;background:none;border:none;color:white;font-size:32px;cursor:pointer;z-index:1;" onclick="closeLB()">&times;</button>
+    <img id="lb-img" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px;" alt="" onclick="event.stopPropagation()">
+    <div style="color:white;margin-top:12px;text-align:center;">
+      <div id="lb-tag" style="font-weight:700;"></div>
+      <div id="lb-caption" style="color:rgba(255,255,255,0.7);font-size:14px;margin-top:4px;"></div>
+      <div id="lb-counter" style="color:rgba(255,255,255,0.5);font-size:12px;margin-top:8px;"></div>
+    </div>
+    <div style="display:flex;gap:32px;margin-top:20px;" onclick="event.stopPropagation()">
+      <button onclick="lbNav(-1)" style="background:rgba(255,255,255,0.15);border:none;color:white;width:52px;height:52px;border-radius:50%;font-size:24px;cursor:pointer;">&lsaquo;</button>
+      <button onclick="lbNav(1)" style="background:rgba(255,255,255,0.15);border:none;color:white;width:52px;height:52px;border-radius:50%;font-size:24px;cursor:pointer;">&rsaquo;</button>
+    </div>
+  </div>
+  {% else %}
+  <div class="m-empty">
+    <div class="m-empty-icon">&#128247;</div>
+    <div class="m-empty-title">No photos yet</div>
+    <div class="m-empty-text">Take a photo above to document the job.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function handleCapture(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('photo-preview').src = e.target.result;
+    document.getElementById('camera-trigger').style.display = 'none';
+    document.getElementById('preview-section').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+function retake() {
+  document.getElementById('camera-input').value = '';
+  document.getElementById('camera-trigger').style.display = 'flex';
+  document.getElementById('preview-section').style.display = 'none';
+}
+// Tag select
+document.querySelectorAll('.tag-opt').forEach(function(t) {
+  t.addEventListener('click', function() {
+    document.querySelectorAll('.tag-opt').forEach(function(s) { s.classList.remove('selected-tag'); });
+    t.classList.add('selected-tag');
+  });
+});
+// Add selected-tag style
+var style = document.createElement('style');
+style.textContent = '.selected-tag{background:rgba(13,148,136,0.3)!important;border-color:#0d9488!important;color:#0d9488!important;}';
+document.head.appendChild(style);
+
+// Lightbox
+var photoData = [
+  {% for p in photos %}
+  {src:"{{ url_for('static', filename='uploads/job_photos/' + p.filename) }}",tag:"{{ p.category or '' }}",caption:"{{ (p.display_name or '')|e }}"},
+  {% endfor %}
+];
+var lbIdx = 0;
+function openLB(i) { lbIdx = i; updateLB(); document.getElementById('lightbox').style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+function closeLB() { document.getElementById('lightbox').style.display = 'none'; document.body.style.overflow = ''; }
+function lbNav(d) { lbIdx = (lbIdx + d + photoData.length) % photoData.length; updateLB(); }
+function updateLB() {
+  var p = photoData[lbIdx];
+  document.getElementById('lb-img').src = p.src;
+  document.getElementById('lb-tag').textContent = p.tag;
+  document.getElementById('lb-caption').textContent = p.caption;
+  document.getElementById('lb-counter').textContent = (lbIdx+1) + ' of ' + photoData.length;
+}
+var lb = document.getElementById('lightbox');
+if (lb) mSwipe(lb, { onLeft: function() { lbNav(1); }, onRight: function() { lbNav(-1); } });
+</script>
+{% endblock %}

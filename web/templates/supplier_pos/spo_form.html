@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}New Supplier PO{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+    <h1 style="margin:0;">New Supplier Purchase Order</h1>
+    <a href="{{ url_for('supplier_pos.spo_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<form method="POST" style="max-width:950px;">
+    <!-- Vendor & Dates -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Order Details</h3>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Vendor *</label><select name="vendor_id" class="form-select" required><option value="">Select vendor...</option>{% for v in vendors %}<option value="{{ v.id }}" {% if preselect_vendor == v.id %}selected{% endif %}>{{ v.display_name }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label class="form-label">Order Date</label><input type="date" name="order_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}"></div>
+            <div class="form-group"><label class="form-label">Expected Delivery</label><input type="date" name="expected_delivery_date" class="form-control"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Tax Rate (%)</label><input type="number" name="tax_rate" class="form-control" step="0.01" value="13"></div>
+            <div class="form-group"><label class="form-label">Shipping Cost</label><input type="number" name="shipping_cost" class="form-control" step="0.01" value="0"></div>
+            <div class="form-group"><label class="form-label">Shipping Method</label><input type="text" name="shipping_method" class="form-control" placeholder="Ground, Express..."></div>
+        </div>
+    </div>
+
+    <!-- Line Items -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="margin:0 0 var(--space-3);font-size:var(--font-size-sm);font-weight:700;">Line Items</h3>
+        <div id="lineItems">
+            <div class="line-item" style="display:grid;grid-template-columns:auto 3fr 80px 100px 40px;gap:var(--space-2);margin-bottom:var(--space-2);align-items:end;">
+                <select name="item_part_id[]" class="form-select" style="font-size:var(--font-size-sm);"><option value="">No part</option>{% for p in parts %}<option value="{{ p.id }}">{{ p.part_number }} - {{ p.name }}</option>{% endfor %}</select>
+                <input type="text" name="item_description[]" class="form-control" style="font-size:var(--font-size-sm);" placeholder="Description *" required>
+                <input type="number" name="item_quantity[]" class="form-control" style="font-size:var(--font-size-sm);" min="1" value="1" placeholder="Qty">
+                <input type="number" name="item_price[]" class="form-control" style="font-size:var(--font-size-sm);" step="0.01" min="0" placeholder="Price">
+                <button type="button" class="btn btn-ghost remove-line" style="color:var(--color-danger);padding:0 4px;" onclick="this.closest('.line-item').remove();"><i class="bi bi-x"></i></button>
+            </div>
+        </div>
+        <button type="button" class="btn btn-ghost" style="font-size:var(--font-size-sm);" onclick="addLineItem()"><i class="bi bi-plus"></i> Add Line Item</button>
+    </div>
+
+    <!-- Notes -->
+    <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="form-group"><label class="form-label">Notes (visible to vendor)</label><textarea name="notes" class="form-control" rows="3"></textarea></div>
+            <div class="form-group"><label class="form-label">Internal Notes</label><textarea name="internal_notes" class="form-control" rows="3"></textarea></div>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+        <a href="{{ url_for('supplier_pos.spo_list') }}" class="btn btn-ghost">Cancel</a>
+        <button type="submit" name="submit_action" value="draft" class="btn btn-ghost"><i class="bi bi-save"></i> Save as Draft</button>
+        <button type="submit" name="submit_action" value="submit" class="btn btn-accent"><i class="bi bi-send"></i> Save & Submit</button>
+    </div>
+</form>
+
+<script>
+function addLineItem() {
+    var html = document.querySelector('#lineItems .line-item').outerHTML;
+    // Clear values in the clone
+    var temp = document.createElement('div');
+    temp.innerHTML = html;
+    temp.querySelectorAll('input').forEach(function(i) { i.value = i.type === 'number' && i.placeholder === 'Qty' ? '1' : ''; });
+    temp.querySelectorAll('select').forEach(function(s) { s.selectedIndex = 0; });
+    document.getElementById('lineItems').insertAdjacentHTML('beforeend', temp.innerHTML);
+}
+</script>
+{% endblock %}

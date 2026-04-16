@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Edit Item #{{ item.item_number }}{% endblock %}
+
+{% block content %}
+<div style="max-width:650px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+        <h1 style="margin:0;">Edit Item #{{ item.item_number }}</h1>
+        <a href="{{ url_for('punch_lists.punch_list_detail', pl_id=pl.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+    <form method="POST">
+        <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+            <div style="display:grid;grid-template-columns:1fr;gap:var(--space-3);">
+                <div class="form-group"><label class="form-label">Location</label><input type="text" name="location" class="form-control" value="{{ item.location or '' }}"></div>
+                <div class="form-group"><label class="form-label">Description *</label><input type="text" name="description" class="form-control" required value="{{ item.description }}"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+                    <div class="form-group"><label class="form-label">Category</label><select name="category" class="form-select">{% for val, label in [('cosmetic','Cosmetic'),('functional','Functional'),('safety','Safety'),('incomplete','Incomplete'),('damage','Damage'),('code_violation','Code Violation'),('other','Other')] %}<option value="{{ val }}" {% if item.category == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label class="form-label">Severity</label><select name="severity" class="form-select">{% for val, label in [('minor','Minor'),('moderate','Moderate'),('major','Major'),('critical','Critical')] %}<option value="{{ val }}" {% if item.severity == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label class="form-label">Trade</label><select name="trade" class="form-select">{% for val, label in [('plumbing','Plumbing'),('hvac','HVAC'),('electrical','Electrical'),('general','General'),('painting','Painting'),('flooring','Flooring'),('other','Other')] %}<option value="{{ val }}" {% if item.trade == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                </div>
+                <div class="form-group"><label class="form-label">Assigned To</label><select name="assigned_to_id" class="form-select"><option value="">Unassigned</option>{% for t in technicians %}<option value="{{ t.id }}" {% if item.assigned_to_id == t.id %}selected{% endif %}>{{ t.full_name }}</option>{% endfor %}</select></div>
+                <div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="3">{{ item.notes or '' }}</textarea></div>
+            </div>
+        </div>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;"><a href="{{ url_for('punch_lists.punch_list_detail', pl_id=pl.id) }}" class="btn btn-ghost">Cancel</a><button type="submit" class="btn btn-accent"><i class="bi bi-check-lg"></i> Save Changes</button></div>
+    </form>
+</div>
+{% endblock %}

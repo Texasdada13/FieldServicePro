@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}{{ pl.title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:var(--space-2);"><a href="{{ url_for('punch_lists.punch_list_index') }}" style="font-size:var(--font-size-sm);color:var(--color-text-muted);text-decoration:none;"><i class="bi bi-arrow-left"></i> Punch Lists</a></div>
+
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <h1 style="margin:0;">{{ pl.title }} <span style="font-size:var(--font-size-sm);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ pl.status_color }});color:#fff;">{{ pl.status.replace('_',' ')|title }}</span></h1>
+        <p style="font-size:var(--font-size-sm);color:var(--color-text-muted);margin:var(--space-1) 0 0;">{{ pl.punch_list_number }} &middot; Inspected {{ pl.inspection_date.strftime('%B %d, %Y') if pl.inspection_date else '' }}{% if pl.inspected_by %} by {{ pl.inspected_by }}{% endif %}{% if pl.due_date %} &middot; <span style="{% if pl.due_date < today and pl.status not in ('completed','accepted') %}color:var(--color-danger);font-weight:700;{% endif %}">Due {{ pl.due_date.strftime('%B %d, %Y') }}</span>{% endif %}</p>
+    </div>
+    <div style="display:flex;gap:var(--space-2);">
+        <a href="{{ url_for('punch_lists.punch_list_edit', pl_id=pl.id) }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);"><i class="bi bi-pencil"></i> Edit</a>
+        {% if pl.status in ('active','in_progress') %}<form method="POST" action="{{ url_for('punch_lists.punch_list_complete', pl_id=pl.id) }}" style="display:inline;"><button type="submit" class="btn btn-accent" style="background:var(--color-success);font-size:var(--font-size-sm);" {% if pl.has_critical_open %}disabled title="Critical items open"{% endif %}><i class="bi bi-check-all"></i> Complete</button></form>{% endif %}
+        {% if pl.status == 'completed' %}<form method="POST" action="{{ url_for('punch_lists.punch_list_accept', pl_id=pl.id) }}" style="display:inline;"><input type="text" name="accepted_by" placeholder="Accepted by..." required style="font-size:var(--font-size-sm);padding:var(--space-1) var(--space-2);border:1px solid var(--color-border);border-radius:var(--radius-sm);width:150px;"><button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);"><i class="bi bi-patch-check"></i> Accept</button></form>{% endif %}
+    </div>
+</div>
+
+<!-- Progress -->
+<div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:flex;justify-content:space-between;font-size:var(--font-size-sm);margin-bottom:var(--space-1);"><span style="font-weight:700;">Overall Progress</span><span>{{ pl.completed_items }}/{{ pl.total_items }} verified ({{ pl.percent_complete }}%)</span></div>
+    <div style="height:12px;background:var(--color-border);border-radius:6px;overflow:hidden;"><div style="height:100%;background:var(--color-success);width:{{ pl.percent_complete }}%;border-radius:6px;transition:width 0.3s;"></div></div>
+    <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);flex-wrap:wrap;">
+        {% for status, count in status_counts.items() %}
+        <span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ item_status_colors.get(status, 'secondary') }});color:#fff;">{{ status.replace('_',' ')|title }}: {{ count }}</span>
+        {% endfor %}
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:3fr 1fr;gap:var(--space-4);align-items:start;">
+    <div>
+        <!-- Filters + Add -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2);flex-wrap:wrap;gap:var(--space-2);">
+            <form method="get" style="display:flex;gap:var(--space-2);">
+                <select name="status" class="form-select" style="font-size:var(--font-size-xs);width:auto;" onchange="this.form.submit()"><option value="">All Statuses</option>{% for val, label in item_statuses %}<option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                <select name="trade" class="form-select" style="font-size:var(--font-size-xs);width:auto;" onchange="this.form.submit()"><option value="">All Trades</option>{% for val, label in item_trades %}<option value="{{ val }}" {% if filters.trade == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                <select name="severity" class="form-select" style="font-size:var(--font-size-xs);width:auto;" onchange="this.form.submit()"><option value="">All Severities</option>{% for val, label in item_severities %}<option value="{{ val }}" {% if filters.severity == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </form>
+            <button class="btn btn-accent" style="font-size:var(--font-size-sm);" data-bs-toggle="modal" data-bs-target="#addItemModal"><i class="bi bi-plus"></i> Add Item</button>
+        </div>
+
+        <!-- Items Table -->
+        <div class="card" style="padding:0;">
+        {% if items %}
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="border-bottom:2px solid var(--color-border);">
+                <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);width:40px;">#</th>
+                <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Location</th>
+                <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Description</th>
+                <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Severity</th>
+                <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Trade</th>
+                <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Assigned</th>
+                <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Status</th>
+                <th style="width:80px;"></th>
+            </tr></thead>
+            <tbody>
+            {% for item in items %}
+            <tr style="border-bottom:1px solid var(--color-border);{% if item.severity == 'critical' and item.status not in ('verified','deferred') %}background:rgba(220,53,69,0.05);{% endif %}">
+                <td style="padding:var(--space-2) var(--space-3);font-weight:700;font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ item.item_number }}</td>
+                <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ item.location or '--' }}</td>
+                <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ item.description }}{% if item.notes %} <i class="bi bi-sticky" style="color:var(--color-text-muted);font-size:var(--font-size-xs);" title="{{ item.notes }}"></i>{% endif %}</td>
+                <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 6px;border-radius:var(--radius-sm);background:var(--color-{{ item.severity_color }});color:#fff;">{{ item.severity|title }}</span></td>
+                <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ item.trade|title }}</td>
+                <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ item.assigned_to.full_name if item.assigned_to else '--' }}</td>
+                <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 6px;border-radius:var(--radius-sm);background:var(--color-{{ item.status_color }});color:#fff;">{{ item.status.replace('_',' ')|title }}</span></td>
+                <td style="padding:var(--space-2);display:flex;gap:2px;">
+                    {% if item.status == 'open' %}<form method="POST" action="{{ url_for('punch_lists.punch_item_status', pl_id=pl.id, item_id=item.id) }}" style="display:inline;"><input type="hidden" name="status" value="in_progress"><button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-xs);padding:1px 4px;" title="Start"><i class="bi bi-play"></i></button></form>{% endif %}
+                    {% if item.status == 'in_progress' %}<form method="POST" action="{{ url_for('punch_lists.punch_item_status', pl_id=pl.id, item_id=item.id) }}" style="display:inline;"><input type="hidden" name="status" value="completed"><button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-xs);padding:1px 4px;color:var(--color-success);" title="Complete"><i class="bi bi-check"></i></button></form>{% endif %}
+                    {% if item.status == 'completed' %}<form method="POST" action="{{ url_for('punch_lists.punch_item_status', pl_id=pl.id, item_id=item.id) }}" style="display:inline;"><input type="hidden" name="status" value="verified"><button type="submit" class="btn btn-ghost" style="font-size:var(--font-size-xs);padding:1px 4px;color:var(--color-success);" title="Verify"><i class="bi bi-check-all"></i></button></form>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+        {% else %}
+        <div style="padding:var(--space-4);text-align:center;color:var(--color-text-muted);">No items{% if filters.status or filters.trade or filters.severity %} match filters{% endif %}.</div>
+        {% endif %}
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div>
+        <div class="card" style="padding:var(--space-3);margin-bottom:var(--space-3);">
+            <h3 style="margin:0 0 var(--space-2);font-size:var(--font-size-sm);font-weight:700;">By Trade</h3>
+            {% for trade, count in trade_counts.items() %}
+            <div style="display:flex;justify-content:space-between;font-size:var(--font-size-sm);padding:var(--space-1) 0;"><span>{{ trade|title }}</span><span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-surface-raised);">{{ count }}</span></div>
+            {% endfor %}
+        </div>
+        {% if pl.accepted_by %}
+        <div class="card" style="padding:var(--space-3);border-color:var(--color-success);">
+            <div style="font-weight:700;color:var(--color-success);font-size:var(--font-size-sm);"><i class="bi bi-patch-check"></i> Accepted</div>
+            <div style="font-size:var(--font-size-sm);">By: {{ pl.accepted_by }}</div>
+            {% if pl.accepted_date %}<div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">{{ pl.accepted_date.strftime('%m/%d/%Y') }}</div>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Punch List Item</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <form method="POST" action="{{ url_for('punch_lists.punch_item_add', pl_id=pl.id) }}">
+    <div class="modal-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Location</label><input type="text" name="location" class="form-control" placeholder="Unit 304, Master Bath..."></div>
+            <div class="form-group"><label class="form-label">Assign To</label><select name="assigned_to_id" class="form-select"><option value="">Unassigned</option>{% for t in technicians %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-3);"><label class="form-label">Description *</label><input type="text" name="description" class="form-control" required placeholder="What needs to be fixed..."></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+            <div class="form-group"><label class="form-label">Category</label><select name="category" class="form-select">{% for val, label in item_categories %}<option value="{{ val }}">{{ label }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label class="form-label">Severity</label><select name="severity" class="form-select">{% for val, label in item_severities %}<option value="{{ val }}">{{ label }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label class="form-label">Trade</label><select name="trade" class="form-select">{% for val, label in item_trades %}<option value="{{ val }}">{{ label }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-accent">Add Item</button></div>
+    </form>
+</div></div></div>
+{% endblock %}

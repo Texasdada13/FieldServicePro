@@ -5,7 +5,7 @@ import sys
 import logging
 from datetime import datetime, date, timezone, timedelta
 from sqlalchemy import func, case, text
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, stream_with_context
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, stream_with_context, session, g
 from flask_login import login_required, current_user
 from flask_cors import CORS
 from flask_talisman import Talisman
@@ -41,7 +41,7 @@ from web.utils.sla_engine import (
     detect_contract_for_job, detect_sla_for_job,
     apply_sla_to_job, handle_job_status_change,
 )
-from web.cli_commands import automation_cli, recurring_cli, warranty_cli, notif_cli
+from web.cli_commands import automation_cli, recurring_cli, warranty_cli, notif_cli, project_mgmt_cli
 from web.routes.po_routes import po_bp
 from web.routes.phase_routes import phases_bp
 from web.routes.change_order_routes import change_orders_bp
@@ -77,6 +77,17 @@ from web.routes.expense_routes import expense_bp
 from web.routes.notification_routes import notifications_bp
 from web.routes.vehicle_routes import vehicle_bp
 from web.routes.payroll_routes import payroll_bp
+from web.routes.rfi_routes import rfi_bp
+from web.routes.submittal_routes import submittal_bp
+from web.routes.punch_list_routes import punch_list_bp
+from web.routes.daily_log_routes import daily_log_bp
+from web.routes.reports_routes import reports_bp
+from web.routes.vendor_routes import vendor_bp
+from web.routes.supplier_po_routes import supplier_po_bp
+from web.routes.mobile import mobile_bp
+from web.routes.booking_routes import booking_bp
+from web.routes.feedback_routes import feedback_bp
+from web.routes.advanced_reports_routes import advanced_reports_bp
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -141,6 +152,7 @@ app.register_blueprint(contract_bp)
 app.register_blueprint(automation_cli)
 app.register_blueprint(recurring_cli)
 app.register_blueprint(notif_cli)
+app.register_blueprint(project_mgmt_cli)
 app.register_blueprint(warranty_cli)
 app.register_blueprint(po_bp)
 app.register_blueprint(phases_bp)
@@ -177,6 +189,17 @@ app.register_blueprint(expense_bp)
 app.register_blueprint(notifications_bp)
 app.register_blueprint(vehicle_bp)
 app.register_blueprint(payroll_bp)
+app.register_blueprint(rfi_bp)
+app.register_blueprint(submittal_bp)
+app.register_blueprint(punch_list_bp)
+app.register_blueprint(daily_log_bp)
+app.register_blueprint(reports_bp)
+app.register_blueprint(vendor_bp)
+app.register_blueprint(supplier_po_bp)
+app.register_blueprint(mobile_bp)
+app.register_blueprint(booking_bp)
+app.register_blueprint(feedback_bp)
+app.register_blueprint(advanced_reports_bp)
 
 
 @app.before_request
@@ -203,6 +226,19 @@ def format_number_filter(value):
         return f'{int(value):,}'
     except (TypeError, ValueError):
         return str(value) if value is not None else '0'
+
+
+@app.template_filter('unread_notification_count')
+def unread_notification_count_filter(user):
+    """Template filter: {{ current_user | unread_notification_count }}"""
+    try:
+        from models.notification import Notification
+        db = get_session()
+        count = db.query(Notification).filter_by(recipient_id=user.id, is_read=False).count()
+        db.close()
+        return count
+    except Exception:
+        return 0
 
 
 # Initialize database
@@ -249,6 +285,58 @@ def run_background_checks():
             db.close()
         except Exception:
             pass  # Never let automation errors break normal requests
+
+
+# ── Mobile detection middleware ──
+@app.before_request
+def mobile_detection():
+    """Detect mobile UA and set banner/preference flags."""
+    from web.routes.mobile.middleware import should_show_mobile_banner, is_mobile_ua
+    g.show_mobile_banner = False
+    g.is_mobile = False
+    if request.path.startswith('/static') or request.path.startswith('/auth'):
+        return
+    g.is_mobile = is_mobile_ua()
+    if current_user.is_authenticated and should_show_mobile_banner():
+        g.show_mobile_banner = True
+
+
+@app.route('/set-mobile-pref')
+def set_mobile_pref():
+    """Set/clear mobile view preferences."""
+    pref = request.args.get('pref', 'mobile')
+    next_url = request.args.get('next', '/')
+    if pref == 'mobile':
+        session.pop('force_desktop', None)
+        session['force_mobile'] = True
+        return redirect(url_for('mobile.dashboard'))
+    elif pref == 'desktop':
+        session.pop('force_mobile', None)
+        session['force_desktop'] = True
+        session['mobile_banner_dismissed'] = True
+        return redirect(next_url)
+    elif pref == 'dismiss':
+        session['mobile_banner_dismissed'] = True
+        return redirect(next_url)
+    return redirect(next_url)
+
+
+# ── Mobile notification count context processor ──
+@app.context_processor
+def mobile_context():
+    """Inject mobile-specific context variables."""
+    notification_count = 0
+    if current_user.is_authenticated:
+        try:
+            from models.notification import Notification
+            db = get_session()
+            notification_count = db.query(Notification).filter_by(
+                recipient_id=current_user.id, is_read=False
+            ).count()
+            db.close()
+        except Exception:
+            pass
+    return dict(notification_count=notification_count)
 
 
 # ── Context processor: pending approval badge count ──
@@ -323,6 +411,10 @@ def inject_approval_count():
         'overdue_followups_count': _get_overdue_followups_count(),
         'pending_expenses_count': _get_pending_expenses_count(),
         'g_unread_notif_count': _get_unread_notif_count(),
+        'open_rfi_count': _get_open_rfi_count(),
+        'pending_sub_count': _get_pending_sub_count(),
+        'pending_spo_count': _get_pending_spo_count(),
+        'feedback_badge_count': _get_feedback_badge_count(),
         'all_clients': _get_all_clients_for_quicklog(),
         'comm_templates': _get_comm_templates_for_quicklog(),
         'can_manage_phase': can_manage_phase,
@@ -414,6 +506,65 @@ def _get_unread_notif_count():
     return 0
 
 
+def _get_open_rfi_count():
+    try:
+        if current_user.is_authenticated:
+            from models.rfi import RFI
+            db = get_session()
+            count = db.query(RFI).filter(RFI.status.in_(['open', 'pending_response'])).count()
+            db.close()
+            return count
+    except Exception:
+        pass
+    return 0
+
+
+def _get_pending_sub_count():
+    try:
+        if current_user.is_authenticated:
+            from models.submittal import Submittal
+            db = get_session()
+            count = db.query(Submittal).filter(Submittal.status.in_(['submitted', 'under_review'])).count()
+            db.close()
+            return count
+    except Exception:
+        pass
+    return 0
+
+
+def _get_pending_spo_count():
+    try:
+        if current_user.is_authenticated and current_user.role in ('owner', 'admin', 'dispatcher'):
+            from models.supplier_po import SupplierPurchaseOrder
+            db = get_session()
+            count = db.query(SupplierPurchaseOrder).filter(
+                SupplierPurchaseOrder.status.in_(['submitted', 'acknowledged', 'partially_received'])
+            ).count()
+            db.close()
+            return count
+    except Exception:
+        pass
+    return 0
+
+
+def _get_feedback_badge_count():
+    """Count negative feedback needing follow-up."""
+    try:
+        if current_user.is_authenticated and current_user.role in ('owner', 'admin', 'dispatcher'):
+            from models.feedback_survey import FeedbackSurvey
+            db = get_session()
+            count = db.query(FeedbackSurvey).filter(
+                FeedbackSurvey.follow_up_required == True,
+                FeedbackSurvey.follow_up_completed == False,
+                FeedbackSurvey.status == 'completed',
+            ).count()
+            db.close()
+            return count
+    except Exception:
+        pass
+    return 0
+
+
 def _get_client_communications(db, client_id):
     try:
         from models.communication import CommunicationLog
@@ -492,6 +643,41 @@ def _get_comm_due_today_for_dashboard(db):
         ).count()
     except Exception:
         return 0
+
+
+def _get_pm_dashboard_stats(db):
+    """Project management stats for the dashboard."""
+    try:
+        from models.rfi import RFI
+        from models.submittal import Submittal
+        from models.punch_list import PunchList
+        from models.daily_log import DailyLog
+        today_date = date.today()
+
+        open_rfis = db.query(RFI).filter(RFI.status.in_(['open', 'pending_response'])).count()
+        overdue_rfis = db.query(RFI).filter(
+            RFI.status.notin_(['answered', 'closed', 'void']),
+            RFI.date_required != None, RFI.date_required < today_date,
+        ).count()
+        pending_submittals = db.query(Submittal).filter(
+            Submittal.status.in_(['submitted', 'under_review'])
+        ).count()
+        active_pls = db.query(PunchList).filter(
+            PunchList.status.in_(['active', 'in_progress'])
+        ).all()
+        avg_complete = round(sum(pl.percent_complete for pl in active_pls) / len(active_pls)) if active_pls else None
+        logs_today = db.query(DailyLog).filter_by(log_date=today_date).count()
+
+        return {
+            'open_rfis': open_rfis, 'overdue_rfis': overdue_rfis,
+            'pending_submittals': pending_submittals,
+            'active_punch_lists': len(active_pls),
+            'punch_list_avg_complete': avg_complete,
+            'logs_today': logs_today,
+        }
+    except Exception:
+        return {'open_rfis': 0, 'overdue_rfis': 0, 'pending_submittals': 0,
+                'active_punch_lists': 0, 'punch_list_avg_complete': None, 'logs_today': 0}
 
 
 def _get_warranty_dashboard_stats(db):
@@ -867,6 +1053,7 @@ def dashboard():
             callback_stats=_get_callback_dashboard_stats(db),
             comm_overdue_count=_get_comm_overdue_for_dashboard(db),
             comm_due_today_count=_get_comm_due_today_for_dashboard(db),
+            pm_stats=_get_pm_dashboard_stats(db),
         )
     finally:
         db.close()

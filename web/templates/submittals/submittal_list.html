@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Submittals{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);flex-wrap:wrap;gap:var(--space-2);">
+    <div>
+        <h1 style="margin:0;"><i class="bi bi-clipboard-check" style="color:var(--color-accent);"></i> Submittals</h1>
+        <p style="color:var(--color-text-muted);font-size:var(--font-size-sm);margin:var(--space-1) 0 0;">{{ stats.total }} total &middot; {{ stats.pending }} pending &middot; {{ stats.approved }} approved{% if stats.overdue > 0 %} &middot; <span style="color:var(--color-danger);">{{ stats.overdue }} overdue</span>{% endif %}</p>
+    </div>
+    <a href="{{ url_for('submittals.submittal_new', project_id=filters.project_id) }}" class="btn btn-accent"><i class="bi bi-plus-lg"></i> New Submittal</a>
+</div>
+
+<!-- Stats -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--color-accent);">{{ stats.pending }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Pending Review</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--color-success);">{{ stats.approved }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Approved</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--color-warning);">{{ stats.revise }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Revise & Resubmit</div></div>
+    <div class="card" style="padding:var(--space-3);text-align:center;{% if stats.overdue > 0 %}border-color:var(--color-danger);{% endif %}"><div style="font-size:1.5rem;font-weight:700;color:var(--color-danger);">{{ stats.overdue }}</div><div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Overdue</div></div>
+</div>
+
+<!-- Filters -->
+<form method="get" class="card" style="padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);">
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto auto;gap:var(--space-2);align-items:end;">
+        <select name="project_id" class="form-select" style="font-size:var(--font-size-sm);"><option value="">All Projects</option>{% for p in projects %}<option value="{{ p.id }}" {% if filters.project_id == p.id %}selected{% endif %}>{{ p.title }}</option>{% endfor %}</select>
+        <select name="status" class="form-select" style="font-size:var(--font-size-sm);"><option value="">All Statuses</option>{% for val, label in submittal_statuses %}<option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <select name="submittal_type" class="form-select" style="font-size:var(--font-size-sm);"><option value="">All Types</option>{% for val, label in submittal_types %}<option value="{{ val }}" {% if filters.submittal_type == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <button type="submit" class="btn btn-accent" style="font-size:var(--font-size-sm);">Filter</button>
+        <a href="{{ url_for('submittals.submittal_list') }}" class="btn btn-ghost" style="font-size:var(--font-size-sm);">Clear</a>
+    </div>
+</form>
+
+<!-- Table -->
+<div class="card" style="padding:0;">
+{% if submittals %}
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid var(--color-border);">
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Sub #</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Title</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Type</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Status</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Rev</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Project</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Submitted</th>
+        <th style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);text-transform:uppercase;">Required</th>
+    </tr></thead>
+    <tbody>
+    {% for s in submittals %}
+    <tr style="border-bottom:1px solid var(--color-border);{% if s.is_overdue %}background:rgba(255,193,7,0.05);{% endif %}">
+        <td style="padding:var(--space-2) var(--space-3);"><a href="{{ url_for('submittals.submittal_detail', sub_id=s.id) }}" style="color:var(--color-accent);text-decoration:none;font-weight:700;">{{ s.submittal_number }}</a></td>
+        <td style="padding:var(--space-2) var(--space-3);">{{ s.title[:50] }}{% if s.is_overdue %} <span style="font-size:var(--font-size-xs);padding:1px 6px;border-radius:var(--radius-sm);background:var(--color-warning);color:#000;">Overdue</span>{% endif %}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);">{{ dict(submittal_types).get(s.submittal_type, s.submittal_type) }}</td>
+        <td style="padding:var(--space-2) var(--space-3);"><span style="font-size:var(--font-size-xs);padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-{{ s.status_color }});color:#fff;">{{ s.status.replace('_',' ')|title }}</span></td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-xs);color:var(--color-text-muted);">Rev {{ s.revision_number }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ s.project.title[:25] if s.project else '--' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);">{{ s.date_submitted.strftime('%m/%d/%y') if s.date_submitted else '' }}</td>
+        <td style="padding:var(--space-2) var(--space-3);font-size:var(--font-size-sm);{% if s.is_overdue %}color:var(--color-danger);font-weight:700;{% endif %}">{{ s.date_required.strftime('%m/%d/%y') if s.date_required else '--' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table></div>
+{% else %}
+<div style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);"><i class="bi bi-clipboard-check" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-2);"></i><h4>No submittals found</h4></div>
+{% endif %}
+</div>
+<style>table tbody tr:hover{background:var(--color-surface-raised);}</style>
+{% endblock %}
