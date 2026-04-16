@@ -758,6 +758,17 @@ def not_found(e):
     return redirect(url_for('dashboard'))
 
 
+@app.errorhandler(500)
+def server_error(e):
+    """Branded 500 page. Logs full stack trace to stdout for Render log search."""
+    logger.exception("Internal server error: %s", e)
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Internal server error'}), 500
+    return render_template('errors/500.html',
+                           active_page='', user=current_user,
+                           divisions=[]), 500
+
+
 def get_divisions():
     """Get all active divisions for the current user's org."""
     db = get_session()

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Something went wrong{% endblock %}
+{% block page_title %}Server Error{% endblock %}
+
+{% block content %}
+<div class="empty-state" style="padding: var(--space-12) var(--space-6);">
+  <i class="bi bi-exclamation-octagon" style="display: block; font-size: 3rem; color: var(--color-danger); margin-bottom: var(--space-4);"></i>
+  <h3 style="font-size: var(--font-size-xl);">Something went wrong</h3>
+  <p>An unexpected error occurred. The team has been notified — please try again in a moment.</p>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-accent">
+    <i class="bi bi-house"></i> Go to Dashboard
+  </a>
+</div>
+{% endblock %}
