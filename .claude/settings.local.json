@@ -3,7 +3,18 @@
     "allow": [
       "Bash(rm:*)",
       "Bash(venv/Scripts/python.exe web/app.py)",
-      "Bash(disown sleep:*)"
+      "Bash(disown sleep:*)",
+      "Bash(venv/Scripts/python -c \"from web.routes.parts_routes import parts_bp; print\\('Blueprint OK:', parts_bp.name\\)\")",
+      "Bash(venv/Scripts/python -c \"from web.app import app; print\\('App OK, rules:', len\\(list\\(app.url_map.iter_rules\\(\\)\\)\\)\\)\")",
+      "Bash(venv/Scripts/python seed_parts.py)",
+      "Bash(venv/Scripts/python -c \"from dateutil.relativedelta import relativedelta; print\\('dateutil OK'\\)\")",
+      "Bash(venv/Scripts/pip install:*)",
+      "Bash(venv/Scripts/python migrate_recurring.py)",
+      "Bash(venv/Scripts/python seed_recurring.py)",
+      "Bash(venv/Scripts/python migrate_warranty.py)",
+      "Bash(venv/Scripts/python seed_communications.py)",
+      "Bash(venv/Scripts/python migrate_expenses.py)",
+      "Bash(venv/Scripts/python seed_expenses.py)"
     ]
   }
 }
