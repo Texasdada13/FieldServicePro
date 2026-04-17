@@ -190,9 +190,9 @@ def preferences_save():
             if not p:
                 p = NotificationPreference(user_id=current_user.id, category=val)
                 db.add(p)
-            p.enabled = request.form.get(f'enabled_{val}') == '1'
-            p.in_app = request.form.get(f'in_app_{val}') == '1'
-            p.email = request.form.get(f'email_{val}') == '1'
+            p.enabled = '1' in request.form.getlist(f'enabled_{val}')
+            p.in_app = '1' in request.form.getlist(f'in_app_{val}')
+            p.email = '1' in request.form.getlist(f'email_{val}')
         db.commit()
         flash('Preferences saved.', 'success')
     finally:

@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="FieldServicePro">
   <meta name="description" content="FieldServicePro — Field Service Management">
   <title>{% block title %}FieldServicePro{% endblock %} — FieldServicePro</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'><rect width='28' height='28' rx='7' fill='%230d9488'/><path d='M7 10h14M7 14h10M7 18h7' stroke='%23fff' stroke-width='2' stroke-linecap='round'/><circle cx='21' cy='18' r='3' fill='%23f59e0b'/></svg>">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -94,11 +95,6 @@
             <li><hr class="dropdown-divider"></li>
             <li>
               <a class="dropdown-item" href="{{ url_for('settings_page') }}">
-                <i class="bi bi-person" aria-hidden="true"></i> Profile
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="{{ url_for('settings_page') }}">
                 <i class="bi bi-gear" aria-hidden="true"></i> Settings
               </a>
             </li>
@@ -123,6 +119,11 @@
         'clients': 'clients_page',
         'invoices': 'invoices_page',
         'settings': 'settings_page',
+        'notifications': 'notifications.notification_center',
+        'change_orders': 'change_orders.co_list',
+        'vendors': 'vendors.vendor_list',
+        'recurring': 'recurring.schedule_list',
+        'equipment': 'equipment.equipment_list',
     } %}
     {% set cur_ep = ep_map.get(active_page, 'dashboard') if active_page is defined else 'dashboard' %}
     <div class="division-bar">
@@ -197,6 +198,19 @@
 })();
 </script>
 
+<!-- Sidebar scroll persistence -->
+<script>
+(function() {
+  var nav = document.querySelector('.sidebar__nav');
+  if (!nav) return;
+  var saved = sessionStorage.getItem('sidebar-scroll');
+  if (saved) nav.scrollTop = parseInt(saved, 10);
+  nav.addEventListener('scroll', function() {
+    sessionStorage.setItem('sidebar-scroll', nav.scrollTop);
+  });
+})();
+</script>
+
 <!-- Flash message auto-dismiss -->
 <script>
 (function() {
@@ -216,9 +230,9 @@
 {# Quick Communication Log — global modal + FAB #}
 {% include 'partials/_quick_log_modal.html' %}
 {% if user and user.is_authenticated %}
-<button id="commLogFAB" title="Log Communication (Ctrl+L)"
+<button id="aiFAB" title="AI Assistant" onclick="toggleChat()"
     style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:var(--color-accent);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:1050;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
-    <i class="bi bi-chat-square-plus"></i>
+    <i class="bi bi-robot"></i>
 </button>
 {% endif %}
 <script src="{{ url_for('static', filename='js/quick_log.js') }}"></script>

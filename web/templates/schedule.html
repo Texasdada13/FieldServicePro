@@ -246,7 +246,7 @@
 <script>
 const CAN_EDIT = {{ 'true' if user.role in ('owner', 'admin', 'dispatcher') else 'false' }};
 let calendar;
-let currentDivisionFilter = null;
+let currentDivisionFilter = {{ active_division|tojson if active_division is defined and active_division else 'null' }};
 let currentTechFilter = null;
 
 // ══════ FULLCALENDAR INIT ══════

@@ -281,9 +281,9 @@ a.metric-card--link:hover .metric-card__label {
       <h2 class="card-title"><i class="bi bi-activity" style="margin-right:6px; color:var(--color-accent);"></i> Recent Activity</h2>
       <a href="{{ url_for('jobs_page') }}" class="btn btn-sm btn-ghost">View All Jobs</a>
     </div>
-    <div class="card-body" style="padding:0;">
+    <div class="card-body" style="padding:0;display:flex;flex-direction:column;flex:1;">
       {% if recent_jobs %}
-      <div class="dash-activity-feed">
+      <div class="dash-activity-feed" style="flex:1;">
         {% for job in recent_jobs %}
         <a href="{{ url_for('job_detail', job_id=job.id) }}" class="dash-activity-item">
           <div class="dash-activity-icon

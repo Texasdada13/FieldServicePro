@@ -1,5 +1,5 @@
 """Routes for equipment/asset management."""
-from flask import Blueprint, render_template, request, abort
+from flask import Blueprint, render_template, request, abort, redirect, url_for, flash
 from flask_login import login_required, current_user
 from sqlalchemy import desc, or_
 from models.database import get_session
@@ -64,6 +64,28 @@ def equipment_list():
             type_choices=Equipment.TYPE_CHOICES,
             status_choices=Equipment.STATUS_CHOICES,
         )
+    finally:
+        db.close()
+
+
+@equipment_bp.route('/equipment/new', methods=['POST'])
+@login_required
+def add_equipment():
+    db = get_session()
+    try:
+        eq = Equipment(
+            organization_id=current_user.organization_id,
+            name=request.form.get('name', '').strip() or 'New Equipment',
+            equipment_type=request.form.get('equipment_type', 'tool'),
+            make=request.form.get('make', '').strip() or None,
+            model=request.form.get('model', '').strip() or None,
+            serial_number=request.form.get('serial_number', '').strip() or None,
+            status='available',
+        )
+        db.add(eq)
+        db.commit()
+        flash(f'Equipment "{eq.name}" created.', 'success')
+        return redirect(url_for('equipment.equipment_detail', equip_id=eq.id))
     finally:
         db.close()
 

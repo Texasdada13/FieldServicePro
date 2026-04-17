@@ -216,7 +216,7 @@ function appendMessage(role, content, streaming = false) {
             ${role === 'user' ? '<i class="bi bi-person-fill"></i>' : '<i class="bi bi-robot"></i>'}
         </div>
         <div class="chat-msg-body">
-            <div class="chat-msg-content">${streaming ? '<span class="chat-typing"></span>' : escapeHtml(content)}</div>
+            <div class="chat-msg-content">${streaming ? '<span class="chat-typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>' : escapeHtml(content)}</div>
         </div>
     `;
     messages.appendChild(msg);

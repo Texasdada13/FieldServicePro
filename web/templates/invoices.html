@@ -93,7 +93,7 @@
                 <tr onclick="window.location.href='/invoices/{{ inv.id }}'"
                     data-status="{{ inv.status }}"
                     data-terms="{{ inv.payment_terms or '' }}"
-                    data-created="{{ inv.created_at or '' }}"
+                    data-created="{{ inv.issued_date or inv.created_at or '' }}"
                     data-searchable="{{ (inv.invoice_number or '')|lower }} {{ (inv.client_name or '')|lower }} {{ (inv.po_number_display or '')|lower }} {{ (inv.job_id|string if inv.job_id else '')|lower }}"
                     style="cursor:pointer;border-bottom:1px solid var(--color-border);transition:background 0.1s;{% if inv.status == 'overdue' %}border-left:3px solid var(--color-danger);background:rgba(239,68,68,0.03);{% else %}border-left:3px solid transparent;{% endif %}">
                     <td style="padding:var(--space-2) var(--space-3);">

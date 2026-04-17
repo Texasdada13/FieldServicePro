@@ -34,7 +34,7 @@ def _get_divisions():
 
 
 def _tpl_vars(**extra):
-    base = dict(active_page='jobs', user=current_user, divisions=_get_divisions())
+    base = dict(active_page='change_orders', user=current_user, divisions=_get_divisions())
     base.update(extra)
     return base
 

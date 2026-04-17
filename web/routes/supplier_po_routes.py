@@ -50,7 +50,7 @@ def spo_list():
         vendors = db.query(Vendor).filter_by(is_active=True).order_by(Vendor.company_name).all()
 
         return render_template('supplier_pos/spo_list.html',
-            active_page='vendors', user=current_user, divisions=_get_divisions(),
+            active_page='supplier_pos', user=current_user, divisions=_get_divisions(),
             pos=pos, total_open=total_open, pending_count=pending_count,
             receiving_count=receiving_count, vendors=vendors,
             spo_statuses=SPO_STATUSES,
@@ -75,7 +75,7 @@ def spo_detail(po_id):
         payments = db.query(VendorPayment).filter_by(po_id=po_id).order_by(VendorPayment.payment_date.desc()).all()
 
         return render_template('supplier_pos/spo_detail.html',
-            active_page='vendors', user=current_user, divisions=_get_divisions(),
+            active_page='supplier_pos', user=current_user, divisions=_get_divisions(),
             po=po, payments=payments,
         )
     finally:
@@ -154,7 +154,7 @@ def spo_new():
             return redirect(url_for('supplier_pos.spo_detail', po_id=po.id))
 
         return render_template('supplier_pos/spo_form.html',
-            active_page='vendors', user=current_user, divisions=_get_divisions(),
+            active_page='supplier_pos', user=current_user, divisions=_get_divisions(),
             po=None, vendors=vendors, parts=parts,
             preselect_vendor=preselect_vendor, today=date.today(),
         )

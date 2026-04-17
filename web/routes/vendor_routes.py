@@ -359,7 +359,7 @@ def price_comparison():
             vendor_prices.sort(key=lambda vp: float(vp.unit_price))
 
         return render_template('vendors/price_comparison.html',
-            active_page='vendors', user=current_user, divisions=_get_divisions(),
+            active_page='price_comparison', user=current_user, divisions=_get_divisions(),
             parts=parts, selected_part=selected_part, vendor_prices=vendor_prices,
         )
     finally:

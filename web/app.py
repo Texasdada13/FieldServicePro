@@ -1320,9 +1320,13 @@ def job_detail(job_id):
                 show_sla_details = False
 
         # Financial summary for job
+        try:
+            contract_val = float(job.current_contract_value or 0)
+        except (TypeError, ValueError):
+            contract_val = 0
         financial_summary = {
             'invoiced_total': total_invoiced,
-            'remaining': float(job.current_contract_value) - total_invoiced,
+            'remaining': contract_val - total_invoiced,
         }
 
         # Activity log
@@ -1398,7 +1402,7 @@ def job_detail(job_id):
             division=division,
             division_name=division.name if division else '',
             division_color=division.color if division else '#666',
-            quote=job.quote.to_dict() if job.quote else None,
+            quote=(job.quote.to_dict() if job.quote else None) if hasattr(job, 'quote') else None,
             job_notes=[n.to_dict() for n in job_notes],
             job_invoices=[inv.to_dict() for inv in job_invoices],
             total_invoiced=total_invoiced, total_paid=total_paid, total_balance=total_balance,
@@ -1677,7 +1681,7 @@ def create_quote():
         quote.subtotal = subtotal
         quote.discount = discount
         after_discount = max(0, subtotal - discount)
-        quote.tax_amount = after_discount * (quote.tax_rate / 100)
+        quote.tax_amount = after_discount * ((quote.tax_rate or 13.0) / 100)
         quote.total = after_discount + quote.tax_amount
         if data.get('status'):
             quote.status = data['status']
@@ -2331,21 +2335,28 @@ def invoices_page():
     try:
         org_id = current_user.organization_id
         status_filter = request.args.get('status', '')
+        active_div = request.args.get('division', type=int)
 
         q = db.query(Invoice).filter_by(organization_id=org_id)
         if status_filter:
             q = q.filter_by(status=status_filter)
+        if active_div:
+            q = q.filter_by(division_id=active_div)
 
         invoices = q.order_by(Invoice.created_at.desc()).all()
 
-        # Existing KPIs
+        # Existing KPIs — scope to the active status filter when one is applied
+        kpi_base = db.query(Invoice).filter_by(organization_id=org_id)
+        if status_filter:
+            kpi_base = kpi_base.filter_by(status=status_filter)
+
         total_outstanding = db.query(func.coalesce(func.sum(Invoice.balance_due), 0)).filter(
             Invoice.organization_id == org_id,
-            Invoice.status.in_(['sent', 'viewed', 'partial', 'overdue'])
+            Invoice.status.in_([status_filter] if status_filter else ['sent', 'viewed', 'partial', 'overdue'])
         ).scalar()
         total_overdue = db.query(func.coalesce(func.sum(Invoice.balance_due), 0)).filter(
             Invoice.organization_id == org_id,
-            Invoice.status == 'overdue'
+            Invoice.status.in_([status_filter] if status_filter else ['overdue'])
         ).scalar()
 
         # Overview card counts & values
@@ -2460,6 +2471,7 @@ def invoices_page():
             avg_pct_change=avg_pct_change,
             median_payment_days=median_payment_days,
             avg_payment_days=avg_payment_days,
+            active_division=active_div,
         )
     finally:
         db.close()
@@ -2871,12 +2883,29 @@ def bulk_statements():
         else:
             start_date = date(today.year, today.month - 1, 1)
 
-        # Commercial clients with outstanding balances
+        # Read date filters from the form (if submitted)
+        start_str = request.args.get('start_date')
+        end_str = request.args.get('end_date')
+        if start_str:
+            try:
+                start_date = date.fromisoformat(start_str)
+            except ValueError:
+                pass
+        if end_str:
+            try:
+                today = date.fromisoformat(end_str)
+            except ValueError:
+                pass
+
+        # Commercial clients with outstanding balances in the date range
         from sqlalchemy import distinct
-        client_ids_with_balance = db.query(distinct(Invoice.client_id)).filter(
+        inv_q = db.query(distinct(Invoice.client_id)).filter(
             Invoice.organization_id == org_id,
             Invoice.status.in_(['sent', 'overdue', 'partial']),
-        ).all()
+            Invoice.created_at >= datetime(start_date.year, start_date.month, start_date.day),
+            Invoice.created_at <= datetime(today.year, today.month, today.day, 23, 59, 59),
+        )
+        client_ids_with_balance = inv_q.all()
         client_ids = [r[0] for r in client_ids_with_balance]
 
         clients_with_balance = db.query(Client).filter(
@@ -2889,6 +2918,8 @@ def bulk_statements():
             outstanding = db.query(func.coalesce(func.sum(Invoice.balance_due), 0)).filter(
                 Invoice.client_id == client.id,
                 Invoice.status.in_(['sent', 'overdue', 'partial']),
+                Invoice.created_at >= datetime(start_date.year, start_date.month, start_date.day),
+                Invoice.created_at <= datetime(today.year, today.month, today.day, 23, 59, 59),
             ).scalar() or 0
             client_totals.append({
                 'client': client,
@@ -2897,7 +2928,7 @@ def bulk_statements():
             })
 
         return render_template('invoices/bulk_statements.html',
-            active_page='invoices', user=current_user, divisions=get_divisions(),
+            active_page='statements', user=current_user, divisions=get_divisions(),
             client_totals=client_totals,
             start_date=start_date, end_date=today,
         )
@@ -2988,7 +3019,7 @@ def aging_report():
         ).order_by(Client.company_name, Client.last_name).all()
 
         return render_template('invoices/aging_report.html',
-            active_page='invoices', user=current_user, divisions=get_divisions(),
+            active_page='aging', user=current_user, divisions=get_divisions(),
             aging_data=aging_data, totals=totals, clients=clients,
             filters={'client_id': f_client_id, 'division_id': f_division_id,
                      'overdue_only': f_overdue, 'sort': f_sort, 'dir': f_dir},
@@ -3026,7 +3057,7 @@ def approval_queue():
             pending_data.append(d)
 
         return render_template('invoices/approval_queue.html',
-            active_page='invoices', user=current_user, divisions=get_divisions(),
+            active_page='approvals', user=current_user, divisions=get_divisions(),
             pending_invoices=pending_data,
             settings=settings.to_dict(),
         )

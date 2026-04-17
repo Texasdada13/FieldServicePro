@@ -27,9 +27,10 @@ recurring_bp = Blueprint('recurring', __name__, url_prefix='/recurring')
 def _get_divisions():
     db = get_session()
     try:
-        return db.query(Division).filter_by(
+        divs = db.query(Division).filter_by(
             organization_id=current_user.organization_id, is_active=True
         ).order_by(Division.sort_order).all()
+        return [d.to_dict() for d in divs]
     finally:
         db.close()
 
