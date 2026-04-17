@@ -1,5 +1,6 @@
 # Bug Report & Fix Backlog
-**Project:** [Your App Name]
+
+**Project:** FieldServicePRo
 **Date:** April 16, 2026
 **Prepared for:** Claude Code
 **Total Issues:** 24
