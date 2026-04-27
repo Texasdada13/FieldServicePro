@@ -1,0 +1,62 @@
+{# 4MAN Services Pro — brand component
+   Three macros: mark(size), sidebar_lockup(), hero_lockup()
+   Single source of truth for the logo system.
+
+   USAGE:
+     {% from 'partials/_brand.html' import mark, sidebar_lockup, hero_lockup %}
+     {{ mark(28) }}
+     {{ sidebar_lockup() }}
+     {{ hero_lockup() }}
+#}
+
+{% macro mark(size=28, on_dark=false) -%}
+  {# Gear/sun mark. on_dark=true removes the navy rounded square so the gold gear sits on a dark bg directly. #}
+  <svg width="{{ size }}" height="{{ size }}" viewBox="0 0 64 64" fill="none"
+       xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="brand-mark">
+    {% if not on_dark %}
+    <rect width="64" height="64" rx="9" fill="#0d1b3d"/>
+    {% endif %}
+    {# 12 trapezoidal rays around the center, gold #e3b53a #}
+    <g fill="#e3b53a" transform="translate(32 32)">
+      {% for i in range(12) %}
+      <rect x="-3.5" y="-26" width="7" height="9" rx="1.5"
+            transform="rotate({{ i * 30 }})"/>
+      {% endfor %}
+    </g>
+    {# Center disc with navy bullseye #}
+    <circle cx="32" cy="32" r="9" fill="#e3b53a"/>
+    <circle cx="32" cy="32" r="3.5" fill="#0d1b3d"/>
+  </svg>
+{%- endmacro %}
+
+{% macro sidebar_lockup() -%}
+  {# Compact lockup for the sidebar — mark + small wordmark, on dark navy bg #}
+  <span class="brand-sidebar-lockup">
+    {{ mark(28, on_dark=true) }}
+    <span class="brand-sidebar-wordmark">
+      <span class="brand-sidebar-wordmark__primary">4MAN</span>
+      <span class="brand-sidebar-wordmark__secondary">Services Pro</span>
+    </span>
+  </span>
+{%- endmacro %}
+
+{% macro hero_lockup(tagline=true, subhead=none) -%}
+  {# Full lockup for login/auth/error pages on cream surface #}
+  <div class="brand-hero-lockup">
+    <div class="brand-hero-lockup__mark">{{ mark(96) }}</div>
+    <div class="brand-hero-lockup__wordmark">
+      <div class="brand-hero-lockup__line1">4MAN</div>
+      <div class="brand-hero-lockup__rule"></div>
+      <div class="brand-hero-lockup__line2">
+        <span class="brand-hero-lockup__services">SERVICES</span>
+        <span class="brand-hero-lockup__pro">PRO</span>
+      </div>
+    </div>
+    {% if tagline %}
+    <div class="brand-hero-lockup__tagline">JOBS &middot; INVOICING &middot; MANAGEMENT</div>
+    {% endif %}
+    {% if subhead %}
+    <div class="brand-hero-lockup__subhead">{{ subhead }}</div>
+    {% endif %}
+  </div>
+{%- endmacro %}
