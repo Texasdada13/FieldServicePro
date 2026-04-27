@@ -5,17 +5,17 @@
 
 :root {
   /* -- Brand Colors -- */
-  --color-primary:        #1e293b;
-  --color-primary-light:  #334155;
-  --color-primary-dark:   #0f172a;
+  --color-primary:        #0d1b3d;
+  --color-primary-light:  #1e2d5c;
+  --color-primary-dark:   #06122b;
 
-  --color-accent:         #0d9488;
-  --color-accent-light:   #14b8a6;
-  --color-accent-dark:    #0f766e;
+  --color-accent:         #e3b53a;
+  --color-accent-light:   #f1c95b;
+  --color-accent-dark:    #b8902a;
 
-  --color-warning:        #f59e0b;
-  --color-warning-light:  #fde68a;
-  --color-warning-dark:   #d97706;
+  --color-warning:        #ea580c;
+  --color-warning-light:  #fed7aa;
+  --color-warning-dark:   #c2410c;
 
   --color-danger:         #ef4444;
   --color-danger-light:   #fee2e2;
@@ -33,7 +33,7 @@
   --color-border-light:   #f1f5f9;
 
   /* -- Text -- */
-  --color-text-primary:   #1e293b;
+  --color-text-primary:   #0d1b3d;
   --color-text-secondary: #64748b;
   --color-text-muted:     #94a3b8;
   --color-text-inverse:   #f8fafc;
@@ -47,7 +47,7 @@
   --sidebar-text-active:  #ffffff;
   --sidebar-icon:         #64748b;
   --sidebar-icon-active:  var(--color-accent-light);
-  --sidebar-active-bg:    rgba(13,148,136,0.15);
+  --sidebar-active-bg:    rgba(227,181,58,0.15);
   --sidebar-hover-bg:     rgba(255,255,255,0.05);
 
   /* -- Typography -- */
@@ -106,4 +106,12 @@
   --z-dropdown:  200;
   --z-modal:     300;
   --z-toast:     400;
+
+  /* -- 4MAN brand surfaces (auth/portal/error pages) -- */
+  --color-cream:          #f5ecd7;
+  --color-cream-border:   #e6d9b8;
+  --color-cream-text:     #0d1b3d;
+
+  /* -- Display typography (brand wordmark only — not for body/UI) -- */
+  --font-family-display:  'Playfair Display', Georgia, 'Times New Roman', serif;
 }
