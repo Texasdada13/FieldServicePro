@@ -1196,3 +1196,125 @@ textarea.form-control {
     width: 100%;
   }
 }
+
+/* ========================================
+   4MAN BRAND COMPONENTS
+   ======================================== */
+
+/* Sidebar lockup */
+.brand-sidebar-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.brand-sidebar-wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.brand-sidebar-wordmark__primary {
+  font-family: var(--font-family-display);
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--color-accent);
+  letter-spacing: 0.04em;
+}
+
+.brand-sidebar-wordmark__secondary {
+  font-family: var(--font-family);
+  font-weight: 500;
+  font-size: 0.7rem;
+  color: var(--sidebar-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Hide secondary line when sidebar is collapsed */
+.sidebar.is-collapsed .brand-sidebar-wordmark { display: none; }
+
+/* Hero lockup (auth/error/portal pages) */
+.brand-hero-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: var(--color-primary);
+}
+
+.brand-hero-lockup__mark { margin-bottom: var(--space-5); }
+
+.brand-hero-lockup__wordmark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--font-family-display);
+  color: var(--color-primary);
+  line-height: 1;
+}
+
+.brand-hero-lockup__line1 {
+  font-size: 3.5rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.brand-hero-lockup__rule {
+  width: 70%;
+  height: 3px;
+  background: var(--color-accent);
+  margin: var(--space-3) 0;
+}
+
+.brand-hero-lockup__line2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.brand-hero-lockup__services {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  padding-right: 0.35em;
+}
+
+.brand-hero-lockup__pro {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: var(--color-primary);
+  color: var(--color-accent);
+  font-family: var(--font-family);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  border-radius: var(--radius-full);
+}
+
+.brand-hero-lockup__tagline {
+  margin-top: var(--space-5);
+  font-family: var(--font-family);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  color: var(--color-text-secondary);
+}
+
+.brand-hero-lockup__subhead {
+  margin-top: var(--space-3);
+  font-family: var(--font-family);
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  max-width: 28rem;
+}
+
+/* Cream brand surface (auth, errors, portal-login left panel) */
+.brand-surface {
+  background-color: var(--color-cream);
+  color: var(--color-cream-text);
+}
+
+.brand-surface a { color: var(--color-primary); }
+.brand-surface a:hover { color: var(--color-accent-dark); }
