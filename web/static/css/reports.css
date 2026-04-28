@@ -1,4 +1,4 @@
-/* FieldServicePro Reports Module */
+/* 4MAN Services Pro Reports Module */
 .report-icon-circle { width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
 .report-category-card { transition: box-shadow 0.2s, transform 0.2s; }
 .report-category-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.12) !important; transform: translateY(-2px); }

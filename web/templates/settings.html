@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Settings - FieldServicePro{% endblock %}
+{% block title %}Settings - 4MAN Services Pro{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -303,7 +303,7 @@
             <!-- Email Settings -->
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
                 <div class="form-group"><label class="form-label">From Name</label>
-                    <input type="text" name="email_from_name" class="form-control" value="{{ org_settings.email_from_name or '' }}" placeholder="FieldServicePro">
+                    <input type="text" name="email_from_name" class="form-control" value="{{ org_settings.email_from_name or '' }}" placeholder="4MAN Services Pro">
                 </div>
                 <div class="form-group"><label class="form-label">From Email</label>
                     <input type="email" name="email_from_address" class="form-control" value="{{ org_settings.email_from_address or '' }}" placeholder="notifications@yourcompany.com">

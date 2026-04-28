@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="FSP">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
-  <title>{% block title %}FieldServicePro{% endblock %}</title>
+  <title>{% block title %}4MAN Services Pro{% endblock %}</title>
 
   {# App CSS for variable definitions #}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
@@ -33,7 +33,7 @@
         <div class="m-logo-mark">FSP</div>
       {% endif %}
     </div>
-    <div class="m-header-title">{% block header_title %}FieldServicePro{% endblock %}</div>
+    <div class="m-header-title">{% block header_title %}4MAN Services Pro{% endblock %}</div>
     <div class="m-header-right">
       {% block header_actions %}
         <a href="{{ url_for('mobile.notifications') }}" class="m-header-icon" aria-label="Notifications">
