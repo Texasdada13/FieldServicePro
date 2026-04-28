@@ -4,21 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin:0;padding:0;background-color:#f8fafc;font-family:Arial,sans-serif;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:20px auto;background:white;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+<body style="margin:0;padding:0;background-color:#f5ecd7;font-family:Arial,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:20px auto;background:white;border-radius:9px;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden;">
         <tr>
-            <td style="padding:24px 32px;background:#2563eb;border-radius:8px 8px 0 0;">
-                <h1 style="color:white;margin:0;font-size:18px;">Client Portal</h1>
+            <td style="padding:28px 32px;background:#0d1b3d;">
+                <table cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td style="vertical-align:middle;padding-right:14px;">
+                            <img src="cid:4man-logo" alt="4MAN Services Pro" width="40" height="40" style="display:block;border:0;"
+                                 onerror="this.style.display='none';">
+                        </td>
+                        <td style="vertical-align:middle;">
+                            <div style="font-family:Georgia,'Times New Roman',serif;color:#e3b53a;font-size:20px;font-weight:700;letter-spacing:0.04em;line-height:1;">4MAN</div>
+                            <div style="font-family:Arial,sans-serif;color:#ffffff;font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;margin-top:3px;">Services Pro</div>
+                        </td>
+                    </tr>
+                </table>
             </td>
         </tr>
         <tr>
-            <td style="padding:32px;">
+            <td style="padding:32px;color:#0d1b3d;font-size:14px;line-height:1.6;">
                 {% block content %}{% endblock %}
             </td>
         </tr>
         <tr>
-            <td style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 8px 8px;font-size:12px;color:#64748b;text-align:center;">
-                This is an automated notification from your service portal.
+            <td style="padding:16px 32px;background:#f5ecd7;border-top:1px solid #e6d9b8;font-size:11px;color:#64748b;text-align:center;letter-spacing:0.05em;">
+                JOBS &middot; INVOICING &middot; MANAGEMENT<br>
+                <span style="color:#94a3b8;">This is an automated notification from 4MAN Services Pro.</span>
             </td>
         </tr>
     </table>
