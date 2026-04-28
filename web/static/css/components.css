@@ -116,23 +116,23 @@
   color: #ffffff;
 }
 
-/* Accent — teal (key CTAs) */
+/* Accent — gold (key CTAs) — navy text for contrast */
 .btn-accent {
   background-color: var(--color-accent);
   border-color: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-primary);
 }
 
 .btn-accent:hover {
   background-color: var(--color-accent-light);
   border-color: var(--color-accent-light);
-  color: #ffffff;
+  color: var(--color-primary);
 }
 
 .btn-accent:active {
   background-color: var(--color-accent-dark);
   border-color: var(--color-accent-dark);
-  color: #ffffff;
+  color: var(--color-primary);
 }
 
 /* Success */
@@ -194,7 +194,7 @@
 
 .btn-outline-accent:hover {
   background-color: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-primary);
 }
 
 .btn-outline-danger {
