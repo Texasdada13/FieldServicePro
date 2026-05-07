@@ -1,26 +1,29 @@
-# Render Blueprint — FieldServicePro
+# Render Blueprint — 4MAN Services Pro (4MAN-SERVICES-PRO branch)
 #
-# This blueprint provisions ONLY the web service.
-# The PostgreSQL database is intentionally NOT defined here — create it
-# separately in the Render dashboard (paid plan recommended) and paste its
-# Internal Connection String into the DATABASE_URL env var below.
+# Provisions:
+#   - Web service          (Python/Flask + gunicorn, plan: starter)
+#   - Persistent disk      (10 GB, mounted for user uploads)
+#   - PostgreSQL database  (plan: basic-256mb — upgrade later in dashboard)
+#
+# DATABASE_URL is auto-wired from the database to the web service via
+# `fromDatabase`, so no manual paste is required.
 
 services:
   - type: web
-    name: fieldservicepro
+    name: 4man-services-pro
     runtime: python
-    plan: starter   # paid plan — upgrade to standard/pro as load grows
-    region: oregon  # change if your DB is in a different region (must match DB region for low-latency Internal URL)
-    branch: master
-    buildCommand: "./build.sh"
+    plan: starter   # web service plan — upgrade to standard/pro as load grows
+    region: oregon  # MUST match database region for the Internal connection string
+    branch: 4MAN-SERVICES-PRO
+    buildCommand: "bash build.sh"
     startCommand: "gunicorn web.app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - --error-logfile -"
     healthCheckPath: /health
     autoDeploy: true
 
-    # Persistent disk for user uploads (job photos, documents, attachments, etc.)
+    # Persistent disk for user uploads (job photos, documents, attachments).
     # Without this, every deploy/restart wipes uploaded files.
     disk:
-      name: fsp-uploads
+      name: 4man-uploads
       mountPath: /var/data/uploads
       sizeGB: 10
 
@@ -38,14 +41,20 @@ services:
       - key: UPLOAD_FOLDER
         value: /var/data/uploads
 
-      # ── Manual / external secrets (set in Render dashboard) ──
-      # Paste the Internal Connection String from your separately-provisioned
-      # Render PostgreSQL instance.
+      # ── Database (auto-wired from the blueprint Postgres below) ──
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: 4man-services-pro-db
+          property: connectionString
 
-      # Anthropic API key — required for AI chat panel; leave unset to disable.
+      # ── Anthropic / AI chat panel ──
+      # Required to enable the chat panel. Without it, /api/chat returns 503
+      # gracefully — the rest of the app continues to work normally.
       - key: ANTHROPIC_API_KEY
+        sync: false
+      # Optional override for the Claude model. Leave unset to use the
+      # in-code default (see src/ai_core/claude_client.py).
+      - key: CLAUDE_MODEL
         sync: false
 
       # Operator-only token to authorize wiping & re-seeding the demo org via
@@ -66,3 +75,11 @@ services:
         sync: false
       - key: MAIL_DEFAULT_SENDER
         sync: false
+
+databases:
+  - name: 4man-services-pro-db
+    databaseName: fourman_services_pro   # actual Postgres database name
+    user: fsp_admin
+    plan: basic-256mb   # Render's smallest paid Postgres tier — upgrade later
+    region: oregon      # MUST match the web service region above
+    ipAllowList: []     # Internal-only: web service connects via private network
